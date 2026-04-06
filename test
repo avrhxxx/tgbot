@@ -1,0 +1,14 @@
+UI = {
+  sendPanel(chatId: number, panel: Panel) => Promise<{ chatId, messageId }>,
+  editPanel(chatId: number, messageId: number, panel: Panel) => Promise<{ chatId, messageId }>,
+  sendThread(chatId: number, threadName: ThreadName) => Promise<void>,
+  sendBroadcast(broadcastId: string) => Promise<void>,
+  renderTemplate(template: string, data: Record<string, any>) => string,
+  mergePanels(panels: Panel[]) => Panel,
+  updateButton(panel: Panel, buttonId: string, newData: Partial<Button>) => Panel,
+  buildPanel(panelData: PanelData) => Panel,          // Panel builder
+  buildButton(buttonData: ButtonData) => Button,      // Button builder
+  buildThread(threadData: ThreadData) => Panel,       // Thread builder
+  buildBroadcast(broadcastData: BroadcastData) => Panel // Broadcast builder
+}
+
