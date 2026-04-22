@@ -1,14 +1,12 @@
 from aiogram import Router
 from aiogram.types import Message
 
-from src.core.actions import Action
 from src.core.dispatcher import dispatch
 from src.core.state import UIState
+from src.core.actions import Action
 
-router: Router = Router()
+router = Router()
 
-
-# 🧠 TEMP: fake state storage (ETAP 2)
 _state_store: dict[int, UIState] = {}
 
 
@@ -16,9 +14,7 @@ _state_store: dict[int, UIState] = {}
 async def process_any_message(message: Message):
     user_id = message.from_user.id
 
-    # =========================
-    # INIT STATE IF NOT EXISTS
-    # =========================
+    # 1. LOAD STATE
     state = _state_store.get(
         user_id,
         UIState(
@@ -28,20 +24,20 @@ async def process_any_message(message: Message):
         ),
     )
 
-    # =========================
-    # CORE DISPATCH LAYER
-    # =========================
-    state = await dispatch(Action.GO_HOME, state)
+    # 2. MAP INPUT → ACTION (NA RAZIE PROSTO)
+    action = Action.from_text(message.text)
 
-    _state_store[user_id] = state
+    # 3. PASS TO ENGINE
+    new_state = await dispatch(action, state)
 
-    # =========================
-    # TEMP RESPONSE (NO UI YET)
-    # =========================
+    # 4. SAVE STATE
+    _state_store[user_id] = new_state
+
+    # 5. RESPONSE
     await message.reply(
         text=(
             f"🧠 STATE UPDATED\n"
-            f"screen: {state.screen}\n"
-            f"role: {state.role}"
+            f"screen: {new_state.screen}\n"
+            f"role: {new_state.role}"
         )
     )
