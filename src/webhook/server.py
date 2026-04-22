@@ -2,7 +2,6 @@ import logging
 import asyncio
 
 from aiohttp import web
-
 from aiogram import Bot, Dispatcher
 from aiogram.types import Update
 
@@ -12,7 +11,6 @@ logger = logging.getLogger(__name__)
 # =========================
 # WEBHOOK SERVER CLASS
 # =========================
-
 class WebhookServer:
     def __init__(self, bot: Bot, dp: Dispatcher, webhook_path: str, secret: str):
         self.bot = bot
@@ -27,10 +25,12 @@ class WebhookServer:
         try:
             data = await request.json()
 
-            # ✅ FIX: aiogram v3 compatible parsing (STABLE VERSION)
-            update = Update(**data)
-
             logger.info("Incoming webhook update: %s", data.get("update_id"))
+
+            # =========================
+            # FIX: proper aiogram v3 parsing
+            # =========================
+            update = Update.model_validate(data)
 
             await self.dp.feed_update(self.bot, update)
 
