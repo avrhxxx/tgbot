@@ -21,58 +21,68 @@ def home_button():
 
 
 # =========================
-# 🏠 HOME KEYBOARD (ROLE-AWARE ONLY)
+# 🏠 HOME KEYBOARD (STABLE ROLE-AWARE VERSION)
 # =========================
 
 def home_keyboard(role: str):
     """
-    role = effective_role (already resolved)
+    role = effective_role (already resolved upstream)
+    deterministic layout, no insert() mutations
     """
 
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                text="📅 Events",
-                callback_data=ActionID.GO_EVENTS
-            ),
-            InlineKeyboardButton(
-                text="⚡ Quick Join",
-                callback_data=ActionID.JOIN_EVENT
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="⚙️ Settings",
-                callback_data=ActionID.GO_SETTINGS
-            ),
-            InlineKeyboardButton(
-                text="❓ Help",
-                callback_data=ActionID.GO_HOME
-            )
-        ]
-    ]
+    rows = []
 
     # =========================
-    # 🧠 ROLE EXTENSIONS
+    # BASE LAYOUT (EVERYONE)
     # =========================
+    rows.append([
+        InlineKeyboardButton(
+            text="📅 Events",
+            callback_data=ActionID.GO_EVENTS
+        ),
+        InlineKeyboardButton(
+            text="⚡ Quick Join",
+            callback_data=ActionID.JOIN_EVENT
+        )
+    ])
 
+    # =========================
+    # SETTINGS ROW (EVERYONE)
+    # =========================
+    rows.append([
+        InlineKeyboardButton(
+            text="⚙️ Settings",
+            callback_data=ActionID.GO_SETTINGS
+        ),
+        InlineKeyboardButton(
+            text="❓ Help",
+            callback_data=ActionID.GO_HOME
+        )
+    ])
+
+    # =========================
+    # 🧭 R4+ FEATURE LAYER
+    # =========================
     if role in ("R4", "R5", "ADMIN"):
-        keyboard.insert(1, [
+        rows.insert(1, [
             InlineKeyboardButton(
                 text="🧭 Event Management",
                 callback_data=ActionID.GO_EVENT_MANAGEMENT
             )
         ])
 
+    # =========================
+    # 👥 R5+ FEATURE LAYER
+    # =========================
     if role in ("R5", "ADMIN"):
-        keyboard.insert(2, [
+        rows.append([
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data=ActionID.GO_HOME
+                callback_data=ActionID.GO_HOME  # placeholder for future action
             )
         ])
 
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 # =========================
