@@ -27,7 +27,10 @@ class WebhookServer:
         try:
             data = await request.json()
 
-            update = Update.model_validate(data)
+            # FIX: aiogram v3 compatible parsing
+            update = Update(**data)
+
+            logger.info("Incoming webhook update: %s", data.get("update_id"))
 
             await self.dp.feed_update(self.bot, update)
 
@@ -60,9 +63,9 @@ class WebhookServer:
 
         await site.start()
 
-        # =====================================
-        # 🧠 CLEAN KEEP ALIVE (SAFE FOR RAILWAY)
-        # =====================================
+        # =========================
+        # KEEP ALIVE LOOP (RAILWAY SAFE)
+        # =========================
         try:
             while True:
                 await asyncio.sleep(3600)
