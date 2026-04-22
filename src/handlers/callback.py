@@ -29,21 +29,21 @@ def map_callback_to_action(data: str | None) -> Action:
 
     mapping = {
         # NAVIGATION (UI → SCREEN ENTRY)
-        "go_home": Action.GO_HOME,
-        "go_events": Action.GO_EVENTS,
-        "go_settings": Action.OPEN_SETTINGS,
-        "back": Action.BACK,
+        "action:go_home": Action.GO_HOME,
+        "action:go_events": Action.GO_EVENTS,
+        "action:go_settings": Action.OPEN_SETTINGS,
+        "action:back": Action.BACK,
 
         # EVENTS DOMAIN ACTIONS
-        "quick_join": Action.JOIN_EVENT,
-        "open_event": Action.OPEN_EVENT,
+        "action:quick_join": Action.JOIN_EVENT,
+        "action:open_event": Action.OPEN_EVENT,
 
         # EVENT MANAGEMENT (R4/R5)
-        "go_event_management": Action.GO_EVENT_MANAGEMENT,
-        "create_event": Action.CREATE_EVENT,
+        "action:go_event_management": Action.GO_EVENT_MANAGEMENT,
+        "action:create_event": Action.CREATE_EVENT,
 
         # SETTINGS DOMAIN
-        "change_game_nick": Action.CHANGE_GAME_NICK,
+        "action:change_game_nick": Action.CHANGE_GAME_NICK,
     }
 
     return mapping.get(data, Action.GO_HOME)
@@ -57,10 +57,10 @@ def handle_demo_switch(user_id: int, data: str) -> bool:
     Returns True if handled as demo action
     """
 
-    if not data.startswith("demo_switch_role:"):
+    if not data.startswith("demo:switch_role:"):
         return False
 
-    role = data.split(":")[1]
+    role = data.split(":")[2]
 
     state_store.set_demo_role(user_id, role)
 
