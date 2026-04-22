@@ -34,7 +34,8 @@ def map_callback_to_action(data: str | None) -> Action:
         return Action.OPEN_EVENT
 
     if data == "go_settings":
-        return Action.GO_HOME  # placeholder (do rozbudowy settings flow)
+        # TODO: implement settings flow
+        return Action.GO_HOME
 
     if data == "back":
         return Action.BACK
@@ -71,10 +72,25 @@ async def process_callback(callback: CallbackQuery):
     # UI RENDER
     screen_payload = resolve_screen(new_state.screen, new_state)
 
-    # EDIT MESSAGE (UX FLOW - NO NEW MESSAGES)
-    await callback.message.edit_text(
-        text=screen_payload.get("text", "No UI"),
-        reply_markup=screen_payload.get("keyboard"),
-    )
+    new_text = screen_payload.get("text", "No UI")
+    new_kb = screen_payload.get("keyboard")
+
+    # =========================
+    # SAFE EDIT (NO TELEGRAM CRASH)
+    # =========================
+    current_text = callback.message.text if callback.message else None
+
+    try:
+        # only update if something actually changed
+        if current_text != new_text:
+            await callback.message.edit_text(
+                text=new_text,
+                reply_markup=new_kb,
+            )
+
+    except Exception as e:
+        # ignore "message is not modified"
+        if "message is not modified" not in str(e):
+            raise
 
     await callback.answer()
