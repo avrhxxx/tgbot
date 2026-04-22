@@ -13,6 +13,9 @@ router = Router()
 async def start_command(message: Message):
     user_id = message.from_user.id
 
+    # =========================
+    # 🧠 INIT STATE (ONLY IF MISSING)
+    # =========================
     state = state_store.get_or_create(
         user_id,
         UIState(
@@ -22,11 +25,16 @@ async def start_command(message: Message):
         ),
     )
 
-    # HOME IS SINGLE SCREEN NOW
-    state.screen = "home"
+    # =========================
+    # 🚫 NIE NADPISUJ TEGO BEZ POWODU
+    # =========================
+    # wcześniej: state.screen = "home" (to było redundantne)
 
     state_store.set(user_id, state)
 
+    # =========================
+    # 🧠 RENDER FIRST SCREEN
+    # =========================
     screen_payload = resolve_screen(state.screen, state)
 
     await message.answer(
