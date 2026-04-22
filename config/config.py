@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import List
+import json
 
 from .base import getenv
 
 
-# =====================================
-# 🔹 TELEGRAM CONFIG
-# =====================================
+# =========================
+# TELEGRAM BOT CONFIG
+# =========================
 
 @dataclass
 class TelegramBotConfig:
@@ -16,30 +16,30 @@ class TelegramBotConfig:
     webhook_secret: str
 
 
-# =====================================
-# 🔹 GOOGLE CONFIG (RAW ONLY)
-# =====================================
+# =========================
+# GOOGLE CONFIG
+# =========================
 
 @dataclass
 class GoogleConfig:
-    service_account: str  # JSON string (Railway env)
+    service_account: str  # JSON string from Railway env
     sheet_id: str
 
 
-# =====================================
-# 🔹 ACCESS CONTROL (RANK SYSTEM)
-# =====================================
+# =========================
+# ACCESS CONTROL
+# =========================
 
 @dataclass
 class AccessConfig:
-    r5_ids: List[int]
-    admin_ids: List[int]
-    group_ids: List[int]
+    r5_ids: list[int]        # game leaders (R5)
+    admin_ids: list[int]     # bot/system admins (separate UI)
+    group_ids: list[int]     # telegram groups / supergroups
 
 
-# =====================================
-# 🔹 ROOT CONFIG
-# =====================================
+# =========================
+# ROOT CONFIG
+# =========================
 
 @dataclass
 class Config:
@@ -48,22 +48,38 @@ class Config:
     access: AccessConfig
 
 
-# =====================================
-# 🔧 HELPERS
-# =====================================
+# =========================
+# HELPERS
+# =========================
 
-def _parse_id_list(value: str | None) -> List[int]:
+def _parse_id_list(value: str | None) -> list[int]:
     """
-    "1,2,3" -> [1,2,3]
+    "123,456,789" -> [123, 456, 789]
     """
     if not value:
         return []
     return [int(x.strip()) for x in value.split(",") if x.strip()]
 
 
-# =====================================
-# 🚀 LOAD CONFIG (RAILWAY READY)
-# =====================================
+def _parse_google_service_account(value: str) -> str:
+    """
+    Validates JSON early (fail fast).
+    We keep it as string for Google client later.
+    """
+    if not value:
+        raise ValueError("GOOGLE_SERVICE_ACCOUNT is missing")
+
+    try:
+        json.loads(value)
+    except Exception as e:
+        raise ValueError("GOOGLE_SERVICE_ACCOUNT is not valid JSON") from e
+
+    return value
+
+
+# =========================
+# LOAD CONFIG
+# =========================
 
 def load_config() -> Config:
     return Config(
@@ -75,7 +91,9 @@ def load_config() -> Config:
         ),
 
         google=GoogleConfig(
-            service_account=getenv("GOOGLE_SERVICE_ACCOUNT"),
+            service_account=_parse_google_service_account(
+                getenv("GOOGLE_SERVICE_ACCOUNT")
+            ),
             sheet_id=getenv("GOOGLE_SHEET_ID"),
         ),
 
