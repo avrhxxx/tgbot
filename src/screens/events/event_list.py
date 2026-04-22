@@ -1,3 +1,4 @@
+
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from src.keyboards.keyboards import back_button
@@ -5,13 +6,13 @@ from src.keyboards.keyboards import back_button
 
 def render_events_list(state):
     """
-    EVENTS LIST SCREEN (v1)
-    Entry point for Events system
+    EVENTS LIST SCREEN
+    Pure entry point to event system (NO ACTION LOGIC)
     """
 
     text = (
         "📡 EVENTS\n\n"
-        "Choose an option below:"
+        "Browse available events or return to home."
     )
 
     keyboard = InlineKeyboardMarkup(
@@ -19,22 +20,12 @@ def render_events_list(state):
             [
                 InlineKeyboardButton(
                     text="📋 View Events",
-                    callback_data="events_view"
+                    callback_data="action:go_events"
                 )
             ],
             [
-                InlineKeyboardButton(
-                    text="⚡ Quick Join",
-                    callback_data="events_quick_join"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="➕ Create Event",
-                    callback_data="events_create"
-                )
-            ],
-            [back_button()]
+                back_button()
+            ]
         ]
     )
 
