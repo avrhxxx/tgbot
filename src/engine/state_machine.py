@@ -1,24 +1,24 @@
-from dataclasses import dataclass
 from typing import Dict, Optional
 
-
-@dataclass
-class Transition:
-    from_screen: str
-    action: str
-    to_screen: str
+from src.ui.definitions.screen_ids import ScreenID
+from src.ui.definitions.action_ids import ActionID
 
 
 class StateMachine:
     """
     Definiuje reguły przejść UI:
-    screen + action => next screen
+    ScreenID + ActionID => ScreenID
     """
 
     def __init__(self):
         self._transitions: Dict[str, Dict[str, str]] = {}
 
-    def add_transition(self, from_screen: str, action: str, to_screen: str):
+    def add_transition(
+        self,
+        from_screen: str,
+        action: str,
+        to_screen: str
+    ):
         if from_screen not in self._transitions:
             self._transitions[from_screen] = {}
 
