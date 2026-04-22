@@ -1,22 +1,30 @@
 from src.engine.state_machine import StateMachine
+from src.ui.definitions.action_ids import ActionID
+from src.ui.definitions.screen_ids import ScreenID
 
 
 def build_state_machine() -> StateMachine:
     sm = StateMachine()
 
+    # =========================
     # HOME
-    sm.add_transition("home_r3", "GO_HOME", "home_r3")
-    sm.add_transition("home_r3", "GO_EVENTS", "events_list")
-    sm.add_transition("home_r3", "GO_SETTINGS", "settings_main")
-    sm.add_transition("home_r3", "BACK", "home_r3")
+    # =========================
+    sm.add_transition(ScreenID.HOME_R3, ActionID.GO_HOME, ScreenID.HOME_R3)
+    sm.add_transition(ScreenID.HOME_R3, ActionID.GO_EVENTS, ScreenID.EVENTS_LIST)
+    sm.add_transition(ScreenID.HOME_R3, ActionID.GO_SETTINGS, ScreenID.SETTINGS_MAIN)
+    sm.add_transition(ScreenID.HOME_R3, ActionID.BACK, ScreenID.HOME_R3)
 
+    # =========================
     # EVENTS
-    sm.add_transition("events_list", "BACK", "home_r3")
-    sm.add_transition("events_list", "GO_HOME", "home_r3")
-    sm.add_transition("events_list", "GO_EVENTS", "events_list")
+    # =========================
+    sm.add_transition(ScreenID.EVENTS_LIST, ActionID.BACK, ScreenID.HOME_R3)
+    sm.add_transition(ScreenID.EVENTS_LIST, ActionID.GO_HOME, ScreenID.HOME_R3)
+    sm.add_transition(ScreenID.EVENTS_LIST, ActionID.GO_EVENTS, ScreenID.EVENTS_LIST)
 
+    # =========================
     # SETTINGS
-    sm.add_transition("settings_main", "BACK", "home_r3")
-    sm.add_transition("settings_main", "GO_HOME", "home_r3")
+    # =========================
+    sm.add_transition(ScreenID.SETTINGS_MAIN, ActionID.BACK, ScreenID.HOME_R3)
+    sm.add_transition(ScreenID.SETTINGS_MAIN, ActionID.GO_HOME, ScreenID.HOME_R3)
 
     return sm
