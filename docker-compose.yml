@@ -5,6 +5,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env
     command: ["python", "./bot.py"]
+    ports:
+      - "8080:8080"
