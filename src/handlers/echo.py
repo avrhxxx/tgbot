@@ -6,15 +6,19 @@ from src.core.actions import Action
 from src.core.router import resolve_screen
 
 from src.engine.action_handler import ActionHandler
-from src.engine.transition_engine import TransitionEngine
 from src.engine.bootstrap_state_machine import build_state_machine
+from src.engine.transition_engine import TransitionEngine
 
 router = Router()
 
+# =========================
+# 🧠 ENGINE (OK NA TEN ETAP)
+# =========================
 state_machine = build_state_machine()
 transition_engine = TransitionEngine(state_machine)
 handler = ActionHandler(transition_engine)
 
+# ⚠️ TEMP STATE STORE (OK DO DEMO, ALE PÓŹNIEJ ZUNIFIKUJEMY)
 _state_store: dict[int, UIState] = {}
 
 
@@ -40,6 +44,9 @@ def map_text_to_action(text: str | None) -> Action:
 async def process_any_message(message: Message):
     user_id = message.from_user.id
 
+    # =========================
+    # LOAD STATE
+    # =========================
     state = _state_store.get(
         user_id,
         UIState(
@@ -49,16 +56,24 @@ async def process_any_message(message: Message):
         ),
     )
 
+    # =========================
+    # ACTION
+    # =========================
     action = map_text_to_action(message.text)
 
+    # =========================
+    # FSM TRANSITION
+    # =========================
     new_state = await handler.handle(state, action)
 
     _state_store[user_id] = new_state
 
-    # 🧠 UI LAYER
+    # =========================
+    # UI RENDER
+    # =========================
     screen_payload = resolve_screen(new_state.screen, new_state)
 
     await message.reply(
         text=screen_payload.get("text", "No UI"),
-        reply_markup=screen_payload.get("keyboard")
+        reply_markup=screen_payload.get("keyboard"),
     )
