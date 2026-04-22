@@ -11,9 +11,6 @@ _state_store: dict[int, UIState] = {}
 
 
 def map_text_to_action(text: str | None) -> Action:
-    """
-    ETAP 3 SAFE MAPPER (temporary)
-    """
     if not text:
         return Action.GO_HOME
 
@@ -35,7 +32,7 @@ def map_text_to_action(text: str | None) -> Action:
 async def process_any_message(message: Message):
     user_id = message.from_user.id
 
-    # 1. LOAD STATE
+    # LOAD STATE
     state = _state_store.get(
         user_id,
         UIState(
@@ -45,16 +42,16 @@ async def process_any_message(message: Message):
         ),
     )
 
-    # 2. SAFE MAP INPUT → ACTION
+    # MAP INPUT → ACTION
     action = map_text_to_action(message.text)
 
-    # 3. ENGINE
-    new_state = await dispatch(action, state)
+    # DISPATCH
+    new_state = dispatch(action, state)
 
-    # 4. SAVE
+    # SAVE STATE
     _state_store[user_id] = new_state
 
-    # 5. RESPONSE
+    # RESPONSE
     await message.reply(
         text=(
             f"🧠 STATE UPDATED\n"
