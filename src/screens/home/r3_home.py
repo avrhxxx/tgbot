@@ -3,12 +3,12 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def render_home_r3(state):
     """
-    UI dla HOME R3
+    HOME R3 UI
     """
 
     text = (
         "🏠 HOME R3\n\n"
-        "Wybierz opcję:"
+        "Choose an option:"
     )
 
     keyboard = InlineKeyboardMarkup(
