@@ -10,7 +10,7 @@ class ImproperlyConfigured(Exception):
         super().__init__(self.message, *args, **kwargs)
 
 
-def getenv(var_name: str, cast_to=str) -> str:
+def getenv(var_name: str, cast_to=str):
     """Gets an environment variable or raises an exception.
 
     Args:
@@ -30,3 +30,28 @@ def getenv(var_name: str, cast_to=str) -> str:
         raise ImproperlyConfigured(var_name)
     except ValueError:
         raise ValueError(f"The value {value} can't be cast to {cast_to}.")
+
+
+# =========================
+# SAFE BOOL PARSER (NEW)
+# =========================
+
+def getenv_bool(var_name: str, default: bool = False) -> bool:
+    """
+    Safe boolean environment parser.
+
+    Accepts:
+    - "true", "1", "yes", "y", "on" → True
+    - "false", "0", "no", "n", "off" → False
+    """
+    try:
+        value = os.environ[var_name].strip().lower()
+    except KeyError:
+        return default
+
+    if value in ("true", "1", "yes", "y", "on"):
+        return True
+    if value in ("false", "0", "no", "n", "off"):
+        return False
+
+    raise ValueError(f"Invalid boolean value for {var_name}: {value}")
