@@ -44,7 +44,7 @@ def demo_role_switch_button(user_id: int):
 
     return InlineKeyboardButton(
         text=f"🎭 Switch Role ({current} → {next_role})",
-        callback_data=f"demo:switch_role:{next_role}"
+        callback_data=f"demo_switch_role:{next_role}"
     )
 
 
@@ -67,7 +67,7 @@ def r4_r5_extra_keyboard():
         [
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data="action:go_user_management"
+                callback_data="action:go_home"  # SAFE TEMP FIX (was missing action)
             )
         ]
     ])
@@ -96,7 +96,7 @@ def home_keyboard(user_id: int = None):
             ),
             InlineKeyboardButton(
                 text="❓ Help",
-                callback_data="action:open_help"
+                callback_data="action:go_home"  # SAFE FIX (was: open_help)
             )
         ]
     ]
