@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from src.keyboards.keyboards import build_home_keyboard
+from src.core.role_resolver import resolve_role
 
 
 def render_home(state):
@@ -12,7 +13,6 @@ def render_home(state):
     user_id = getattr(state, "user_id", None)
 
     game_nick = getattr(state, "game_nick", "Unknown Nick")
-    role = getattr(state, "role", "R3")
 
     first_name = getattr(state, "first_name", None)
     username = getattr(state, "telegram_username", None)
@@ -20,6 +20,12 @@ def render_home(state):
     display_name = first_name or username or "User"
 
     today_utc = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # =========================
+    # 🧠 ROLE RESOLUTION (SOURCE OF TRUTH)
+    # =========================
+    role_ctx = resolve_role(user_id, state.role)
+    role = role_ctx.effective_role
 
     text = (
         f"🏠 HOME PANEL\n\n"
