@@ -4,6 +4,7 @@ from aiogram.types import CallbackQuery
 from src.core.state import UIState
 from src.core.actions import Action
 from src.core.router import resolve_screen
+from src.core.state_store import state_store
 
 from src.engine.action_handler import ActionHandler
 from src.engine.bootstrap_state_machine import build_state_machine
@@ -12,13 +13,11 @@ from src.engine.transition_engine import TransitionEngine
 router = Router()
 
 # =========================
-# ENGINE (TA SAMA LOGIKA CO W echo.py)
+# ENGINE (SINGLE SOURCE OF TRUTH)
 # =========================
 state_machine = build_state_machine()
 transition_engine = TransitionEngine(state_machine)
 handler = ActionHandler(transition_engine)
-
-_state_store: dict[int, UIState] = {}
 
 
 # =========================
@@ -35,7 +34,7 @@ def map_callback_to_action(data: str | None) -> Action:
         return Action.OPEN_EVENT
 
     if data == "go_settings":
-        return Action.BACK  # (na razie placeholder, możesz później rozdzielić)
+        return Action.GO_HOME  # placeholder (do rozbudowy settings flow)
 
     if data == "back":
         return Action.BACK
@@ -50,8 +49,8 @@ def map_callback_to_action(data: str | None) -> Action:
 async def process_callback(callback: CallbackQuery):
     user_id = callback.from_user.id
 
-    # LOAD STATE (tymczasowo memory, potem przeniesiemy do shared store)
-    state = _state_store.get(
+    # LOAD STATE (GLOBAL STATE STORE)
+    state = state_store.get_or_create(
         user_id,
         UIState(
             user_id=user_id,
@@ -66,12 +65,13 @@ async def process_callback(callback: CallbackQuery):
     # FSM TRANSITION
     new_state = await handler.handle(state, action)
 
-    _state_store[user_id] = new_state
+    # SAVE STATE
+    state_store.set(user_id, new_state)
 
     # UI RENDER
     screen_payload = resolve_screen(new_state.screen, new_state)
 
-    # EDIT MESSAGE (ważne dla UX)
+    # EDIT MESSAGE (UX FLOW - NO NEW MESSAGES)
     await callback.message.edit_text(
         text=screen_payload.get("text", "No UI"),
         reply_markup=screen_payload.get("keyboard"),
