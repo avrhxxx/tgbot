@@ -1,69 +1,31 @@
-from dataclasses import dataclass, field
-from typing import Any, Dict
+from dataclasses import dataclass
+from typing import Dict, Optional
 
-
-# =========================
-# UI STATE OBJECT
-# =========================
 
 @dataclass
-class UIState:
-    screen: str
-    role: str
-    data: Dict[str, Any] = field(default_factory=dict)
+class Transition:
+    from_screen: str
+    action: str
+    to_screen: str
 
-
-# =========================
-# STATE MACHINE
-# =========================
 
 class StateMachine:
+    """
+    Definiuje reguły przejść UI:
+    screen + action => next screen
+    """
+
     def __init__(self):
-        self._state: UIState | None = None
+        self._transitions: Dict[str, Dict[str, str]] = {}
 
-    # -------------------------
-    # GET CURRENT STATE
-    # -------------------------
-    def get_state(self) -> UIState | None:
-        return self._state
+    def add_transition(self, from_screen: str, action: str, to_screen: str):
+        if from_screen not in self._transitions:
+            self._transitions[from_screen] = {}
 
-    # -------------------------
-    # SET INITIAL STATE
-    # -------------------------
-    def init_state(self, screen: str = "home_r3", role: str = "R3"):
-        self._state = UIState(
-            screen=screen,
-            role=role,
-            data={}
-        )
+        self._transitions[from_screen][action] = to_screen
 
-        return self._state
+    def get_next_screen(self, current_screen: str, action: str) -> Optional[str]:
+        return self._transitions.get(current_screen, {}).get(action)
 
-    # -------------------------
-    # UPDATE STATE
-    # -------------------------
-    def update_state(
-        self,
-        screen: str | None = None,
-        role: str | None = None,
-        data: Dict[str, Any] | None = None,
-    ) -> UIState:
-        if self._state is None:
-            self.init_state()
-
-        if screen:
-            self._state.screen = screen
-
-        if role:
-            self._state.role = role
-
-        if data:
-            self._state.data.update(data)
-
-        return self._state
-
-    # -------------------------
-    # RESET STATE
-    # -------------------------
-    def reset(self):
-        self._state = None
+    def can_transition(self, current_screen: str, action: str) -> bool:
+        return action in self._transitions.get(current_screen, {})
