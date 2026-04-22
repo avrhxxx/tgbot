@@ -1,7 +1,7 @@
-
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from src.keyboards.keyboards import back_button
+from src.ui.definitions.action_ids import ActionID
 
 
 def render_events_list(state):
@@ -20,7 +20,7 @@ def render_events_list(state):
             [
                 InlineKeyboardButton(
                     text="📋 View Events",
-                    callback_data="action:go_events"
+                    callback_data=ActionID.GO_EVENTS
                 )
             ],
             [
