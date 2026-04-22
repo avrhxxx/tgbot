@@ -12,14 +12,14 @@ config = load_config()
 def back_button():
     return InlineKeyboardButton(
         text="⬅️ Back",
-        callback_data="back"
+        callback_data="action:back"
     )
 
 
 def home_button():
     return InlineKeyboardButton(
         text="🏠 Home",
-        callback_data="go_home"
+        callback_data="action:go_home"
     )
 
 
@@ -44,7 +44,7 @@ def demo_role_switch_button(user_id: int):
 
     return InlineKeyboardButton(
         text=f"🎭 Switch Role ({current} → {next_role})",
-        callback_data=f"demo_switch_role:{next_role}"
+        callback_data=f"demo:switch_role:{next_role}"
     )
 
 
@@ -61,13 +61,13 @@ def r4_r5_extra_keyboard():
         [
             InlineKeyboardButton(
                 text="🧭 Event Management",
-                callback_data="go_event_management"
+                callback_data="action:go_event_management"
             )
         ],
         [
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data="go_user_management"
+                callback_data="action:go_user_management"
             )
         ]
     ])
@@ -82,13 +82,13 @@ def home_keyboard(user_id: int = None):
         [
             InlineKeyboardButton(
                 text="📡 Events",
-                callback_data="go_events"
+                callback_data="action:go_events"
             )
         ],
         [
             InlineKeyboardButton(
                 text="⚙️ Settings",
-                callback_data="go_settings"
+                callback_data="action:go_settings"
             )
         ]
     ]
