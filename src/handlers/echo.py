@@ -1,13 +1,20 @@
 from aiogram import Router
 from aiogram.types import Message
 
-from src.core.dispatcher import dispatch
 from src.core.state import UIState
 from src.core.actions import Action
+from src.engine.transition_engine import TransitionEngine
+from src.engine.state_machine import StateMachine
+from src.engine.action_handler import ActionHandler
 
 router = Router()
 
 _state_store: dict[int, UIState] = {}
+
+# ENGINE INIT (na razie lokalnie, potem przeniesiemy do bootstrap)
+state_machine = StateMachine()
+transition_engine = TransitionEngine(state_machine)
+handler = ActionHandler(transition_engine)
 
 
 def map_text_to_action(text: str | None) -> Action:
@@ -32,7 +39,6 @@ def map_text_to_action(text: str | None) -> Action:
 async def process_any_message(message: Message):
     user_id = message.from_user.id
 
-    # LOAD STATE
     state = _state_store.get(
         user_id,
         UIState(
@@ -42,16 +48,13 @@ async def process_any_message(message: Message):
         ),
     )
 
-    # MAP INPUT → ACTION
     action = map_text_to_action(message.text)
 
-    # DISPATCH
-    new_state = dispatch(action, state)
+    # 🔥 NOWY FLOW (poprawny)
+    new_state = await handler.handle(state, action)
 
-    # SAVE STATE
     _state_store[user_id] = new_state
 
-    # RESPONSE
     await message.reply(
         text=(
             f"🧠 STATE UPDATED\n"
