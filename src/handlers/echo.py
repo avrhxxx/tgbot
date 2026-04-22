@@ -3,18 +3,21 @@ from aiogram.types import Message
 
 from src.core.state import UIState
 from src.core.actions import Action
-from src.engine.transition_engine import TransitionEngine
-from src.engine.state_machine import StateMachine
+
 from src.engine.action_handler import ActionHandler
+from src.engine.transition_engine import TransitionEngine
+from src.engine.bootstrap_state_machine import build_state_machine
 
 router = Router()
 
-_state_store: dict[int, UIState] = {}
-
-# ENGINE INIT (na razie lokalnie, potem przeniesiemy do bootstrap)
-state_machine = StateMachine()
+# =========================
+# 🧠 SINGLE SOURCE OF TRUTH FSM
+# =========================
+state_machine = build_state_machine()
 transition_engine = TransitionEngine(state_machine)
 handler = ActionHandler(transition_engine)
+
+_state_store: dict[int, UIState] = {}
 
 
 def map_text_to_action(text: str | None) -> Action:
@@ -50,7 +53,6 @@ async def process_any_message(message: Message):
 
     action = map_text_to_action(message.text)
 
-    # 🔥 NOWY FLOW (poprawny)
     new_state = await handler.handle(state, action)
 
     _state_store[user_id] = new_state
