@@ -24,10 +24,10 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
     "home_r5": render_home_r5,
 
     # EVENTS
-    "events_list": render_events_list,
+    "events": render_events_list,
 
     # SETTINGS
-    "settings_main": render_settings_main,
+    "settings": render_settings_main,
 }
 
 
