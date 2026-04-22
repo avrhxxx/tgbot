@@ -12,17 +12,11 @@ from src.engine.transition_engine import TransitionEngine
 
 router = Router()
 
-# =========================
-# ENGINE (SINGLE SOURCE OF TRUTH)
-# =========================
 state_machine = build_state_machine()
 transition_engine = TransitionEngine(state_machine)
 handler = ActionHandler(transition_engine)
 
 
-# =========================
-# CALLBACK → ACTION MAP
-# =========================
 def map_callback_to_action(data: str | None) -> Action:
     if not data:
         return Action.GO_HOME
@@ -30,21 +24,17 @@ def map_callback_to_action(data: str | None) -> Action:
     mapping = {
         "go_home": Action.GO_HOME,
         "go_events": Action.OPEN_EVENT,
-        "go_settings": Action.GO_HOME,  # placeholder
+        "go_settings": Action.GO_HOME,
         "back": Action.BACK,
     }
 
     return mapping.get(data, Action.GO_HOME)
 
 
-# =========================
-# MAIN HANDLER
-# =========================
 @router.callback_query(F.data)
 async def process_callback(callback: CallbackQuery):
     user_id = callback.from_user.id
 
-    # LOAD STATE
     state = state_store.get_or_create(
         user_id,
         UIState(
@@ -54,46 +44,17 @@ async def process_callback(callback: CallbackQuery):
         ),
     )
 
-    # ACTION
     action = map_callback_to_action(callback.data)
 
-    # =========================
-    # BACK HANDLING (NAV STACK OVERRIDE)
-    # =========================
-    if action == Action.BACK:
-        history = getattr(state, "history", [])
-
-        if history:
-            state.screen = history.pop()
-            state_store.set(user_id, state)
-
-            screen_payload = resolve_screen(state.screen, state)
-
-            await callback.message.edit_text(
-                text=screen_payload.get("text", "No UI"),
-                reply_markup=screen_payload.get("keyboard"),
-            )
-
-        await callback.answer()
-        return
-
-    # =========================
-    # FSM TRANSITION (FORWARD ONLY)
-    # =========================
     new_state = await handler.handle(state, action)
 
-    # SAVE STATE
     state_store.set(user_id, new_state)
 
-    # RENDER UI
     screen_payload = resolve_screen(new_state.screen, new_state)
 
     new_text = screen_payload.get("text", "No UI")
     new_kb = screen_payload.get("keyboard")
 
-    # =========================
-    # SAFE UI UPDATE (NO DUPLICATES)
-    # =========================
     current_text = callback.message.text if callback.message else None
     current_kb = callback.message.reply_markup if callback.message else None
 
