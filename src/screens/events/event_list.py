@@ -12,7 +12,6 @@ def render_events_list(state, role):
 
     text = (
         "📡 EVENTS\n\n"
-        f"Role: {role}\n\n"
         "Browse available events or return to home."
     )
 
