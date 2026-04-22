@@ -4,7 +4,8 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from config import load_config
-from src.handlers import echo, callback
+
+from src.handlers import callback, start
 
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
@@ -33,9 +34,9 @@ async def main():
     dp = Dispatcher()
 
     # =========================
-    # ROUTERS (WAŻNE)
+    # ROUTERS
     # =========================
-    dp.include_router(echo.router)
+    dp.include_router(start.router)
     dp.include_router(callback.router)
 
     # =========================
