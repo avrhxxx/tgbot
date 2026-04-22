@@ -7,7 +7,7 @@ config = load_config()
 
 
 # =========================
-# 🧭 GLOBAL BUTTONS
+# 🧭 GLOBAL NAVIGATION KEYS
 # =========================
 
 def back_button():
@@ -25,7 +25,7 @@ def home_button():
 
 
 # =========================
-# 🎭 DEMO ROLE SWITCH
+# 🎭 DEMO SWITCH (CORE FEATURE)
 # =========================
 
 def demo_role_switch_button(user_id: int):
@@ -46,90 +46,88 @@ def demo_role_switch_button(user_id: int):
 
 
 # =========================
-# 🧠 HOME KEYBOARD FACTORY
+# 🏠 HOME KEYBOARD (R3 / R4 / R5 = IDENTICAL UI)
 # =========================
 
-def home_keyboard(role: str, user_id: int = None):
-    if role == "R3":
-        return _home_keyboard_r3(user_id)
+def home_keyboard(user_id: int | None = None, role: str | None = None):
+    """
+    role jest opcjonalny (UI nie zależy od niego)
+    """
 
-    # R4 + R5 share same UI base
-    return _home_keyboard_admin(user_id, role)
-
-
-# =========================
-# 🟢 R3 HOME (USER)
-# =========================
-
-def _home_keyboard_r3(user_id: int = None):
     keyboard = [
         [
-            InlineKeyboardButton("📅 Events", callback_data=ActionID.GO_EVENTS),
-            InlineKeyboardButton("⚡ Quick Join", callback_data=ActionID.JOIN_EVENT),
+            InlineKeyboardButton(
+                text="📅 Events",
+                callback_data=ActionID.GO_EVENTS
+            ),
+            InlineKeyboardButton(
+                text="⚡ Quick Join",
+                callback_data=ActionID.JOIN_EVENT
+            )
         ],
         [
-            InlineKeyboardButton("⚙️ Settings", callback_data=ActionID.GO_SETTINGS),
-            InlineKeyboardButton("❓ Help", callback_data=ActionID.GO_HOME),
-        ],
+            InlineKeyboardButton(
+                text="⚙️ Settings",
+                callback_data=ActionID.GO_SETTINGS
+            ),
+            InlineKeyboardButton(
+                text="❓ Help",
+                callback_data=ActionID.GO_HOME
+            )
+        ]
     ]
 
-    if config.features.demo_mode and user_id:
-        keyboard.insert(0, [demo_role_switch_button(user_id)])
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
-# =========================
-# 🟡 ADMIN HOME (R4 + R5)
-# =========================
-
-def _home_keyboard_admin(user_id: int = None, role: str = "R4"):
-    keyboard = [
-        [
-            InlineKeyboardButton("🧭 Event Management", callback_data=ActionID.GO_EVENT_MANAGEMENT),
-        ],
-        [
-            InlineKeyboardButton("👥 User Management", callback_data=ActionID.GO_HOME),
-        ],
-        [
-            InlineKeyboardButton("🧪 Pre-Register User", callback_data=ActionID.GO_HOME),
-        ],
-    ]
-
-    # =========================
-    # 🔴 R5 ONLY (permission overlay)
-    # =========================
-    if role == "R5":
-        keyboard.append([
-            InlineKeyboardButton("⚡ Emergency Override", callback_data=ActionID.GO_HOME),
+    # DEMO MODE GATE
+    if config.features.demo_mode and user_id is not None:
+        keyboard.insert(0, [
+            demo_role_switch_button(user_id)
         ])
 
-    keyboard.append([
-        InlineKeyboardButton("⚙️ Settings", callback_data=ActionID.GO_SETTINGS),
-        InlineKeyboardButton("🏠 Home", callback_data=ActionID.GO_HOME),
-    ])
-
-    if config.features.demo_mode and user_id:
-        keyboard.insert(0, [demo_role_switch_button(user_id)])
-
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 # =========================
-# 📡 EVENTS
+# 🧭 R4 / R5 EXTRA PANEL (OPTIONAL EXTENSIONS ONLY)
+# =========================
+
+def r4_r5_extra_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🧭 Event Management",
+                callback_data=ActionID.GO_EVENT_MANAGEMENT
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="👥 User Management",
+                callback_data=ActionID.GO_HOME
+            )
+        ]
+    ])
+
+
+# =========================
+# 📡 EVENTS KEYBOARD
 # =========================
 
 def events_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [back_button(), home_button()]
+        [
+            back_button(),
+            home_button()
+        ]
     ])
 
 
 # =========================
-# ⚙️ SETTINGS
+# ⚙️ SETTINGS KEYBOARD
 # =========================
 
 def settings_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [back_button(), home_button()]
+        [
+            back_button(),
+            home_button()
+        ]
     ])
