@@ -12,14 +12,14 @@ config = load_config()
 def back_button():
     return InlineKeyboardButton(
         text="⬅️ Back",
-        callback_data="action:back"
+        callback_data="back"
     )
 
 
 def home_button():
     return InlineKeyboardButton(
         text="🏠 Home",
-        callback_data="action:go_home"
+        callback_data="go_home"
     )
 
 
@@ -53,21 +53,17 @@ def demo_role_switch_button(user_id: int):
 # =========================
 
 def r4_r5_extra_keyboard():
-    """
-    Extra admin/officer tools (ONLY R4 / R5 UI extension)
-    """
-
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
                 text="🧭 Event Management",
-                callback_data="action:go_event_management"
+                callback_data="go_event_management"
             )
         ],
         [
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data="action:go_home"  # SAFE TEMP FIX (was missing action)
+                callback_data="go_home"
             )
         ]
     ])
@@ -82,27 +78,27 @@ def home_keyboard(user_id: int = None):
         [
             InlineKeyboardButton(
                 text="📅 Events",
-                callback_data="action:go_events"
+                callback_data="go_events"
             ),
             InlineKeyboardButton(
                 text="⚡ Quick Join",
-                callback_data="action:quick_join"
+                callback_data="quick_join"
             )
         ],
         [
             InlineKeyboardButton(
                 text="⚙️ Settings",
-                callback_data="action:go_settings"
+                callback_data="go_settings"
             ),
             InlineKeyboardButton(
                 text="❓ Help",
-                callback_data="action:go_home"  # SAFE FIX (was: open_help)
+                callback_data="go_home"
             )
         ]
     ]
 
     # =========================
-    # DEMO MODE GATE (DO NOT TOUCH)
+    # DEMO MODE GATE
     # =========================
     if config.features.demo_mode and user_id is not None:
         keyboard.insert(0, [
