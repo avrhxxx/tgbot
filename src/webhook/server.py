@@ -1,4 +1,6 @@
 import logging
+import asyncio
+
 from aiohttp import web
 
 from aiogram import Bot, Dispatcher
@@ -58,6 +60,13 @@ class WebhookServer:
 
         await site.start()
 
-        # keep alive
-        while True:
-            await asyncio.sleep(3600)
+        # =====================================
+        # 🧠 CLEAN KEEP ALIVE (SAFE FOR RAILWAY)
+        # =====================================
+        try:
+            while True:
+                await asyncio.sleep(3600)
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            logger.info("Shutting down webhook server...")
+
+        await runner.cleanup()
