@@ -10,6 +10,9 @@ from src.engine.action_handler import ActionHandler
 from src.engine.bootstrap_state_machine import build_state_machine
 from src.engine.transition_engine import TransitionEngine
 
+# NEW: UI CONTRACT LAYER
+from src.ui.definitions.action_ids import ActionID
+
 router = Router()
 
 # =========================
@@ -21,32 +24,30 @@ handler = ActionHandler(transition_engine)
 
 
 # =========================
-# CALLBACK → ACTION MAP
+# UI ID → ACTION MAP (NEW CONTRACT BRIDGE)
 # =========================
-def map_callback_to_action(data: str | None) -> Action:
-    if not data:
-        return Action.GO_HOME
+UI_TO_ACTION_MAP = {
+    # NAVIGATION
+    ActionID.GO_HOME: Action.GO_HOME,
+    ActionID.GO_EVENTS: Action.GO_EVENTS,
+    ActionID.GO_SETTINGS: Action.GO_SETTINGS,
+    ActionID.BACK: Action.BACK,
 
-    mapping = {
-        # NAVIGATION (UI → SCREEN ENTRY)
-        "action:go_home": Action.GO_HOME,
-        "action:go_events": Action.GO_EVENTS,
-        "action:go_settings": Action.GO_SETTINGS,
-        "action:back": Action.BACK,
+    # EVENTS
+    ActionID.JOIN_EVENT: Action.JOIN_EVENT,
+    ActionID.OPEN_EVENT: Action.OPEN_EVENT,
+    ActionID.LEAVE_EVENT: Action.LEAVE_EVENT,
 
-        # EVENTS DOMAIN ACTIONS
-        "action:quick_join": Action.JOIN_EVENT,
-        "action:open_event": Action.OPEN_EVENT,
+    # EVENT MANAGEMENT
+    ActionID.GO_EVENT_MANAGEMENT: Action.GO_EVENT_MANAGEMENT,
+    ActionID.CREATE_EVENT: Action.CREATE_EVENT,
 
-        # EVENT MANAGEMENT (R4/R5)
-        "action:go_event_management": Action.GO_EVENT_MANAGEMENT,
-        "action:create_event": Action.CREATE_EVENT,
+    # SETTINGS
+    ActionID.CHANGE_GAME_NICK: Action.CHANGE_GAME_NICK,
 
-        # SETTINGS DOMAIN
-        "action:change_game_nick": Action.CHANGE_GAME_NICK,
-    }
-
-    return mapping.get(data, Action.GO_HOME)
+    # DEMO
+    ActionID.DEMO_SWITCH_ROLE: Action.DEMO_SWITCH_ROLE,
+}
 
 
 # =========================
@@ -61,7 +62,6 @@ def handle_demo_switch(user_id: int, data: str) -> bool:
         return False
 
     role = data.split(":")[2]
-
     state_store.set_demo_role(user_id, role)
 
     return True
@@ -79,7 +79,6 @@ async def process_callback(callback: CallbackQuery):
     # DEMO MODE BRANCH (PRE-FSM)
     # =========================
     if handle_demo_switch(user_id, data):
-
         state = state_store.get(user_id)
 
         if state:
@@ -106,9 +105,13 @@ async def process_callback(callback: CallbackQuery):
     )
 
     # =========================
-    # MAP CALLBACK → ACTION
+    # UI → ACTION RESOLVE (NEW SYSTEM)
     # =========================
-    action = map_callback_to_action(data)
+    action = UI_TO_ACTION_MAP.get(data)
+
+    if action is None:
+        await callback.answer()
+        return
 
     # =========================
     # FSM TRANSITION
@@ -136,7 +139,6 @@ async def process_callback(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # SAFE EDIT
     try:
         await callback.message.edit_text(
             text=new_text,
