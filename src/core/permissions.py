@@ -5,33 +5,21 @@ ROLE_HIERARCHY = {
 }
 
 
-def can_access(
-    user_role: str,
-    required_role: str,
-    *,
-    demo_mode: bool = False,
-    demo_override_role: str | None = None
-) -> bool:
+def can_access(user_role: str, required_role: str) -> bool:
     """
-    Access control with optional demo override.
+    Pure permission check (production-safe).
 
     Rules:
-    - normal mode → strict hierarchy
-    - demo mode → optional role override for UI testing
+    - no feature flags
+    - no demo logic
+    - strict hierarchy comparison
+    - fails safely on invalid roles
     """
 
     # =========================
-    # DEMO MODE OVERRIDE
+    # SAFETY GUARDS
     # =========================
-    if demo_mode and demo_override_role:
-        effective_role = demo_override_role
-    else:
-        effective_role = user_role
-
-    # =========================
-    # SAFETY GUARD
-    # =========================
-    if effective_role not in ROLE_HIERARCHY:
+    if user_role not in ROLE_HIERARCHY:
         return False
 
     if required_role not in ROLE_HIERARCHY:
@@ -40,4 +28,4 @@ def can_access(
     # =========================
     # ACCESS CHECK
     # =========================
-    return ROLE_HIERARCHY[effective_role] >= ROLE_HIERARCHY[required_role]
+    return ROLE_HIERARCHY[user_role] >= ROLE_HIERARCHY[required_role]
