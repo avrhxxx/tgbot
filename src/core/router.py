@@ -14,7 +14,7 @@ ScreenRenderer = Callable[[Any, str], dict]
 
 
 # =========================
-# 🧠 SCREEN REGISTRY (CLEAN)
+# 🧠 SCREEN REGISTRY
 # =========================
 SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
     ScreenID.HOME: render_home,
@@ -27,7 +27,7 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
 # 🧭 RESOLVER
 # =========================
 def resolve_screen(screen_id: str, state=None):
-    config = load_config()
+    load_config()  # zostawiamy jeśli masz side-effects (jeśli nie → można usunąć)
 
     renderer = SCREEN_RENDERERS.get(screen_id)
 
@@ -43,11 +43,15 @@ def resolve_screen(screen_id: str, state=None):
             "keyboard": None,
         }
 
-    # role resolution
-    role_ctx = resolve_role(state.user_id, state.role)
+    # =========================
+    # 🧠 ROLE RESOLUTION (NEW CLEAN API)
+    # =========================
+    role_ctx = resolve_role(state)
     effective_role = role_ctx.effective_role
 
-    # render
+    # =========================
+    # 🎨 RENDER SCREEN
+    # =========================
     payload = renderer(state, effective_role)
 
     return payload
