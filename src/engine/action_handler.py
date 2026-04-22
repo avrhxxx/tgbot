@@ -13,17 +13,13 @@ class ActionHandler:
 
     async def handle(self, state, action: Action):
         """
-        UI Action → State Transition
+        UI Action → State Transition (FULL TYPE-SAFE FLOW)
         """
 
-        # 🔥 NORMALIZATION
-        if isinstance(action, Action):
-            action = action.value
-
         # =========================
-        # BACK LOGIC (NAVIGATION STACK)
+        # 🧭 BACK LOGIC (NAVIGATION STACK)
         # =========================
-        if action == Action.BACK.value:
+        if action == Action.BACK:
             history = getattr(state, "history", [])
 
             if history:
@@ -34,15 +30,17 @@ class ActionHandler:
             return state
 
         # =========================
-        # FORWARD NAVIGATION
+        # 🧭 FORWARD NAVIGATION STACK
         # =========================
         history = getattr(state, "history", [])
 
-        # push current screen before transition
+        # zapisz aktualny screen przed zmianą
         history.append(state.screen)
         state.history = history
 
-        # FSM transition
+        # =========================
+        # 🔥 FSM TRANSITION
+        # =========================
         new_state = self.transition_engine.transition(state, action)
 
         return new_state
