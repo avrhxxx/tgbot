@@ -12,11 +12,17 @@ from src.engine.transition_engine import TransitionEngine
 
 router = Router()
 
+# =========================
+# ENGINE INIT (SINGLE SOURCE OF TRUTH)
+# =========================
 state_machine = build_state_machine()
 transition_engine = TransitionEngine(state_machine)
 handler = ActionHandler(transition_engine)
 
 
+# =========================
+# CALLBACK → ACTION MAP
+# =========================
 def map_callback_to_action(data: str | None) -> Action:
     if not data:
         return Action.GO_HOME
@@ -24,17 +30,21 @@ def map_callback_to_action(data: str | None) -> Action:
     mapping = {
         "go_home": Action.GO_HOME,
         "go_events": Action.OPEN_EVENT,
-        "go_settings": Action.GO_HOME,
+        "go_settings": Action.OPEN_SETTINGS,
         "back": Action.BACK,
     }
 
     return mapping.get(data, Action.GO_HOME)
 
 
+# =========================
+# MAIN HANDLER
+# =========================
 @router.callback_query(F.data)
 async def process_callback(callback: CallbackQuery):
     user_id = callback.from_user.id
 
+    # LOAD STATE
     state = state_store.get_or_create(
         user_id,
         UIState(
@@ -44,12 +54,16 @@ async def process_callback(callback: CallbackQuery):
         ),
     )
 
+    # MAP ACTION
     action = map_callback_to_action(callback.data)
 
+    # FSM TRANSITION
     new_state = await handler.handle(state, action)
 
+    # SAVE STATE
     state_store.set(user_id, new_state)
 
+    # RENDER SCREEN
     screen_payload = resolve_screen(new_state.screen, new_state)
 
     new_text = screen_payload.get("text", "No UI")
@@ -58,10 +72,12 @@ async def process_callback(callback: CallbackQuery):
     current_text = callback.message.text if callback.message else None
     current_kb = callback.message.reply_markup if callback.message else None
 
+    # NO-OP GUARD
     if current_text == new_text and current_kb == new_kb:
         await callback.answer()
         return
 
+    # SAFE EDIT
     try:
         await callback.message.edit_text(
             text=new_text,
