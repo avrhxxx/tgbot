@@ -4,15 +4,10 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from config import load_config
-from src.handlers import echo
+from src.handlers import echo, callback
 
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
-
-# 🔧 ENGINE IMPORTS (FIX)
-from src.core.dispatcher import init_dispatcher
-from src.engine.bootstrap_state_machine import build_state_machine
-from src.engine.transition_engine import TransitionEngine
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +15,6 @@ logger = logging.getLogger(__name__)
 # =========================
 # MAIN
 # =========================
-
 async def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -37,33 +31,25 @@ async def main():
     )
 
     dp = Dispatcher()
+
+    # =========================
+    # ROUTERS (WAŻNE)
+    # =========================
     dp.include_router(echo.router)
+    dp.include_router(callback.router)
 
-    # =====================================
-    # 🧠 ENGINE INITIALIZATION (FIXED)
-    # =====================================
-
-    # SINGLE SOURCE OF TRUTH STATE MACHINE
-    state_machine = build_state_machine()
-
-    # TRANSITION ENGINE
-    transition_engine = TransitionEngine(state_machine)
-
-    # GLOBAL DISPATCHER WIRING
-    init_dispatcher(transition_engine)
-
-    # =====================================
-    # 🧠 SAFE WEBHOOK INIT
-    # =====================================
+    # =========================
+    # WEBHOOK INIT
+    # =========================
     await setup_webhook(
         bot=bot,
         webhook_url=config.tg_bot.webhook_url,
         secret=config.tg_bot.webhook_secret,
     )
 
-    # =====================================
-    # 🚀 WEBHOOK SERVER
-    # =====================================
+    # =========================
+    # SERVER
+    # =========================
     server = WebhookServer(
         bot=bot,
         dp=dp,
@@ -81,7 +67,6 @@ async def main():
 # =========================
 # ENTRYPOINT
 # =========================
-
 if __name__ == "__main__":
     try:
         asyncio.run(main())
