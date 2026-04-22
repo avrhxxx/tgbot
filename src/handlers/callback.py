@@ -27,20 +27,14 @@ def map_callback_to_action(data: str | None) -> Action:
     if not data:
         return Action.GO_HOME
 
-    if data == "go_home":
-        return Action.GO_HOME
+    mapping = {
+        "go_home": Action.GO_HOME,
+        "go_events": Action.OPEN_EVENT,
+        "go_settings": Action.GO_HOME,  # placeholder
+        "back": Action.BACK,
+    }
 
-    if data == "go_events":
-        return Action.OPEN_EVENT
-
-    if data == "go_settings":
-        # TODO: implement settings flow
-        return Action.GO_HOME
-
-    if data == "back":
-        return Action.BACK
-
-    return Action.GO_HOME
+    return mapping.get(data, Action.GO_HOME)
 
 
 # =========================
@@ -50,7 +44,7 @@ def map_callback_to_action(data: str | None) -> Action:
 async def process_callback(callback: CallbackQuery):
     user_id = callback.from_user.id
 
-    # LOAD STATE (GLOBAL STATE STORE)
+    # LOAD STATE
     state = state_store.get_or_create(
         user_id,
         UIState(
@@ -60,36 +54,38 @@ async def process_callback(callback: CallbackQuery):
         ),
     )
 
-    # MAP CALLBACK → ACTION
+    # ACTION
     action = map_callback_to_action(callback.data)
 
-    # FSM TRANSITION
+    # FSM
     new_state = await handler.handle(state, action)
 
     # SAVE STATE
     state_store.set(user_id, new_state)
 
-    # UI RENDER
+    # RENDER UI
     screen_payload = resolve_screen(new_state.screen, new_state)
 
     new_text = screen_payload.get("text", "No UI")
     new_kb = screen_payload.get("keyboard")
 
     # =========================
-    # SAFE EDIT (NO TELEGRAM CRASH)
+    # SAFE UI UPDATE (NO DUPES)
     # =========================
     current_text = callback.message.text if callback.message else None
+    current_kb = callback.message.reply_markup if callback.message else None
+
+    if current_text == new_text and current_kb == new_kb:
+        await callback.answer()
+        return
 
     try:
-        # only update if something actually changed
-        if current_text != new_text:
-            await callback.message.edit_text(
-                text=new_text,
-                reply_markup=new_kb,
-            )
-
+        await callback.message.edit_text(
+            text=new_text,
+            reply_markup=new_kb,
+        )
     except Exception as e:
-        # ignore "message is not modified"
+        # ignore only harmless Telegram duplicate error
         if "message is not modified" not in str(e):
             raise
 
