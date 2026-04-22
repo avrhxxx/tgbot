@@ -1,9 +1,6 @@
 from src.ui.definitions.role_ids import RoleID
 
 
-# =========================
-# 🎭 ROLE CYCLE CONFIG
-# =========================
 ROLE_CYCLE = [
     RoleID.R3,
     RoleID.R4,
@@ -11,19 +8,17 @@ ROLE_CYCLE = [
 ]
 
 
-# =========================
-# 🔁 GET NEXT ROLE
-# =========================
 def get_next_role(current_role: str) -> str:
-    """
-    Cycles:
-    R3 -> R4 -> R5 -> R3
-    """
-
-    if current_role not in ROLE_CYCLE:
+    # normalize string → enum
+    try:
+        current = RoleID(current_role)
+    except Exception:
         return RoleID.R3
 
-    idx = ROLE_CYCLE.index(current_role)
+    if current not in ROLE_CYCLE:
+        return RoleID.R3
+
+    idx = ROLE_CYCLE.index(current)
     next_idx = (idx + 1) % len(ROLE_CYCLE)
 
-    return ROLE_CYCLE[next_idx]
+    return ROLE_CYCLE[next_idx].value
