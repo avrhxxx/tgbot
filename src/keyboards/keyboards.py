@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config.config import load_config
 from src.core.state_store import state_store
+from src.ui.definitions.action_ids import ActionID
 
 config = load_config()
 
@@ -12,14 +13,14 @@ config = load_config()
 def back_button():
     return InlineKeyboardButton(
         text="⬅️ Back",
-        callback_data="back"
+        callback_data=ActionID.BACK
     )
 
 
 def home_button():
     return InlineKeyboardButton(
         text="🏠 Home",
-        callback_data="go_home"
+        callback_data=ActionID.GO_HOME
     )
 
 
@@ -28,10 +29,6 @@ def home_button():
 # =========================
 
 def demo_role_switch_button(user_id: int):
-    """
-    Cycles roles: R3 → R4 → R5 → R3
-    """
-
     current = state_store.get_demo_role(user_id) or "R3"
 
     next_role_map = {
@@ -44,7 +41,7 @@ def demo_role_switch_button(user_id: int):
 
     return InlineKeyboardButton(
         text=f"🎭 Switch Role ({current} → {next_role})",
-        callback_data=f"demo_switch_role:{next_role}"
+        callback_data=f"demo:switch_role:{next_role}"
     )
 
 
@@ -57,13 +54,13 @@ def r4_r5_extra_keyboard():
         [
             InlineKeyboardButton(
                 text="🧭 Event Management",
-                callback_data="go_event_management"
+                callback_data=ActionID.GO_EVENT_MANAGEMENT
             )
         ],
         [
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data="go_home"
+                callback_data=ActionID.GO_HOME
             )
         ]
     ])
@@ -78,21 +75,21 @@ def home_keyboard(user_id: int = None):
         [
             InlineKeyboardButton(
                 text="📅 Events",
-                callback_data="go_events"
+                callback_data=ActionID.GO_EVENTS
             ),
             InlineKeyboardButton(
                 text="⚡ Quick Join",
-                callback_data="quick_join"
+                callback_data=ActionID.JOIN_EVENT
             )
         ],
         [
             InlineKeyboardButton(
                 text="⚙️ Settings",
-                callback_data="go_settings"
+                callback_data=ActionID.GO_SETTINGS
             ),
             InlineKeyboardButton(
                 text="❓ Help",
-                callback_data="go_home"
+                callback_data=ActionID.GO_HOME
             )
         ]
     ]
