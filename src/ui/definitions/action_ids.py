@@ -1,16 +1,37 @@
-# src/ui/definitions/action_ids.py
-
 class ActionID:
     """
-    All UI actions (buttons / callbacks / events).
+    SINGLE SOURCE OF TRUTH for all UI callback actions.
+    Used ONLY in keyboards and UI layer.
     """
 
-    OPEN_HOME = "open_home"
+    # =========================
+    # 🧭 NAVIGATION
+    # =========================
+    GO_HOME = "go_home"
+    GO_EVENTS = "go_events"
+    GO_SETTINGS = "go_settings"
 
-    OPEN_EVENTS = "open_events"
-    OPEN_EVENT = "open_event"
-
-    NEXT_STEP = "next_step"
     BACK = "back"
 
-    ADMIN_PANEL = "admin_panel"
+    # =========================
+    # 📡 EVENTS
+    # =========================
+    OPEN_EVENT = "open_event"
+    JOIN_EVENT = "join_event"
+    LEAVE_EVENT = "leave_event"
+
+    # =========================
+    # 🧠 EVENT MANAGEMENT
+    # =========================
+    GO_EVENT_MANAGEMENT = "go_event_management"
+    CREATE_EVENT = "create_event"
+
+    # =========================
+    # ⚙️ SETTINGS
+    # =========================
+    CHANGE_GAME_NICK = "change_game_nick"
+
+    # =========================
+    # 🧪 SYSTEM / DEMO
+    # =========================
+    DEMO_SWITCH_ROLE = "demo_switch_role"
