@@ -19,12 +19,12 @@ def render_home_r3(state):
     today_utc = datetime.utcnow().strftime("%Y-%m-%d")
 
     text = (
-        f"🏠 Home Panel\n\n"
+        f"🏠 HOME PANEL\n\n"
         f"Welcome, {display_name}\n\n"
         f"Game Nick: {game_nick}\n"
         f"Role: {role}\n"
-        f"Today is (UTC): {today_utc}\n\n"
-        f"Select an option:"
+        f"Today (UTC): {today_utc}\n\n"
+        f"Navigation ready."
     )
 
     return {
