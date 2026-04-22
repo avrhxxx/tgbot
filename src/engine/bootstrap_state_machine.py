@@ -9,22 +9,22 @@ def build_state_machine() -> StateMachine:
     # =========================
     # HOME
     # =========================
-    sm.add_transition(ScreenID.HOME_R3, ActionID.GO_HOME, ScreenID.HOME_R3)
-    sm.add_transition(ScreenID.HOME_R3, ActionID.GO_EVENTS, ScreenID.EVENTS_LIST)
-    sm.add_transition(ScreenID.HOME_R3, ActionID.GO_SETTINGS, ScreenID.SETTINGS_MAIN)
-    sm.add_transition(ScreenID.HOME_R3, ActionID.BACK, ScreenID.HOME_R3)
+    sm.add_transition(ScreenID.HOME, ActionID.GO_HOME, ScreenID.HOME)
+    sm.add_transition(ScreenID.HOME, ActionID.GO_EVENTS, ScreenID.EVENTS_LIST)
+    sm.add_transition(ScreenID.HOME, ActionID.GO_SETTINGS, ScreenID.SETTINGS_MAIN)
+    sm.add_transition(ScreenID.HOME, ActionID.BACK, ScreenID.HOME)
 
     # =========================
     # EVENTS
     # =========================
-    sm.add_transition(ScreenID.EVENTS_LIST, ActionID.BACK, ScreenID.HOME_R3)
-    sm.add_transition(ScreenID.EVENTS_LIST, ActionID.GO_HOME, ScreenID.HOME_R3)
+    sm.add_transition(ScreenID.EVENTS_LIST, ActionID.GO_HOME, ScreenID.HOME)
     sm.add_transition(ScreenID.EVENTS_LIST, ActionID.GO_EVENTS, ScreenID.EVENTS_LIST)
+    sm.add_transition(ScreenID.EVENTS_LIST, ActionID.BACK, ScreenID.HOME)
 
     # =========================
     # SETTINGS
     # =========================
-    sm.add_transition(ScreenID.SETTINGS_MAIN, ActionID.BACK, ScreenID.HOME_R3)
-    sm.add_transition(ScreenID.SETTINGS_MAIN, ActionID.GO_HOME, ScreenID.HOME_R3)
+    sm.add_transition(ScreenID.SETTINGS_MAIN, ActionID.GO_HOME, ScreenID.HOME)
+    sm.add_transition(ScreenID.SETTINGS_MAIN, ActionID.BACK, ScreenID.HOME)
 
     return sm
