@@ -18,11 +18,13 @@ def build_state_machine() -> StateMachine:
     # =========================
 
     sm.add_transition("events_list", Action.BACK, "home_r3")
+    sm.add_transition("events_list", Action.GO_HOME, "home_r3")
 
     # =========================
     # ⚙️ SETTINGS
     # =========================
 
     sm.add_transition("settings_main", Action.BACK, "home_r3")
+    sm.add_transition("settings_main", Action.GO_HOME, "home_r3")
 
     return sm
