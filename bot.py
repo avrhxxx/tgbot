@@ -9,7 +9,6 @@ from src.handlers import echo
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,18 +34,18 @@ async def main():
     dp = Dispatcher()
     dp.include_router(echo.router)
 
-    # =========================
-    # SET WEBHOOK
-    # =========================
+    # =====================================
+    # 🧠 SAFE WEBHOOK INIT (ONLY IF NEEDED)
+    # =====================================
     await setup_webhook(
         bot=bot,
         webhook_url=config.tg_bot.webhook_url,
         secret=config.tg_bot.webhook_secret,
     )
 
-    # =========================
-    # START SERVER
-    # =========================
+    # =====================================
+    # 🚀 WEBHOOK SERVER
+    # =====================================
     server = WebhookServer(
         bot=bot,
         dp=dp,
@@ -54,7 +53,11 @@ async def main():
         secret=config.tg_bot.webhook_secret,
     )
 
-    await server.run(port=8080)
+    try:
+        await server.run(port=8080)
+
+    finally:
+        await bot.session.close()
 
 
 # =========================
