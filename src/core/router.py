@@ -1,9 +1,9 @@
 from typing import Callable, Dict, Any
 
 from config.config import load_config
-from src.core.state_store import state_store
 
 from src.ui.definitions.screen_ids import ScreenID
+from src.core.role_resolver import resolve_role
 
 from src.screens.home.r3_home import render_home_r3
 from src.screens.home.r4_home import render_home_r4
@@ -33,6 +33,11 @@ SCREEN_RENDERERS: Dict[ScreenID, ScreenRenderer] = {
 # 🧭 RESOLVER
 # =========================
 def resolve_screen(screen_id: ScreenID, state=None):
+    """
+    Final UI composition layer:
+    state → role context → renderer → payload
+    """
+
     config = load_config()
 
     renderer = SCREEN_RENDERERS.get(screen_id)
@@ -43,15 +48,27 @@ def resolve_screen(screen_id: ScreenID, state=None):
             "keyboard": None,
         }
 
-    payload = renderer(state)
+    if not state:
+        return {
+            "text": "⚠️ Missing state",
+            "keyboard": None,
+        }
 
     # =========================
-    # 🎭 DEMO MODE (UI DECORATION ONLY)
+    # 🎭 ROLE RESOLUTION (NEW ARCHITECTURE)
     # =========================
-    if config.features.demo_mode and state:
-        demo_role = state_store.get_demo_role(state.user_id)
+    role_ctx = resolve_role(state.user_id, state.role)
+    effective_role = role_ctx.effective_role
 
-        if demo_role and str(screen_id).startswith("home_"):
-            payload["text"] += f"\n\n🎭 DEMO MODE: {demo_role}"
+    # =========================
+    # 🧠 RENDER SCREEN
+    # =========================
+    payload = renderer(state, effective_role)
+
+    # =========================
+    # 🚫 NO MORE DEMO UI HACKS HERE
+    # =========================
+    # Demo mode is now fully handled in role_resolver + state_store
+    # UI layer should NOT mutate text based on demo state
 
     return payload
