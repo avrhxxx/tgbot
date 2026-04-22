@@ -31,7 +31,7 @@ def map_callback_to_action(data: str | None) -> Action:
         # NAVIGATION (UI → SCREEN ENTRY)
         "action:go_home": Action.GO_HOME,
         "action:go_events": Action.GO_EVENTS,
-        "action:go_settings": Action.OPEN_SETTINGS,
+        "action:go_settings": Action.GO_SETTINGS,
         "action:back": Action.BACK,
 
         # EVENTS DOMAIN ACTIONS
