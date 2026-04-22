@@ -1,4 +1,4 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from src.keyboards.keyboards import home_keyboard
 
 
 def render_home_r3(state):
@@ -6,29 +6,7 @@ def render_home_r3(state):
     HOME R3 UI
     """
 
-    text = (
-        "🏠 HOME R3\n\n"
-        "Choose an option:"
-    )
-
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="📡 Events",
-                    callback_data="go_events"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⚙️ Settings",
-                    callback_data="go_settings"
-                )
-            ]
-        ]
-    )
-
     return {
-        "text": text,
-        "keyboard": keyboard
+        "text": "🏠 HOME R3\n\nChoose an option:",
+        "keyboard": home_keyboard()
     }
