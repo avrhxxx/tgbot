@@ -81,14 +81,22 @@ def home_keyboard(user_id: int = None):
     keyboard = [
         [
             InlineKeyboardButton(
-                text="📡 Events",
+                text="📅 Events",
                 callback_data="action:go_events"
+            ),
+            InlineKeyboardButton(
+                text="⚡ Quick Join",
+                callback_data="action:quick_join"
             )
         ],
         [
             InlineKeyboardButton(
                 text="⚙️ Settings",
                 callback_data="action:go_settings"
+            ),
+            InlineKeyboardButton(
+                text="❓ Help",
+                callback_data="action:open_help"
             )
         ]
     ]
