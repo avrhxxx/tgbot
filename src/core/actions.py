@@ -22,7 +22,6 @@ class Action(str, Enum):
     # =========================
     GO_EVENT_MANAGEMENT = "action:go_event_management"
     CREATE_EVENT = "action:create_event"
-    OPEN_EVENT_MANAGE = "action:open_event_manage"
 
     # =========================
     # ⚙️ SETTINGS
