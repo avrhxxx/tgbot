@@ -5,13 +5,14 @@ from src.keyboards.keyboards import back_button
 
 def render_events_list(state):
     """
-    EVENTS LIST SCREEN (placeholder v1)
+    EVENTS LIST SCREEN (v1)
+    Entry point for Events system
     """
 
     text = (
         "📡 EVENTS\n\n"
         "No events available yet.\n"
-        "This is a placeholder screen."
+        "Create or join events will appear here soon."
     )
 
     keyboard = InlineKeyboardMarkup(
