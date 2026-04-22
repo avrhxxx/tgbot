@@ -1,4 +1,5 @@
 from src.keyboards.keyboards import home_keyboard
+from src.core.state_store import state_store
 
 
 def render_home_r3(state):
@@ -6,9 +7,15 @@ def render_home_r3(state):
     HOME R3 UI
     """
 
-    user_id = getattr(state, "user_id", "unknown")
+    user_id = getattr(state, "user_id", None)
+
     game_nick = getattr(state, "game_nick", "Unknown Nick")
-    role = getattr(state, "role", "R3")
+
+    # REAL role from state
+    real_role = getattr(state, "role", "R3")
+
+    # DEMO OVERRIDE SAFE RESOLUTION
+    role = state_store.get_effective_role(user_id, real_role) if user_id else real_role
 
     text = (
         f"🏠 HOME R3\n\n"
