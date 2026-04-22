@@ -1,13 +1,12 @@
 from datetime import datetime
 
 from src.keyboards.keyboards import home_keyboard
-from src.core.role_resolver import resolve_role
 
 
 def render_home(state, role: str):
     """
     UNIFIED HOME SCREEN RENDERER
-    role already resolved upstream
+    role is already resolved upstream (router layer)
     """
 
     game_nick = getattr(state, "game_nick", "Unknown Nick")
@@ -20,16 +19,14 @@ def render_home(state, role: str):
     today_utc = datetime.utcnow().strftime("%Y-%m-%d")
 
     text = (
-        f"🏠 HOME PANEL\n\n"
+        "🏠 HOME PANEL\n\n"
         f"Welcome, {display_name}\n\n"
         f"Game Nick: {game_nick}\n"
         f"Role: {role}\n"
         f"Today (UTC): {today_utc}\n"
     )
 
-    keyboard = home_keyboard(role)
-
     return {
         "text": text,
-        "keyboard": keyboard
+        "keyboard": home_keyboard(role)
     }
