@@ -9,6 +9,11 @@ from src.handlers import echo
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
 
+# 🔧 ENGINE IMPORTS (FIX)
+from src.core.dispatcher import init_dispatcher
+from src.engine.state_machine import StateMachine
+from src.engine.transition_engine import TransitionEngine
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +40,15 @@ async def main():
     dp.include_router(echo.router)
 
     # =====================================
-    # 🧠 SAFE WEBHOOK INIT (ONLY IF NEEDED)
+    # 🧠 ENGINE INITIALIZATION (CRITICAL FIX)
+    # =====================================
+    state_machine = StateMachine()
+    transition_engine = TransitionEngine(state_machine)
+
+    init_dispatcher(transition_engine)
+
+    # =====================================
+    # 🧠 SAFE WEBHOOK INIT
     # =====================================
     await setup_webhook(
         bot=bot,
