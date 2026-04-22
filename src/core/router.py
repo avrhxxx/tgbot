@@ -4,10 +4,6 @@ from src.screens.home.r3_home import render_home_r3
 from src.screens.home.r4_home import render_home_r4
 from src.screens.home.r5_home import render_home_r5
 
-# 🆕 docelowo te pliki powinny istnieć
-from src.screens.events.event_list import render_events_list
-from src.screens.settings.settings_main import render_settings_main
-
 
 ScreenRenderer = Callable[[Any], dict]
 
@@ -20,12 +16,6 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
     "home_r3": render_home_r3,
     "home_r4": render_home_r4,
     "home_r5": render_home_r5,
-
-    # EVENTS
-    "events_list": render_events_list,
-
-    # SETTINGS
-    "settings_main": render_settings_main,
 }
 
 
@@ -33,19 +23,28 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
 # 🧭 RESOLVER
 # =========================
 def resolve_screen(screen_id: str, state=None):
-    """
-    UI FLOW:
-    state → screen_id → renderer → UI payload
-    """
-
     renderer = SCREEN_RENDERERS.get(screen_id)
 
     if renderer:
         return renderer(state)
 
     # =========================
-    # ❌ FALLBACK (only debug)
+    # 📡 STATIC PLACEHOLDERS (SAFE)
     # =========================
+    static_screens = {
+        "events_list": {
+            "text": "📡 Events list (coming soon)",
+            "keyboard": None,
+        },
+        "settings_main": {
+            "text": "⚙️ Settings (coming soon)",
+            "keyboard": None,
+        },
+    }
+
+    if screen_id in static_screens:
+        return static_screens[screen_id]
+
     return {
         "text": f"Unknown screen: {screen_id}",
         "keyboard": None,
