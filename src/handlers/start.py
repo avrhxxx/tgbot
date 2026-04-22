@@ -5,6 +5,7 @@ from aiogram.filters import Command
 from src.core.state import UIState
 from src.core.router import resolve_screen
 from src.core.state_store import state_store
+from src.ui.definitions.screen_ids import ScreenID
 
 router = Router()
 
@@ -20,16 +21,15 @@ async def start_command(message: Message):
         user_id,
         UIState(
             user_id=user_id,
-            screen="home",
+            screen=ScreenID.HOME,   # ✅ NIE STRING
             role="R3",
+            demo_role=None         # ✅ FUTURE-PROOF
         ),
     )
 
     # =========================
-    # 🚫 NIE NADPISUJ TEGO BEZ POWODU
+    # 💾 SAVE STATE
     # =========================
-    # wcześniej: state.screen = "home" (to było redundantne)
-
     state_store.set(user_id, state)
 
     # =========================
