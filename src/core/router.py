@@ -24,7 +24,7 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
     "home_r5": render_home_r5,
 
     # EVENTS
-    "events": render_events_list,
+    "events_list": render_events_list,
 
     # SETTINGS
     "settings_main": render_settings_main,
@@ -52,7 +52,7 @@ def resolve_screen(screen_id: str, state=None):
     if renderer:
         return renderer(state)
 
-    # 🚨 STRICT DEBUG FALLBACK (so we SEE bugs immediately)
+    # 🚨 STRICT DEBUG FALLBACK
     return {
         "text": f"⚠️ Unknown screen: {screen_id}",
         "keyboard": None,
