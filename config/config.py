@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import json
-import os
 
 from .base import getenv
 
@@ -23,7 +22,7 @@ class TelegramBotConfig:
 
 @dataclass
 class GoogleConfig:
-    service_account: str  # JSON string from Railway env
+    service_account: str
     sheet_id: str
 
 
@@ -33,9 +32,9 @@ class GoogleConfig:
 
 @dataclass
 class AccessConfig:
-    r5_ids: list[int]        # game leaders (R5)
-    admin_ids: list[int]     # bot/system admins (separate UI)
-    group_ids: list[int]     # telegram groups / supergroups
+    r5_ids: list[int]
+    admin_ids: list[int]
+    group_ids: list[int]
 
 
 # =========================
@@ -64,19 +63,12 @@ class Config:
 # =========================
 
 def _parse_id_list(value: str | None) -> list[int]:
-    """
-    "123,456,789" -> [123, 456, 789]
-    """
     if not value:
         return []
     return [int(x.strip()) for x in value.split(",") if x.strip()]
 
 
 def _parse_google_service_account(value: str) -> str:
-    """
-    Validates JSON early (fail fast).
-    We keep it as string for Google client later.
-    """
     if not value:
         raise ValueError("GOOGLE_SERVICE_ACCOUNT is missing")
 
@@ -88,11 +80,21 @@ def _parse_google_service_account(value: str) -> str:
     return value
 
 
-def _parse_bool(value: str | None) -> bool:
+def _parse_bool(value: str | None, default: bool = False) -> bool:
     """
-    Railway env parser for feature flags
+    Safe feature flag parser for Railway env.
     """
-    return str(value).lower() == "true"
+    if value is None:
+        return default
+
+    value = str(value).strip().lower()
+
+    if value in ("true", "1", "yes", "y", "on"):
+        return True
+    if value in ("false", "0", "no", "n", "off"):
+        return False
+
+    return default
 
 
 # =========================
@@ -122,6 +124,6 @@ def load_config() -> Config:
         ),
 
         features=FeatureConfig(
-            demo_mode=_parse_bool(getenv("DEMO_MODE"))
+            demo_mode=_parse_bool(getenv("DEMO_MODE", str))
         ),
     )
