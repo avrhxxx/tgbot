@@ -4,7 +4,7 @@ from src.keyboards.keyboards import back_button
 from src.ui.definitions.action_ids import ActionID
 
 
-def render_events_list(state):
+def render_events_list(state, role):
     """
     EVENTS LIST SCREEN
     Pure entry point to event system (NO ACTION LOGIC)
@@ -12,6 +12,7 @@ def render_events_list(state):
 
     text = (
         "📡 EVENTS\n\n"
+        f"Role: {role}\n\n"
         "Browse available events or return to home."
     )
 
