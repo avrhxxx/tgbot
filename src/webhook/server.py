@@ -27,8 +27,8 @@ class WebhookServer:
         try:
             data = await request.json()
 
-            # ✅ FIX: correct aiogram v3 parsing
-            update = Update.model_validate(data)
+            # ✅ FIX: aiogram v3 compatible parsing (STABLE VERSION)
+            update = Update(**data)
 
             logger.info("Incoming webhook update: %s", data.get("update_id"))
 
