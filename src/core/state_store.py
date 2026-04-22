@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict
 from src.core.state import UIState
 
 
@@ -9,10 +9,6 @@ class StateStore:
 
     def __init__(self):
         self._store: Dict[int, UIState] = {}
-
-        # =========================
-        # DEMO MODE OVERRIDES
-        # =========================
         self._demo_role_override: Dict[int, str] = {}
 
     # =========================
@@ -35,9 +31,6 @@ class StateStore:
     # =========================
 
     def set_demo_role(self, user_id: int, role: str | None):
-        """
-        Set temporary role override for UI demo mode.
-        """
         if role is None:
             self._demo_role_override.pop(user_id, None)
         else:
@@ -49,6 +42,14 @@ class StateStore:
     def clear_demo_role(self, user_id: int):
         self._demo_role_override.pop(user_id, None)
 
+    # =========================
+    # CORE RESOLVER (NOWE)
+    # =========================
 
-# GLOBAL INSTANCE (MVP)
+    def get_effective_role(self, user_id: int, real_role: str) -> str:
+        demo_role = self._demo_role_override.get(user_id)
+        return demo_role if demo_role is not None else real_role
+
+
+# GLOBAL INSTANCE
 state_store = StateStore()
