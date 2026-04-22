@@ -14,11 +14,10 @@ ScreenRenderer = Callable[[Any, str], dict]
 
 
 # =========================
-# 🧠 SCREEN REGISTRY (NEW ARCHITECTURE)
+# 🧠 SCREEN REGISTRY (CLEAN)
 # =========================
 SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
-    "home": render_home,
-
+    ScreenID.HOME: render_home,
     ScreenID.EVENTS_LIST: render_events_list,
     ScreenID.SETTINGS_MAIN: render_settings_main,
 }
@@ -28,11 +27,6 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
 # 🧭 RESOLVER
 # =========================
 def resolve_screen(screen_id: str, state=None):
-    """
-    Final UI composition layer:
-    state → role context → renderer → payload
-    """
-
     config = load_config()
 
     renderer = SCREEN_RENDERERS.get(screen_id)
@@ -49,15 +43,11 @@ def resolve_screen(screen_id: str, state=None):
             "keyboard": None,
         }
 
-    # =========================
-    # 🎭 ROLE RESOLUTION (SINGLE SOURCE OF TRUTH)
-    # =========================
+    # role resolution
     role_ctx = resolve_role(state.user_id, state.role)
     effective_role = role_ctx.effective_role
 
-    # =========================
-    # 🧠 RENDER SCREEN
-    # =========================
+    # render
     payload = renderer(state, effective_role)
 
     return payload
