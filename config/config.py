@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-import os
+from typing import List
 
 from .base import getenv
 
 
-# =========================
-# TELEGRAM CONFIG
-# =========================
+# =====================================
+# 🔹 TELEGRAM CONFIG
+# =====================================
 
 @dataclass
 class TelegramBotConfig:
@@ -16,30 +16,30 @@ class TelegramBotConfig:
     webhook_secret: str
 
 
-# =========================
-# GOOGLE CONFIG
-# =========================
+# =====================================
+# 🔹 GOOGLE CONFIG (RAW ONLY)
+# =====================================
 
 @dataclass
 class GoogleConfig:
-    service_account: str  # JSON string (from Railway env)
+    service_account: str  # JSON string (Railway env)
     sheet_id: str
 
 
-# =========================
-# ACCESS CONTROL CONFIG
-# =========================
+# =====================================
+# 🔹 ACCESS CONTROL (RANK SYSTEM)
+# =====================================
 
 @dataclass
 class AccessConfig:
-    r5_ids: list[int]
-    admin_ids: list[int]
-    group_ids: list[int]
+    r5_ids: List[int]
+    admin_ids: List[int]
+    group_ids: List[int]
 
 
-# =========================
-# ROOT CONFIG
-# =========================
+# =====================================
+# 🔹 ROOT CONFIG
+# =====================================
 
 @dataclass
 class Config:
@@ -48,23 +48,22 @@ class Config:
     access: AccessConfig
 
 
-# =========================
-# HELPERS
-# =========================
+# =====================================
+# 🔧 HELPERS
+# =====================================
 
-def _parse_id_list(value: str | None) -> list[int]:
+def _parse_id_list(value: str | None) -> List[int]:
     """
-    Parses env like:
-    "123,456,789" -> [123,456,789]
+    "1,2,3" -> [1,2,3]
     """
     if not value:
         return []
     return [int(x.strip()) for x in value.split(",") if x.strip()]
 
 
-# =========================
-# LOAD CONFIG
-# =========================
+# =====================================
+# 🚀 LOAD CONFIG (RAILWAY READY)
+# =====================================
 
 def load_config() -> Config:
     return Config(
