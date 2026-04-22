@@ -1,7 +1,10 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+from config.config import load_config
 from src.core.state_store import state_store
 from src.ui.definitions.action_ids import ActionID
+
+config = load_config()
 
 
 # =========================
@@ -23,7 +26,7 @@ def home_button():
 
 
 # =========================
-# 🎭 DEMO SWITCH (ROLE TOOL)
+# 🎭 DEMO ROLE SWITCH
 # =========================
 
 def demo_role_switch_button(user_id: int):
@@ -44,7 +47,7 @@ def demo_role_switch_button(user_id: int):
 
 
 # =========================
-# 🏠 HOME KEYBOARD (ROLE AWARE)
+# 🏠 HOME KEYBOARD (ROLE-AWARE)
 # =========================
 
 def home_keyboard(user_id: int | None = None, role: str | None = None):
@@ -76,9 +79,9 @@ def home_keyboard(user_id: int | None = None, role: str | None = None):
     ]
 
     # =========================
-    # 🎭 DEMO MODE (TEMPORARY UI TOOLING)
+    # 🎭 DEMO MODE (UI TOOL ONLY)
     # =========================
-    if user_id is not None:
+    if config.features.demo_mode and user_id is not None:
         demo_role = state_store.get_demo_role(user_id)
 
         if demo_role:
@@ -87,7 +90,7 @@ def home_keyboard(user_id: int | None = None, role: str | None = None):
             ])
 
     # =========================
-    # 🧠 ROLE EXTENSIONS (REAL SYSTEM)
+    # 🧠 ROLE-BASED EXTENSIONS (REAL PERMISSIONS UI)
     # =========================
 
     if role in ("R4", "R5", "ADMIN"):
@@ -102,7 +105,7 @@ def home_keyboard(user_id: int | None = None, role: str | None = None):
         keyboard.insert(2, [
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data=ActionID.GO_HOME
+                callback_data=ActionID.GO_HOME  # placeholder / do podmiany później
             )
         ])
 
