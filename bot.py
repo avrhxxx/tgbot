@@ -11,7 +11,7 @@ from src.webhook.server import WebhookServer
 
 # 🔧 ENGINE IMPORTS (FIX)
 from src.core.dispatcher import init_dispatcher
-from src.engine.state_machine import StateMachine
+from src.engine.bootstrap_state_machine import build_state_machine
 from src.engine.transition_engine import TransitionEngine
 
 logger = logging.getLogger(__name__)
@@ -40,11 +40,16 @@ async def main():
     dp.include_router(echo.router)
 
     # =====================================
-    # 🧠 ENGINE INITIALIZATION (CRITICAL FIX)
+    # 🧠 ENGINE INITIALIZATION (FIXED)
     # =====================================
-    state_machine = StateMachine()
+
+    # SINGLE SOURCE OF TRUTH STATE MACHINE
+    state_machine = build_state_machine()
+
+    # TRANSITION ENGINE
     transition_engine = TransitionEngine(state_machine)
 
+    # GLOBAL DISPATCHER WIRING
     init_dispatcher(transition_engine)
 
     # =====================================
