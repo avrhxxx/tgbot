@@ -1,5 +1,4 @@
 from src.engine.transition_engine import TransitionEngine
-from src.core.actions import Action
 
 
 class ActionHandler:
@@ -11,15 +10,13 @@ class ActionHandler:
     def __init__(self, transition_engine: TransitionEngine):
         self.transition_engine = transition_engine
 
-    async def handle(self, state, action: Action):
+    async def handle(self, state, action):
         """
-        UI Action → State Transition (FULL TYPE-SAFE FLOW)
+        UI Action → State Transition (FULL FLOW)
         """
 
-        # =========================
-        # 🧭 BACK LOGIC (NAVIGATION STACK)
-        # =========================
-        if action == Action.BACK:
+        # BACK LOGIC
+        if action == "BACK":
             history = getattr(state, "history", [])
 
             if history:
@@ -29,18 +26,12 @@ class ActionHandler:
 
             return state
 
-        # =========================
-        # 🧭 FORWARD NAVIGATION STACK
-        # =========================
+        # FORWARD STACK
         history = getattr(state, "history", [])
-
-        # zapisz aktualny screen przed zmianą
         history.append(state.screen)
         state.history = history
 
-        # =========================
-        # 🔥 FSM TRANSITION
-        # =========================
+        # FSM TRANSITION
         new_state = self.transition_engine.transition(state, action)
 
         return new_state
