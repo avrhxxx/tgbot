@@ -9,13 +9,13 @@ from src.engine.action_handler import ActionHandler
 from src.engine.bootstrap_state_machine import build_state_machine
 from src.engine.transition_engine import TransitionEngine
 
-# NEW: UI CONTRACT LAYER
 from src.ui.definitions.action_ids import ActionID
+from src.core.role_cycle import get_next_role
 
 router = Router()
 
 # =========================
-# ENGINE INIT (SINGLE SOURCE OF TRUTH)
+# ENGINE INIT
 # =========================
 state_machine = build_state_machine()
 transition_engine = TransitionEngine(state_machine)
@@ -23,43 +23,26 @@ handler = ActionHandler(transition_engine)
 
 
 # =========================
-# UI ID → ACTION MAP
+# UI → ACTION MAP
 # =========================
 UI_TO_ACTION_MAP = {
-    # NAVIGATION
     ActionID.GO_HOME: ActionID.GO_HOME,
     ActionID.GO_EVENTS: ActionID.GO_EVENTS,
     ActionID.GO_SETTINGS: ActionID.GO_SETTINGS,
     ActionID.BACK: ActionID.BACK,
 
-    # EVENTS
     ActionID.JOIN_EVENT: ActionID.JOIN_EVENT,
     ActionID.OPEN_EVENT: ActionID.OPEN_EVENT,
     ActionID.LEAVE_EVENT: ActionID.LEAVE_EVENT,
 
-    # EVENT MANAGEMENT
     ActionID.GO_EVENT_MANAGEMENT: ActionID.GO_EVENT_MANAGEMENT,
     ActionID.CREATE_EVENT: ActionID.CREATE_EVENT,
 
-    # SETTINGS
     ActionID.CHANGE_GAME_NICK: ActionID.CHANGE_GAME_NICK,
 
-    # DEMO
-    ActionID.DEMO_SWITCH_ROLE: ActionID.DEMO_SWITCH_ROLE,
+    # 🎭 ROLE SWITCH (NEW CLEAN FLOW)
+    ActionID.SWITCH_ROLE: ActionID.SWITCH_ROLE,
 }
-
-
-# =========================
-# DEMO SWITCH HANDLER
-# =========================
-def handle_demo_switch(user_id: int, data: str) -> bool:
-    if not data.startswith("demo:switch_role:"):
-        return False
-
-    role = data.split(":")[2]
-    state_store.set_demo_role(user_id, role)
-
-    return True
 
 
 # =========================
@@ -71,33 +54,40 @@ async def process_callback(callback: CallbackQuery):
     data = callback.data
 
     # =========================
-    # DEMO MODE BRANCH (PRE-FSM)
-    # =========================
-    if handle_demo_switch(user_id, data):
-        state = state_store.get(user_id)
-
-        if state:
-            screen_payload = resolve_screen(state.screen, state)
-
-            await callback.message.edit_text(
-                text=screen_payload.get("text", "No UI"),
-                reply_markup=screen_payload.get("keyboard"),
-            )
-
-        await callback.answer()
-        return
-
-    # =========================
     # LOAD STATE
     # =========================
     state = state_store.get_or_create(
         user_id,
         UIState(
             user_id=user_id,
-            screen="home_r3",
+            screen="home",
             role="R3",
         ),
     )
+
+    # =========================
+    # 🎭 ROLE SWITCH (SPECIAL CASE, BEFORE FSM)
+    # =========================
+    if data == ActionID.SWITCH_ROLE:
+        next_role = get_next_role(state.role)
+
+        new_state = UIState(
+            user_id=state.user_id,
+            screen=state.screen,
+            role=next_role,
+        )
+
+        state_store.set(user_id, new_state)
+
+        screen_payload = resolve_screen(new_state.screen, new_state)
+
+        await callback.message.edit_text(
+            text=screen_payload.get("text", "No UI"),
+            reply_markup=screen_payload.get("keyboard"),
+        )
+
+        await callback.answer()
+        return
 
     # =========================
     # UI → ACTION RESOLVE
@@ -129,7 +119,6 @@ async def process_callback(callback: CallbackQuery):
     current_text = callback.message.text if callback.message else None
     current_kb = callback.message.reply_markup if callback.message else None
 
-    # NO-OP GUARD
     if current_text == new_text and current_kb == new_kb:
         await callback.answer()
         return
