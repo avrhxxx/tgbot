@@ -2,7 +2,6 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
 from src.core.state import UIState
-from src.core.actions import Action
 from src.core.router import resolve_screen
 from src.core.state_store import state_store
 
@@ -24,29 +23,29 @@ handler = ActionHandler(transition_engine)
 
 
 # =========================
-# UI ID → ACTION MAP (NEW CONTRACT BRIDGE)
+# UI ID → ACTION MAP
 # =========================
 UI_TO_ACTION_MAP = {
     # NAVIGATION
-    ActionID.GO_HOME: Action.GO_HOME,
-    ActionID.GO_EVENTS: Action.GO_EVENTS,
-    ActionID.GO_SETTINGS: Action.GO_SETTINGS,
-    ActionID.BACK: Action.BACK,
+    ActionID.GO_HOME: ActionID.GO_HOME,
+    ActionID.GO_EVENTS: ActionID.GO_EVENTS,
+    ActionID.GO_SETTINGS: ActionID.GO_SETTINGS,
+    ActionID.BACK: ActionID.BACK,
 
     # EVENTS
-    ActionID.JOIN_EVENT: Action.JOIN_EVENT,
-    ActionID.OPEN_EVENT: Action.OPEN_EVENT,
-    ActionID.LEAVE_EVENT: Action.LEAVE_EVENT,
+    ActionID.JOIN_EVENT: ActionID.JOIN_EVENT,
+    ActionID.OPEN_EVENT: ActionID.OPEN_EVENT,
+    ActionID.LEAVE_EVENT: ActionID.LEAVE_EVENT,
 
     # EVENT MANAGEMENT
-    ActionID.GO_EVENT_MANAGEMENT: Action.GO_EVENT_MANAGEMENT,
-    ActionID.CREATE_EVENT: Action.CREATE_EVENT,
+    ActionID.GO_EVENT_MANAGEMENT: ActionID.GO_EVENT_MANAGEMENT,
+    ActionID.CREATE_EVENT: ActionID.CREATE_EVENT,
 
     # SETTINGS
-    ActionID.CHANGE_GAME_NICK: Action.CHANGE_GAME_NICK,
+    ActionID.CHANGE_GAME_NICK: ActionID.CHANGE_GAME_NICK,
 
     # DEMO
-    ActionID.DEMO_SWITCH_ROLE: Action.DEMO_SWITCH_ROLE,
+    ActionID.DEMO_SWITCH_ROLE: ActionID.DEMO_SWITCH_ROLE,
 }
 
 
@@ -54,10 +53,6 @@ UI_TO_ACTION_MAP = {
 # DEMO SWITCH HANDLER
 # =========================
 def handle_demo_switch(user_id: int, data: str) -> bool:
-    """
-    Returns True if handled as demo action
-    """
-
     if not data.startswith("demo:switch_role:"):
         return False
 
@@ -105,7 +100,7 @@ async def process_callback(callback: CallbackQuery):
     )
 
     # =========================
-    # UI → ACTION RESOLVE (NEW SYSTEM)
+    # UI → ACTION RESOLVE
     # =========================
     action = UI_TO_ACTION_MAP.get(data)
 
