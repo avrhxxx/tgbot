@@ -28,10 +28,22 @@ def map_callback_to_action(data: str | None) -> Action:
         return Action.GO_HOME
 
     mapping = {
+        # NAVIGATION (UI → SCREEN ENTRY)
         "go_home": Action.GO_HOME,
-        "go_events": Action.OPEN_EVENT,
+        "go_events": Action.GO_EVENTS,
         "go_settings": Action.OPEN_SETTINGS,
         "back": Action.BACK,
+
+        # EVENTS DOMAIN ACTIONS
+        "quick_join": Action.JOIN_EVENT,
+        "open_event": Action.OPEN_EVENT,
+
+        # EVENT MANAGEMENT (R4/R5)
+        "go_event_management": Action.GO_EVENT_MANAGEMENT,
+        "create_event": Action.CREATE_EVENT,
+
+        # SETTINGS DOMAIN
+        "change_game_nick": Action.CHANGE_GAME_NICK,
     }
 
     return mapping.get(data, Action.GO_HOME)
@@ -94,7 +106,7 @@ async def process_callback(callback: CallbackQuery):
     )
 
     # =========================
-    # MAP ACTION
+    # MAP CALLBACK → ACTION
     # =========================
     action = map_callback_to_action(data)
 
