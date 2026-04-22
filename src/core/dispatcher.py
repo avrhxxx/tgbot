@@ -9,25 +9,17 @@ class Dispatcher:
         return self.transition_engine.transition(state, action)
 
 
-# -----------------------------
-# GLOBAL SINGLETON (MVP HOOK)
-# -----------------------------
-_dispatcher_instance = None
+# 🔥 GLOBAL SINGLETON (MVP FIX)
+_dispatcher = None
 
 
 def init_dispatcher(transition_engine: TransitionEngine):
-    """
-    Wywołujesz raz przy starcie bota.
-    """
-    global _dispatcher_instance
-    _dispatcher_instance = Dispatcher(transition_engine)
+    global _dispatcher
+    _dispatcher = Dispatcher(transition_engine)
 
 
 def dispatch(action, state):
-    """
-    Funkcyjny entrypoint używany w handlers (np. echo.py)
-    """
-    if _dispatcher_instance is None:
+    if _dispatcher is None:
         raise RuntimeError("Dispatcher not initialized")
 
-    return _dispatcher_instance.dispatch(action, state)
+    return _dispatcher.dispatch(action, state)
