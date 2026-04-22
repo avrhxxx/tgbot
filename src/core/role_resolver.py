@@ -1,7 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 
+# =========================
+# ROLE CONTEXT MODEL
+# =========================
 @dataclass(frozen=True)
 class RoleContext:
     user_id: int
@@ -10,10 +13,23 @@ class RoleContext:
     is_demo_active: bool
 
 
-def resolve_role(user_id: int, real_role: str, demo_role: Optional[str]) -> RoleContext:
+# =========================
+# ROLE RESOLVER (SOURCE OF TRUTH)
+# =========================
+def resolve_role(state: Any) -> RoleContext:
     """
-    PURE FUNCTION (NO GLOBAL STATE)
+    SINGLE SOURCE OF TRUTH FOR ROLE RESOLUTION
+
+    - real_role = role zapisany w state
+    - demo_role = optional override (if exists in state)
+    - effective_role = final role used in UI
     """
+
+    user_id = getattr(state, "user_id", None)
+    real_role = getattr(state, "role", None)
+
+    # optional override (safe fallback)
+    demo_role = getattr(state, "demo_role", None)
 
     is_demo_active = demo_role is not None
     effective_role = demo_role if is_demo_active else real_role
@@ -24,7 +40,3 @@ def resolve_role(user_id: int, real_role: str, demo_role: Optional[str]) -> Role
         effective_role=effective_role,
         is_demo_active=is_demo_active,
     )
-
-
-def get_effective_role(user_id: int, real_role: str, demo_role: Optional[str]) -> str:
-    return resolve_role(user_id, real_role, demo_role).effective_role
