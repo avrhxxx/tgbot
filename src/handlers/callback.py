@@ -57,7 +57,29 @@ async def process_callback(callback: CallbackQuery):
     # ACTION
     action = map_callback_to_action(callback.data)
 
-    # FSM
+    # =========================
+    # BACK HANDLING (NAV STACK OVERRIDE)
+    # =========================
+    if action == Action.BACK:
+        history = getattr(state, "history", [])
+
+        if history:
+            state.screen = history.pop()
+            state_store.set(user_id, state)
+
+            screen_payload = resolve_screen(state.screen, state)
+
+            await callback.message.edit_text(
+                text=screen_payload.get("text", "No UI"),
+                reply_markup=screen_payload.get("keyboard"),
+            )
+
+        await callback.answer()
+        return
+
+    # =========================
+    # FSM TRANSITION (FORWARD ONLY)
+    # =========================
     new_state = await handler.handle(state, action)
 
     # SAVE STATE
@@ -70,7 +92,7 @@ async def process_callback(callback: CallbackQuery):
     new_kb = screen_payload.get("keyboard")
 
     # =========================
-    # SAFE UI UPDATE (NO DUPES)
+    # SAFE UI UPDATE (NO DUPLICATES)
     # =========================
     current_text = callback.message.text if callback.message else None
     current_kb = callback.message.reply_markup if callback.message else None
@@ -85,7 +107,6 @@ async def process_callback(callback: CallbackQuery):
             reply_markup=new_kb,
         )
     except Exception as e:
-        # ignore only harmless Telegram duplicate error
         if "message is not modified" not in str(e):
             raise
 
