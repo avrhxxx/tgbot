@@ -10,7 +10,6 @@ def render_settings_main(state, role):
 
     text = (
         "⚙️ SETTINGS\n\n"
-        f"Role: {role}\n\n"
         "No settings available yet.\n"
         "This is a placeholder screen."
     )
