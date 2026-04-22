@@ -3,6 +3,7 @@ from aiogram.types import Message
 
 from src.core.state import UIState
 from src.core.actions import Action
+from src.core.router import resolve_screen
 
 from src.engine.action_handler import ActionHandler
 from src.engine.transition_engine import TransitionEngine
@@ -10,9 +11,6 @@ from src.engine.bootstrap_state_machine import build_state_machine
 
 router = Router()
 
-# =========================
-# 🧠 SINGLE SOURCE OF TRUTH FSM
-# =========================
 state_machine = build_state_machine()
 transition_engine = TransitionEngine(state_machine)
 handler = ActionHandler(transition_engine)
@@ -57,10 +55,9 @@ async def process_any_message(message: Message):
 
     _state_store[user_id] = new_state
 
+    # 🧠 UI LAYER (NOWY KROK)
+    screen_payload = resolve_screen(new_state.screen, new_state)
+
     await message.reply(
-        text=(
-            f"🧠 STATE UPDATED\n"
-            f"screen: {new_state.screen}\n"
-            f"role: {new_state.role}"
-        )
+        text=screen_payload.get("text", "No UI"),
     )
