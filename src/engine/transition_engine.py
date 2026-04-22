@@ -13,7 +13,6 @@ class TransitionEngine:
         self.state_machine = state_machine
 
     def transition(self, current_state, action):
-        # UIState object access
         current_screen = current_state.screen
 
         next_screen = self.state_machine.get_next_screen(current_screen, action)
@@ -26,7 +25,6 @@ class TransitionEngine:
             )
             return current_state
 
-        # mutate state object (OK for now)
         current_state.screen = next_screen
 
         logger.info(
