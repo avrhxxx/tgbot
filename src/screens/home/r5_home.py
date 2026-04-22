@@ -1,3 +1,4 @@
+from datetime import datetime
 from src.keyboards.keyboards import home_keyboard
 
 
@@ -8,14 +9,19 @@ def render_home_r5(state):
 
     user_id = getattr(state, "user_id", None)
     game_nick = getattr(state, "game_nick", "Unknown Nick")
-    role = getattr(state, "role", "R5")
+    first_name = getattr(state, "first_name", None)
+    username = getattr(state, "telegram_username", None)
+
+    display_name = first_name or username or "User"
+    today_utc = datetime.utcnow().strftime("%Y-%m-%d")
 
     text = (
-        f"🏠 HOME R5\n\n"
-        f"User ID: {user_id}\n"
+        f"🏠 Home Panel\n\n"
+        f"Welcome, {display_name}\n\n"
         f"Game Nick: {game_nick}\n"
-        f"Role: {role}\n\n"
-        f"Choose an option:"
+        f"Role: R5\n"
+        f"Today is (UTC): {today_utc}\n\n"
+        f"Select an option:"
     )
 
     return {
