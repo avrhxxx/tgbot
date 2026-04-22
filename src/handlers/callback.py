@@ -1,5 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
+from aiogram.exceptions import TelegramBadRequest
 
 from src.core.state import UIState
 from src.core.router import resolve_screen
@@ -39,9 +40,6 @@ UI_TO_ACTION_MAP = {
     ActionID.CREATE_EVENT: ActionID.CREATE_EVENT,
 
     ActionID.CHANGE_GAME_NICK: ActionID.CHANGE_GAME_NICK,
-
-    # 🎭 ROLE SWITCH (NEW CLEAN FLOW)
-    ActionID.SWITCH_ROLE: ActionID.SWITCH_ROLE,
 }
 
 
@@ -66,25 +64,29 @@ async def process_callback(callback: CallbackQuery):
     )
 
     # =========================
-    # 🎭 ROLE SWITCH (SPECIAL CASE, BEFORE FSM)
+    # 🎭 ROLE SWITCH (PRE-FSM SAFE PATH)
     # =========================
     if data == ActionID.SWITCH_ROLE:
         next_role = get_next_role(state.role)
 
-        new_state = UIState(
+        state = UIState(
             user_id=state.user_id,
             screen=state.screen,
             role=next_role,
         )
 
-        state_store.set(user_id, new_state)
+        state_store.set(user_id, state)
 
-        screen_payload = resolve_screen(new_state.screen, new_state)
+        screen_payload = resolve_screen(state.screen, state)
 
-        await callback.message.edit_text(
-            text=screen_payload.get("text", "No UI"),
-            reply_markup=screen_payload.get("keyboard"),
-        )
+        try:
+            await callback.message.edit_text(
+                text=screen_payload.get("text", "No UI"),
+                reply_markup=screen_payload.get("keyboard"),
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
 
         await callback.answer()
         return
@@ -116,19 +118,13 @@ async def process_callback(callback: CallbackQuery):
     new_text = screen_payload.get("text", "No UI")
     new_kb = screen_payload.get("keyboard")
 
-    current_text = callback.message.text if callback.message else None
-    current_kb = callback.message.reply_markup if callback.message else None
-
-    if current_text == new_text and current_kb == new_kb:
-        await callback.answer()
-        return
-
     try:
         await callback.message.edit_text(
             text=new_text,
             reply_markup=new_kb,
         )
-    except Exception as e:
+    except TelegramBadRequest as e:
+        # 🔥 CRITICAL FIX: ignore identical render crash
         if "message is not modified" not in str(e):
             raise
 
