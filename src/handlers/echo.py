@@ -55,9 +55,10 @@ async def process_any_message(message: Message):
 
     _state_store[user_id] = new_state
 
-    # 🧠 UI LAYER (NOWY KROK)
+    # 🧠 UI LAYER
     screen_payload = resolve_screen(new_state.screen, new_state)
 
     await message.reply(
         text=screen_payload.get("text", "No UI"),
+        reply_markup=screen_payload.get("keyboard")
     )
