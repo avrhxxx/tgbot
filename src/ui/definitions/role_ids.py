@@ -1,13 +1,8 @@
-# src/ui/definitions/role_ids.py
-
 class RoleID:
     """
-    UI access roles (IMPORTANT: NOT admin system roles).
-    This is only for UI rendering layer.
+    UI-level role identifiers.
     """
 
-    R3 = "r3"
-    R4 = "r4"
-    R5 = "r5"
-
-    ADMIN = "admin"
+    R3 = "R3"
+    R4 = "R4"
+    R5 = "R5"
