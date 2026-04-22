@@ -24,7 +24,7 @@ def home_button():
 
 
 # =========================
-# 🎭 ROLE SWITCH BUTTON (CORE FEATURE)
+# 🎭 ROLE SWITCH BUTTON
 # =========================
 
 def switch_role_button(role: str):
@@ -36,9 +36,13 @@ def switch_role_button(role: str):
     )
 
 
+# =========================
+# 🔥 FIX: PROPER CONFIG ACCESS
+# =========================
+
 def is_demo_mode_enabled() -> bool:
     config = load_config()
-    return bool(getattr(config, "demo_mode", False))
+    return config.features.demo_mode
 
 
 # =========================
@@ -48,9 +52,7 @@ def is_demo_mode_enabled() -> bool:
 def home_keyboard(role: str):
     rows = []
 
-    # =========================
     # BASE LAYOUT
-    # =========================
     rows.append([
         InlineKeyboardButton(
             text="📅 Events",
@@ -62,6 +64,7 @@ def home_keyboard(role: str):
         )
     ])
 
+    # SETTINGS
     rows.append([
         InlineKeyboardButton(
             text="⚙️ Settings",
@@ -74,10 +77,10 @@ def home_keyboard(role: str):
     ])
 
     # =========================
-    # 🧭 ROLE SWITCH (ONLY DEMO MODE)
+    # 🎭 ROLE SWITCH (ONLY DEMO MODE)
     # =========================
     if is_demo_mode_enabled():
-        rows.insert(1, [
+        rows.append([
             switch_role_button(role)
         ])
 
@@ -85,7 +88,7 @@ def home_keyboard(role: str):
     # 🧭 R4+ FEATURES
     # =========================
     if role in ("R4", "R5", "ADMIN"):
-        rows.insert(2, [
+        rows.append([
             InlineKeyboardButton(
                 text="🧭 Event Management",
                 callback_data=ActionID.GO_EVENT_MANAGEMENT
@@ -99,7 +102,7 @@ def home_keyboard(role: str):
         rows.append([
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data=ActionID.GO_HOME  # TODO: replace later
+                callback_data=ActionID.GO_HOME
             )
         ])
 
