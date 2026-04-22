@@ -12,8 +12,9 @@ class TransitionEngine:
     def __init__(self, state_machine: StateMachine):
         self.state_machine = state_machine
 
-    def transition(self, current_state: dict, action: str) -> dict:
-        current_screen = current_state.get("screen")
+    def transition(self, current_state, action):
+        # UIState object access
+        current_screen = current_state.screen
 
         next_screen = self.state_machine.get_next_screen(current_screen, action)
 
@@ -25,10 +26,8 @@ class TransitionEngine:
             )
             return current_state
 
-        new_state = {
-            **current_state,
-            "screen": next_screen
-        }
+        # mutate state object (OK for now)
+        current_state.screen = next_screen
 
         logger.info(
             "Transition: %s + %s -> %s",
@@ -37,4 +36,4 @@ class TransitionEngine:
             next_screen
         )
 
-        return new_state
+        return current_state
