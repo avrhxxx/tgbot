@@ -1,9 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config.config import load_config
+
 from src.core.state_store import state_store
 from src.ui.definitions.action_ids import ActionID
-
-config = load_config()
 
 
 # =========================
@@ -25,7 +23,7 @@ def home_button():
 
 
 # =========================
-# 🎭 DEMO SWITCH (CORE FEATURE)
+# 🎭 DEMO SWITCH (ROLE TOOL)
 # =========================
 
 def demo_role_switch_button(user_id: int):
@@ -46,12 +44,12 @@ def demo_role_switch_button(user_id: int):
 
 
 # =========================
-# 🏠 HOME KEYBOARD (R3 / R4 / R5 = IDENTICAL UI)
+# 🏠 HOME KEYBOARD (ROLE AWARE)
 # =========================
 
 def home_keyboard(user_id: int | None = None, role: str | None = None):
     """
-    role jest opcjonalny (UI nie zależy od niego)
+    role = effective_role (R3 / R4 / R5 / ADMIN)
     """
 
     keyboard = [
@@ -77,34 +75,38 @@ def home_keyboard(user_id: int | None = None, role: str | None = None):
         ]
     ]
 
-    # DEMO MODE GATE
-    if config.features.demo_mode and user_id is not None:
-        keyboard.insert(0, [
-            demo_role_switch_button(user_id)
-        ])
+    # =========================
+    # 🎭 DEMO MODE (TEMPORARY UI TOOLING)
+    # =========================
+    if user_id is not None:
+        demo_role = state_store.get_demo_role(user_id)
 
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+        if demo_role:
+            keyboard.insert(0, [
+                demo_role_switch_button(user_id)
+            ])
 
+    # =========================
+    # 🧠 ROLE EXTENSIONS (REAL SYSTEM)
+    # =========================
 
-# =========================
-# 🧭 R4 / R5 EXTRA PANEL (OPTIONAL EXTENSIONS ONLY)
-# =========================
-
-def r4_r5_extra_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
+    if role in ("R4", "R5", "ADMIN"):
+        keyboard.insert(1, [
             InlineKeyboardButton(
                 text="🧭 Event Management",
                 callback_data=ActionID.GO_EVENT_MANAGEMENT
             )
-        ],
-        [
+        ])
+
+    if role in ("R5", "ADMIN"):
+        keyboard.insert(2, [
             InlineKeyboardButton(
                 text="👥 User Management",
                 callback_data=ActionID.GO_HOME
             )
-        ]
-    ])
+        ])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 # =========================
