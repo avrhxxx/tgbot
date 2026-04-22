@@ -1,7 +1,10 @@
 from dataclasses import dataclass
+from src.ui.definitions.screen_ids import ScreenID
+from src.ui.definitions.role_ids import RoleID
+
 
 @dataclass
 class UIState:
     user_id: int
-    screen: str
-    role: str  # R3 / R4 / R5
+    screen: ScreenID
+    role: RoleID
