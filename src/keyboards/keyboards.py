@@ -1,5 +1,8 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 from src.ui.definitions.action_ids import ActionID
+from src.core.role_cycle import get_next_role
+from config.config import load_config
 
 
 # =========================
@@ -21,19 +24,32 @@ def home_button():
 
 
 # =========================
-# 🏠 HOME KEYBOARD (STABLE ROLE-AWARE VERSION)
+# 🎭 ROLE SWITCH BUTTON (CORE FEATURE)
+# =========================
+
+def switch_role_button(role: str):
+    next_role = get_next_role(role)
+
+    return InlineKeyboardButton(
+        text=f"🎭 Switch Role ({role} → {next_role})",
+        callback_data=ActionID.SWITCH_ROLE
+    )
+
+
+def is_demo_mode_enabled() -> bool:
+    config = load_config()
+    return bool(getattr(config, "demo_mode", False))
+
+
+# =========================
+# 🏠 HOME KEYBOARD
 # =========================
 
 def home_keyboard(role: str):
-    """
-    role = effective_role (already resolved upstream)
-    deterministic layout, no insert() mutations
-    """
-
     rows = []
 
     # =========================
-    # BASE LAYOUT (EVERYONE)
+    # BASE LAYOUT
     # =========================
     rows.append([
         InlineKeyboardButton(
@@ -46,9 +62,6 @@ def home_keyboard(role: str):
         )
     ])
 
-    # =========================
-    # SETTINGS ROW (EVERYONE)
-    # =========================
     rows.append([
         InlineKeyboardButton(
             text="⚙️ Settings",
@@ -61,10 +74,18 @@ def home_keyboard(role: str):
     ])
 
     # =========================
-    # 🧭 R4+ FEATURE LAYER
+    # 🧭 ROLE SWITCH (ONLY DEMO MODE)
+    # =========================
+    if is_demo_mode_enabled():
+        rows.insert(1, [
+            switch_role_button(role)
+        ])
+
+    # =========================
+    # 🧭 R4+ FEATURES
     # =========================
     if role in ("R4", "R5", "ADMIN"):
-        rows.insert(1, [
+        rows.insert(2, [
             InlineKeyboardButton(
                 text="🧭 Event Management",
                 callback_data=ActionID.GO_EVENT_MANAGEMENT
@@ -72,13 +93,13 @@ def home_keyboard(role: str):
         ])
 
     # =========================
-    # 👥 R5+ FEATURE LAYER
+    # 👥 R5+ FEATURES
     # =========================
     if role in ("R5", "ADMIN"):
         rows.append([
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data=ActionID.GO_HOME  # placeholder for future action
+                callback_data=ActionID.GO_HOME  # TODO: replace later
             )
         ])
 
@@ -91,10 +112,7 @@ def home_keyboard(role: str):
 
 def events_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            back_button(),
-            home_button()
-        ]
+        [back_button(), home_button()]
     ])
 
 
@@ -104,8 +122,5 @@ def events_keyboard():
 
 def settings_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [
-            back_button(),
-            home_button()
-        ]
+        [back_button(), home_button()]
     ])
