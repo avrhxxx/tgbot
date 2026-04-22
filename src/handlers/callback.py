@@ -38,13 +38,52 @@ def map_callback_to_action(data: str | None) -> Action:
 
 
 # =========================
+# DEMO SWITCH HANDLER
+# =========================
+def handle_demo_switch(user_id: int, data: str) -> bool:
+    """
+    Returns True if handled as demo action
+    """
+
+    if not data.startswith("demo_switch_role:"):
+        return False
+
+    role = data.split(":")[1]
+
+    state_store.set_demo_role(user_id, role)
+
+    return True
+
+
+# =========================
 # MAIN HANDLER
 # =========================
 @router.callback_query(F.data)
 async def process_callback(callback: CallbackQuery):
     user_id = callback.from_user.id
+    data = callback.data
 
+    # =========================
+    # DEMO MODE BRANCH (PRE-FSM)
+    # =========================
+    if handle_demo_switch(user_id, data):
+
+        state = state_store.get(user_id)
+
+        if state:
+            screen_payload = resolve_screen(state.screen, state)
+
+            await callback.message.edit_text(
+                text=screen_payload.get("text", "No UI"),
+                reply_markup=screen_payload.get("keyboard"),
+            )
+
+        await callback.answer()
+        return
+
+    # =========================
     # LOAD STATE
+    # =========================
     state = state_store.get_or_create(
         user_id,
         UIState(
@@ -54,16 +93,24 @@ async def process_callback(callback: CallbackQuery):
         ),
     )
 
+    # =========================
     # MAP ACTION
-    action = map_callback_to_action(callback.data)
+    # =========================
+    action = map_callback_to_action(data)
 
+    # =========================
     # FSM TRANSITION
+    # =========================
     new_state = await handler.handle(state, action)
 
+    # =========================
     # SAVE STATE
+    # =========================
     state_store.set(user_id, new_state)
 
+    # =========================
     # RENDER SCREEN
+    # =========================
     screen_payload = resolve_screen(new_state.screen, new_state)
 
     new_text = screen_payload.get("text", "No UI")
