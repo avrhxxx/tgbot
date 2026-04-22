@@ -9,16 +9,6 @@ from src.core.state_store import state_store
 router = Router()
 
 
-def resolve_home_by_role(role: str) -> str:
-    role = (role or "R3").upper()
-
-    if role == "R5":
-        return "home_r5"
-    if role == "R4":
-        return "home_r4"
-    return "home_r3"
-
-
 @router.message(Command("start"))
 async def start_command(message: Message):
     user_id = message.from_user.id
@@ -27,12 +17,14 @@ async def start_command(message: Message):
         user_id,
         UIState(
             user_id=user_id,
-            screen="home_r3",
+            screen="home",
             role="R3",
         ),
     )
 
-    state.screen = resolve_home_by_role(state.role)
+    # HOME IS SINGLE SCREEN NOW
+    state.screen = "home"
+
     state_store.set(user_id, state)
 
     screen_payload = resolve_screen(state.screen, state)
