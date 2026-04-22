@@ -2,7 +2,6 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config.config import load_config
 from src.core.state_store import state_store
 
-
 config = load_config()
 
 
@@ -50,7 +49,32 @@ def demo_role_switch_button(user_id: int):
 
 
 # =========================
-# 🏠 HOME KEYBOARD
+# 🧭 R4 / R5 EXTRA PANEL
+# =========================
+
+def r4_r5_extra_keyboard():
+    """
+    Extra admin/officer tools (ONLY R4 / R5 UI extension)
+    """
+
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🧭 Event Management",
+                callback_data="go_event_management"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="👥 User Management",
+                callback_data="go_user_management"
+            )
+        ]
+    ])
+
+
+# =========================
+# 🏠 HOME KEYBOARD (BASE = R3)
 # =========================
 
 def home_keyboard(user_id: int = None):
@@ -70,7 +94,7 @@ def home_keyboard(user_id: int = None):
     ]
 
     # =========================
-    # DEMO MODE GATE
+    # DEMO MODE GATE (DO NOT TOUCH)
     # =========================
     if config.features.demo_mode and user_id is not None:
         keyboard.insert(0, [
