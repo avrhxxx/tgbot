@@ -3,7 +3,7 @@ from enum import Enum
 
 class Action(str, Enum):
     # =========================
-    # 🧭 NAVIGATION (HOME / UI)
+    # 🧭 NAVIGATION
     # =========================
     GO_HOME = "action:go_home"
     GO_EVENTS = "action:go_events"
@@ -11,14 +11,14 @@ class Action(str, Enum):
     BACK = "action:back"
 
     # =========================
-    # 📡 EVENTS (ENTRY LEVEL)
+    # 📡 EVENTS
     # =========================
     OPEN_EVENT = "action:open_event"
     JOIN_EVENT = "action:join_event"
     LEAVE_EVENT = "action:leave_event"
 
     # =========================
-    # 🧠 EVENT MANAGEMENT (R4/R5)
+    # 🧠 EVENT MANAGEMENT
     # =========================
     GO_EVENT_MANAGEMENT = "action:go_event_management"
     CREATE_EVENT = "action:create_event"
@@ -27,7 +27,6 @@ class Action(str, Enum):
     # =========================
     # ⚙️ SETTINGS
     # =========================
-    OPEN_SETTINGS = "action:open_settings"
     CHANGE_GAME_NICK = "action:change_game_nick"
 
     # =========================
