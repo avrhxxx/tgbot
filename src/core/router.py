@@ -15,18 +15,14 @@ ScreenRenderer = Callable[[Any], dict]
 
 
 # =========================
-# 🧠 SCREEN REGISTRY (UI LAYER)
+# 🧠 SCREEN REGISTRY
 # =========================
 SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
-    # HOME
     "home_r3": render_home_r3,
     "home_r4": render_home_r4,
     "home_r5": render_home_r5,
 
-    # EVENTS
     "events_list": render_events_list,
-
-    # SETTINGS
     "settings_main": render_settings_main,
 }
 
@@ -37,23 +33,24 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
 def resolve_screen(screen_id: str, state=None):
     config = load_config()
 
+    renderer = SCREEN_RENDERERS.get(screen_id)
+
+    if not renderer:
+        return {
+            "text": f"⚠️ Unknown screen: {screen_id}",
+            "keyboard": None,
+        }
+
+    payload = renderer(state)
+
     # =========================
-    # 🎭 DEMO MODE OVERRIDE
+    # 🎭 DEMO MODE (SAFE DECORATION ONLY)
     # =========================
     if config.features.demo_mode and state:
         demo_role = state_store.get_demo_role(state.user_id)
 
-        # override only HOME screens
         if demo_role and screen_id.startswith("home_"):
-            screen_id = f"home_{demo_role.lower()}"
+            # tylko dekoracja UI, NIE zmiana screen_id
+            payload["text"] += f"\n\n🎭 DEMO MODE: {demo_role}"
 
-    renderer = SCREEN_RENDERERS.get(screen_id)
-
-    if renderer:
-        return renderer(state)
-
-    # 🚨 STRICT DEBUG FALLBACK
-    return {
-        "text": f"⚠️ Unknown screen: {screen_id}",
-        "keyboard": None,
-    }
+    return payload
