@@ -1,6 +1,9 @@
-from src.core.actions import Action
+from src.engine.transition_engine import TransitionEngine
 
-async def dispatch(action: Action, state):
-    if action == Action.GO_HOME:
-        state.screen = "home_r3"
-        return state
+
+class Dispatcher:
+    def __init__(self, transition_engine: TransitionEngine):
+        self.transition_engine = transition_engine
+
+    async def dispatch(self, action, state):
+        return self.transition_engine.transition(state, action)
