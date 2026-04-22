@@ -8,9 +8,6 @@ from aiogram.types import Update
 logger = logging.getLogger(__name__)
 
 
-# =========================
-# WEBHOOK SERVER CLASS
-# =========================
 class WebhookServer:
     def __init__(self, bot: Bot, dp: Dispatcher, webhook_path: str, secret: str):
         self.bot = bot
@@ -19,7 +16,7 @@ class WebhookServer:
         self.secret = secret
 
     # =========================
-    # HANDLER TELEGRAM UPDATES
+    # HANDLE TELEGRAM UPDATE
     # =========================
     async def handle_webhook(self, request: web.Request):
         try:
@@ -28,30 +25,29 @@ class WebhookServer:
             logger.info("Incoming webhook update: %s", data.get("update_id"))
 
             # =========================
-            # FIX: proper aiogram v3 parsing
+            # IMPORTANT: AIogram v3 safe parsing
             # =========================
-            update = Update.model_validate(data)
+            update = Update(**data)
 
             await self.dp.feed_update(self.bot, update)
 
             return web.Response(text="OK")
 
-        except Exception as e:
-            logger.exception("Webhook error: %s", e)
+        except Exception:
+            logger.exception("Webhook error")
             return web.Response(status=500, text="Internal Error")
 
     # =========================
-    # SETUP ROUTES
+    # ROUTES
     # =========================
     def setup_routes(self, app: web.Application):
         app.router.add_post(self.webhook_path, self.handle_webhook)
 
     # =========================
-    # START SERVER
+    # SERVER START
     # =========================
     async def run(self, host: str = "0.0.0.0", port: int = 8080):
         app = web.Application()
-
         self.setup_routes(app)
 
         runner = web.AppRunner(app)
@@ -63,13 +59,11 @@ class WebhookServer:
 
         await site.start()
 
-        # =========================
-        # KEEP ALIVE LOOP (RAILWAY SAFE)
-        # =========================
+        # keep alive
         try:
             while True:
                 await asyncio.sleep(3600)
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            logger.info("Shutting down webhook server...")
-
-        await runner.cleanup()
+        except asyncio.CancelledError:
+            pass
+        finally:
+            await runner.cleanup()
