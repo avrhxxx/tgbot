@@ -1,7 +1,6 @@
 from src.engine.state_machine import StateMachine
 from src.core.actions import Action
 
-
 def build_state_machine() -> StateMachine:
     sm = StateMachine()
 
