@@ -10,6 +10,27 @@ router = Router()
 _state_store: dict[int, UIState] = {}
 
 
+def map_text_to_action(text: str | None) -> Action:
+    """
+    ETAP 3 SAFE MAPPER (temporary)
+    """
+    if not text:
+        return Action.GO_HOME
+
+    text = text.lower()
+
+    if text in ["home", "start", "a", ""]:
+        return Action.GO_HOME
+
+    if text in ["event", "open"]:
+        return Action.OPEN_EVENT
+
+    if text in ["back"]:
+        return Action.BACK
+
+    return Action.GO_HOME
+
+
 @router.message()
 async def process_any_message(message: Message):
     user_id = message.from_user.id
@@ -24,13 +45,13 @@ async def process_any_message(message: Message):
         ),
     )
 
-    # 2. MAP INPUT → ACTION (NA RAZIE PROSTO)
-    action = Action.from_text(message.text)
+    # 2. SAFE MAP INPUT → ACTION
+    action = map_text_to_action(message.text)
 
-    # 3. PASS TO ENGINE
+    # 3. ENGINE
     new_state = await dispatch(action, state)
 
-    # 4. SAVE STATE
+    # 4. SAVE
     _state_store[user_id] = new_state
 
     # 5. RESPONSE
