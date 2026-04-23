@@ -7,9 +7,6 @@ from src.engine.state_machine import StateMachine
 from src.engine.session_engine import SessionEngine
 
 
-# =========================
-# SHADOW BOT RUNTIME CONTEXT
-# =========================
 @dataclass
 class AppContext:
     """
@@ -32,24 +29,33 @@ class AppContext:
         self.ui: Dict[str, Any] = {}
 
         # =========================
-        # STATE SYSTEM (NEW CORE)
+        # STATE SYSTEM
         # =========================
         self.state_machine = StateMachine()
 
-        # FIX: proper SessionEngine initialization
+        # SAFETY INIT
         self.session_engine = SessionEngine(
             store={},
             state_machine=self.state_machine
         )
 
+        if self.session_engine is None:
+            raise RuntimeError("SessionEngine failed to initialize")
+
     # =========================
-    # SESSION HELPERS (WRAPPED)
+    # SESSION HELPERS (SAFE WRAPPERS)
     # =========================
     def get_session(self, user_id: str) -> dict:
         return self.session_engine.get(user_id)
 
-    def set_session(self, user_id: str, data: dict) -> None:
-        self.session_engine.set(user_id, data)
+    def set_session_state(self, user_id: str, state) -> None:
+        self.session_engine.set_state(user_id, state)
+
+    def set_session_nick(self, user_id: str, nick: str) -> None:
+        self.session_engine.set_nick(user_id, nick)
+
+    def get_session_nick(self, user_id: str) -> str | None:
+        return self.session_engine.get_nick(user_id)
 
     def delete_session(self, user_id: str) -> None:
         self.session_engine.clear(user_id)
