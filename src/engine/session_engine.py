@@ -1,10 +1,18 @@
 # src/engine/session_engine.py
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TypedDict, Any
 
 from src.engine.state_machine import StateMachine, UserState
 from src.storage.session_cache import SESSION_CACHE
+
+
+# =========================
+# SESSION MODEL (STRICT)
+# =========================
+class SessionData(TypedDict):
+    state: UserState
+    game_nick: Optional[str]
 
 
 # =========================
@@ -25,12 +33,13 @@ class SessionEngine:
     # =========================
     # GET SESSION
     # =========================
-    def get(self, user_id: str) -> dict:
+    def get(self, user_id: str) -> SessionData:
         if user_id not in SESSION_CACHE:
             SESSION_CACHE[user_id] = {
                 "state": UserState.NEW,
                 "game_nick": None,
             }
+
         return SESSION_CACHE[user_id]
 
     # =========================
@@ -50,7 +59,7 @@ class SessionEngine:
     # NICK HANDLING
     # =========================
     def get_nick(self, user_id: str) -> Optional[str]:
-        return self.get(user_id).get("game_nick")
+        return self.get(user_id)["game_nick"]
 
     def set_nick(self, user_id: str, nick: str) -> None:
         self.get(user_id)["game_nick"] = nick
