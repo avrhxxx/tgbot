@@ -10,17 +10,13 @@ from config.config import load_config
 
 from src.bootstrap.app import AppContext
 from src.bootstrap.middleware import AppMiddleware
-
 from src.handlers.common import callback_router, text_router
 from src.handlers.common.start import start_handler
-
 from src.services.user_service import UserService
-
 from src.ui.screen_engine import ScreenEngine
-from src.ui.screen_middleware import ScreenMiddlewareManager, InjectUserMiddleware
+from src.ui.screen_middleware import InjectUserMiddleware, ScreenMiddlewareManager
 from src.ui.screen_registry import ScreenRegistry
 from src.ui.screen_router import ScreenRouter
-
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
