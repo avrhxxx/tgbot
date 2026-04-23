@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from typing import Callable, Optional
 
 from aiogram import Bot, Dispatcher
 
@@ -22,11 +23,15 @@ from src.handlers.common.start import start_handler
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
 
+
 # SAFE IMPORT (fallback for bootstrap stability)
 try:
-    from src.ui.bootstrap_screens import register_screens
+    from src.ui.bootstrap_screens import register_screens as _register_screens
 except ImportError:
-    register_screens = None
+    _register_screens = None
+
+
+register_screens: Optional[Callable[[ScreenRegistry], None]] = _register_screens
 
 
 # =========================
@@ -54,7 +59,7 @@ async def main():
     app = AppContext(config=config)
 
     # =========================
-    # SERVICES (FIX: dict-safe assignment)
+    # SERVICES
     # =========================
     app.services["user_service"] = UserService()
 
@@ -75,7 +80,7 @@ async def main():
     router = ScreenRouter(engine)
 
     # =========================
-    # ATTACH TO APP (dict-based container)
+    # ATTACH TO APP
     # =========================
     app.ui["registry"] = registry
     app.ui["engine"] = engine
