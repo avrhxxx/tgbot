@@ -1,7 +1,7 @@
 # src/webhook/server.py
 
 """
-Webhook HTTP server for Telegram updates (aiohttp bridge).
+Webhook HTTP server for Telegram updates.
 """
 
 import asyncio
@@ -21,9 +21,6 @@ class WebhookServer:
         self.webhook_path = webhook_path
         self.secret = secret
 
-    # =========================
-    # HANDLE INCOMING UPDATES
-    # =========================
     async def handle_webhook(self, request: web.Request):
         try:
             data = await request.json()
@@ -40,15 +37,9 @@ class WebhookServer:
             logger.exception("Webhook processing error")
             return web.Response(status=500, text="error")
 
-    # =========================
-    # ROUTES
-    # =========================
     def setup_routes(self, app: web.Application):
         app.router.add_post(self.webhook_path, self.handle_webhook)
 
-    # =========================
-    # SERVER START
-    # =========================
     async def run(self, host: str = "0.0.0.0", port: int = 8080):
         app = web.Application()
         self.setup_routes(app)
@@ -65,7 +56,5 @@ class WebhookServer:
         try:
             while True:
                 await asyncio.sleep(3600)
-        except asyncio.CancelledError:
-            pass
         finally:
             await runner.cleanup()
