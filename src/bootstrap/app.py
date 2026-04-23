@@ -1,17 +1,16 @@
 # src/bootstrap/app.py
 
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from src.engine.state_machine import StateMachine
 from src.engine.session_engine import SessionEngine
 
 # =========================
-# SCREEN SYSTEM
+# SCREEN SYSTEM (kept for runtime reference only)
 # =========================
 from src.ui.screen_registry import ScreenRegistry
 from src.ui.screen_router import ScreenRouter
-from src.ui.bootstrap_screens import register_screens
 
 
 @dataclass
@@ -29,11 +28,11 @@ class AppContext:
         self.demo_mode: bool = self.config.features.demo_mode
 
         # =========================
-        # REGISTRIES
+        # TYPE-SAFE CONTAINERS (FIX)
         # =========================
-        self.services: Dict[str, Any] = {}
-        self.engines: Dict[str, Any] = {}
-        self.ui: Dict[str, Any] = {}
+        self.services: dict[str, object] = {}
+        self.engines: dict[str, object] = {}
+        self.ui: dict[str, object] = {}
 
         # =========================
         # STATE SYSTEM
@@ -48,19 +47,11 @@ class AppContext:
         )
 
         # =========================
-        # SCREEN SYSTEM INIT
+        # SCREEN SYSTEM (no bootstrap duplication)
         # =========================
-
-        # 1. Registry
         self.screen_registry = ScreenRegistry()
-
-        # 2. Register all screens
-        register_screens(self.screen_registry)
-
-        # 3. Router
         self.screen_router = ScreenRouter(self.screen_registry)
 
-        # expose for services/handlers
         self.engines["screen_router"] = self.screen_router
 
     # =========================
