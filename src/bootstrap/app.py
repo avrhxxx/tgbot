@@ -6,6 +6,13 @@ from typing import Any, Dict
 from src.engine.state_machine import StateMachine
 from src.engine.session_engine import SessionEngine
 
+# =========================
+# SCREEN SYSTEM
+# =========================
+from src.ui.screen_registry import ScreenRegistry
+from src.ui.screen_router import ScreenRouter
+from src.ui.bootstrap_screens import register_screens
+
 
 @dataclass
 class AppContext:
@@ -34,14 +41,30 @@ class AppContext:
         self.state_machine = StateMachine()
 
         # =========================
-        # SESSION ENGINE (CACHETOOLS BACKED)
+        # SESSION ENGINE
         # =========================
         self.session_engine = SessionEngine(
             state_machine=self.state_machine
         )
 
+        # =========================
+        # SCREEN SYSTEM INIT
+        # =========================
+
+        # 1. Registry
+        self.screen_registry = ScreenRegistry()
+
+        # 2. Register all screens
+        register_screens(self.screen_registry)
+
+        # 3. Router
+        self.screen_router = ScreenRouter(self.screen_registry)
+
+        # expose for services/handlers
+        self.engines["screen_router"] = self.screen_router
+
     # =========================
-    # SESSION HELPERS (SAFE WRAPPERS)
+    # SESSION HELPERS
     # =========================
     def get_session(self, user_id: str) -> dict:
         return self.session_engine.get(user_id)
