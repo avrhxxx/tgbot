@@ -2,12 +2,10 @@
 
 import subprocess
 import sys
-from datetime import datetime
 
 
-def run(cmd: str) -> int:
-    print(f"\n[PRECHECK] $ {cmd}")
-    print("-" * 60)
+def run(cmd: str):
+    print(f"\n>>> RUNNING: {cmd}\n", flush=True)
 
     result = subprocess.run(
         cmd,
@@ -15,38 +13,33 @@ def run(cmd: str) -> int:
         text=True
     )
 
-    if result.returncode != 0:
-        print(f"\n[FAILED] {cmd}")
-
     return result.returncode
 
 
 def main():
     print("\n===============================")
-    print("  SHADOW BOT - PRE-FLIGHT CI")
-    print(f"  {datetime.utcnow().isoformat()}Z")
-    print("===============================\n")
+    print("  SHADOW BOT - PRE-FLIGHT CI   ")
+    print("===============================\n", flush=True)
 
     errors = 0
 
-    # 1. Lint (ruff)
-    print("\n>>> RUNNING RUFF")
+    # 1. Ruff (full report, no suppression)
     errors += run("ruff check src/")
 
-    # 2. Type check (mypy)
-    print("\n>>> RUNNING MYPY")
+    # 2. Mypy (single run, no partial interruption noise)
     errors += run("mypy src/")
 
     print("\n===============================")
 
-    if errors > 0:
+    if errors != 0:
         print("❌ PRE-FLIGHT FAILED")
-        print(f"❌ TOTAL ERROR SOURCES: {errors}")
+        print("Fix errors above and redeploy.")
         print("===============================\n")
         sys.exit(1)
 
-    print("✅ PRE-FLIGHT PASSED")
+    print("✅ PRE-FLIGHT OK")
     print("===============================\n")
+
     sys.exit(0)
 
 
