@@ -1,6 +1,10 @@
 # src/services/user_service.py
 
-from typing import TypedDict, Optional
+"""
+MVP user service (NO GOOGLE YET)
+"""
+
+from typing import Optional, TypedDict
 
 
 class UserData(TypedDict):
