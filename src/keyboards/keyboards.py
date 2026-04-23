@@ -1,8 +1,11 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-from src.ui.definitions.action_ids import ActionID
 from src.core.role_cycle import get_next_role
 from config.config import load_config
+
+from src.ui.callbacks.navigation import NavigationCB
+from src.ui.callbacks.event import EventCB
+from src.ui.callbacks.role import RoleCB
 
 
 # =========================
@@ -12,14 +15,14 @@ from config.config import load_config
 def back_button():
     return InlineKeyboardButton(
         text="⬅️ Back",
-        callback_data=ActionID.BACK
+        callback_data=NavigationCB(target="back").pack()
     )
 
 
 def home_button():
     return InlineKeyboardButton(
         text="🏠 Home",
-        callback_data=ActionID.GO_HOME
+        callback_data=NavigationCB(target="home").pack()
     )
 
 
@@ -32,12 +35,12 @@ def switch_role_button(role: str):
 
     return InlineKeyboardButton(
         text=f"🎭 Switch Role ({role} → {next_role})",
-        callback_data=ActionID.SWITCH_ROLE
+        callback_data=RoleCB(action="switch").pack()
     )
 
 
 # =========================
-# 🔥 FIX: PROPER CONFIG ACCESS
+# 🔥 CONFIG
 # =========================
 
 def is_demo_mode_enabled() -> bool:
@@ -56,11 +59,11 @@ def home_keyboard(role: str):
     rows.append([
         InlineKeyboardButton(
             text="📅 Events",
-            callback_data=ActionID.GO_EVENTS
+            callback_data=NavigationCB(target="events").pack()
         ),
         InlineKeyboardButton(
             text="⚡ Quick Join",
-            callback_data=ActionID.JOIN_EVENT
+            callback_data=EventCB(action="join").pack()
         )
     ])
 
@@ -68,11 +71,11 @@ def home_keyboard(role: str):
     rows.append([
         InlineKeyboardButton(
             text="⚙️ Settings",
-            callback_data=ActionID.GO_SETTINGS
+            callback_data=NavigationCB(target="settings").pack()
         ),
         InlineKeyboardButton(
             text="❓ Help",
-            callback_data=ActionID.GO_HOME
+            callback_data=NavigationCB(target="home").pack()
         )
     ])
 
@@ -91,7 +94,7 @@ def home_keyboard(role: str):
         rows.append([
             InlineKeyboardButton(
                 text="🧭 Event Management",
-                callback_data=ActionID.GO_EVENT_MANAGEMENT
+                callback_data=NavigationCB(target="event_management").pack()
             )
         ])
 
@@ -102,7 +105,7 @@ def home_keyboard(role: str):
         rows.append([
             InlineKeyboardButton(
                 text="👥 User Management",
-                callback_data=ActionID.GO_HOME
+                callback_data=NavigationCB(target="home").pack()
             )
         ])
 
@@ -115,7 +118,10 @@ def home_keyboard(role: str):
 
 def events_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [back_button(), home_button()]
+        [
+            back_button(),
+            home_button()
+        ]
     ])
 
 
@@ -125,5 +131,8 @@ def events_keyboard():
 
 def settings_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [back_button(), home_button()]
+        [
+            back_button(),
+            home_button()
+        ]
     ])
