@@ -3,16 +3,16 @@
 from src.ui.keyboards.home_keyboard import get_home_keyboard
 
 
-def build_home_screen(data: dict) -> dict:
+def build_home_screen(app=None, user_id=None, callback=None, session=None) -> dict:
     """
     Screen renderer used by Screen Registry system.
-    Pure function - no dependencies on services or app context.
+    Pure function - no business logic, only presentation.
     """
 
-    first_name = data["first_name"]
-    role = data["role"]
-    game_nick = data.get("game_nick")
-    is_demo = data.get("is_demo", False)
+    first_name = session.get("first_name", "User")
+    role = session.get("role", "user")
+    game_nick = session.get("game_nick")
+    is_demo = app.is_demo() if app else False
 
     text = _build_text(first_name, role, game_nick)
 
