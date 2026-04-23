@@ -8,6 +8,7 @@ echo "====================================="
 
 echo ""
 echo "[1/2] Running preflight checks..."
+
 python scripts/preflight.py
 EXIT_CODE=$?
 
@@ -20,11 +21,14 @@ if [ $EXIT_CODE -ne 0 ]; then
     echo "====================================="
     echo ""
     echo "Fix errors and redeploy manually."
+    echo "Container will stay ALIVE (no crash loop)."
     echo ""
 
-    # HARD STOP STATE (NO RESTART LOOP)
-    # Railway zobaczy proces jako "alive", ale bez crash loop
-    tail -f /dev/null
+    # 🔒 HARD LOCK STATE (NO EXIT, NO RESTART LOOP)
+    # Railway keeps container alive, but stable
+    while true; do
+        sleep 3600
+    done
 fi
 
 echo "====================================="
