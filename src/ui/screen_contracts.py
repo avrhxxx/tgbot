@@ -1,9 +1,13 @@
 # src/ui/screen_contracts.py
-from dataclasses import dataclass
-from typing import Callable, Dict, Any
+from typing import TypedDict, Any, Protocol
 
 
-@dataclass
-class ScreenDefinition:
-    id: str
-    handler: Callable[..., Dict[str, Any]]
+class ScreenResult(TypedDict):
+    text: str
+    keyboard: Any
+
+
+class ScreenContext(TypedDict, total=False):
+    app: object
+    user_id: str
+    callback: object
