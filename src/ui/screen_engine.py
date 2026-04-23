@@ -2,7 +2,7 @@
 
 import logging
 from collections import defaultdict
-from typing import Dict, List, Any, Optional
+from typing import Any
 
 from src.ui.screen_contracts import ScreenResult
 
@@ -22,7 +22,7 @@ class ScreenEngine:
         self.middleware = middleware
 
         # user_id → stack
-        self._stack: Dict[str, List[str]] = defaultdict(list)
+        self._stack: dict[str, list[str]] = defaultdict(list)
 
     # =========================
     # STACK OPS
@@ -31,7 +31,7 @@ class ScreenEngine:
         self._stack[user_id].append(screen_id)
         logger.info(f"[STACK] push {user_id} → {screen_id}")
 
-    def pop(self, user_id: str) -> Optional[str]:
+    def pop(self, user_id: str) -> str | None:
         if not self._stack[user_id]:
             return None
 
@@ -44,7 +44,7 @@ class ScreenEngine:
         logger.info(f"[STACK] pop → {previous}")
         return previous
 
-    def current(self, user_id: str) -> Optional[str]:
+    def current(self, user_id: str) -> str | None:
         if not self._stack[user_id]:
             return None
         return self._stack[user_id][-1]
@@ -52,7 +52,11 @@ class ScreenEngine:
     # =========================
     # MAIN PIPELINE
     # =========================
-    async def render(self, screen_id: str, **context: Any) -> ScreenResult:
+    async def render(
+        self,
+        screen_id: str,
+        **context: dict[str, Any],
+    ) -> ScreenResult:
         user_id = context.get("user_id")
 
         logger.info(f"[ENGINE] render {screen_id} user={user_id}")
@@ -63,17 +67,17 @@ class ScreenEngine:
         # middleware pre
         context = await self.middleware.run_before(screen_id, context)
 
-        # registry render (ALREADY async)
-        result: ScreenResult = await self.registry.render(screen_id, **context)
+        # registry render
+        result: ScreenResult = await self.registry.render(
+            screen_id,
+            **context,
+        )
 
         # middleware post
-        result = await self.middleware.run_after(screen_id, context, result)
-
-        # SAFETY GUARD (runtime + mypy alignment)
-        if not isinstance(result, dict):
-            raise ValueError("ScreenResult must be dict")
-
-        if "text" not in result or "keyboard" not in result:
-            raise ValueError("ScreenResult must contain text + keyboard")
+        result = await self.middleware.run_after(
+            screen_id,
+            context,
+            result,
+        )
 
         return result
