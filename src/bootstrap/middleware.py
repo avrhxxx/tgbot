@@ -1,7 +1,8 @@
 # src/bootstrap/middleware.py
 
+from typing import Any, Awaitable, Callable
+
 from aiogram import BaseMiddleware
-from typing import Callable, Dict, Any, Awaitable
 
 
 class AppMiddleware(BaseMiddleware):
@@ -10,14 +11,14 @@ class AppMiddleware(BaseMiddleware):
     data["app"]
     """
 
-    def __init__(self, app):
+    def __init__(self, app: Any):
         self.app = app
 
     async def __call__(
         self,
-        handler: Callable[[Any, Dict[str, Any]], Awaitable[Any]],
+        handler: Callable[[Any, dict[str, Any]], Awaitable[Any]],
         event: Any,
-        data: Dict[str, Any],
+        data: dict[str, Any],
     ) -> Any:
         # =========================
         # SAFETY CHECK (CRITICAL)
