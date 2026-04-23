@@ -1,5 +1,5 @@
 # src/ui/screen_contracts.py
-from typing import TypedDict, Optional, Any
+from typing import TypedDict, Any
 
 
 class ScreenResult(TypedDict):
