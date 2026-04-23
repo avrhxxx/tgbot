@@ -13,9 +13,6 @@ from src.screens.settings.settings_main import render_settings_main
 ScreenRenderer = Callable[[Any, str], dict]
 
 
-# =========================
-# 🧠 SCREEN REGISTRY
-# =========================
 SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
     ScreenID.HOME: render_home,
     ScreenID.EVENTS_LIST: render_events_list,
@@ -23,11 +20,8 @@ SCREEN_RENDERERS: Dict[str, ScreenRenderer] = {
 }
 
 
-# =========================
-# 🧭 RESOLVER
-# =========================
 def resolve_screen(screen_id: str, state=None):
-    load_config()  # zostawiamy jeśli masz side-effects (jeśli nie → można usunąć)
+    load_config()
 
     renderer = SCREEN_RENDERERS.get(screen_id)
 
@@ -43,15 +37,7 @@ def resolve_screen(screen_id: str, state=None):
             "keyboard": None,
         }
 
-    # =========================
-    # 🧠 ROLE RESOLUTION (NEW CLEAN API)
-    # =========================
     role_ctx = resolve_role(state)
     effective_role = role_ctx.effective_role
 
-    # =========================
-    # 🎨 RENDER SCREEN
-    # =========================
-    payload = renderer(state, effective_role)
-
-    return payload
+    return renderer(state, effective_role)
