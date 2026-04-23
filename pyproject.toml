@@ -4,11 +4,9 @@ explicit_package_bases = true
 namespace_packages = true
 python_version = "3.11"
 
-# CI / UX output
 show_error_codes = true
 pretty = true
 
-# stricter safety (polecane dla bota)
 warn_return_any = true
 warn_unused_configs = true
 no_implicit_optional = true
@@ -20,17 +18,20 @@ strict_optional = true
 target-version = "py311"
 line-length = 100
 
-# core lint rules (balanced CI preset)
+
+[tool.ruff.lint]
 select = [
-    "E",   # pycodestyle
-    "F",   # pyflakes
-    "I",   # import sorting
-    "B",   # bugbear
+    "E",
+    "F",
+    "I",
+    "B",
 ]
 
 ignore = [
-    "E501", # line length (handled by formatter discipline)
+    "E501",
 ]
 
-[tool.ruff.isort]
+
+[tool.ruff.lint.isort]
 known-first-party = ["src"]
+combine-as-imports = true
