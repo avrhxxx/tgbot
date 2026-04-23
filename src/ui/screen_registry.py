@@ -1,18 +1,14 @@
 # src/ui/screen_registry.py
+from typing import Dict, Callable, Protocol, Any
 
-from typing import Dict, Callable
 
-Screen = Callable[..., dict]
+class Screen(Protocol):
+    def __call__(self, **context: Any) -> dict: ...
 
 
 class ScreenRegistry:
     """
-    Stores all screens in the system.
-    Each screen returns:
-    {
-        "text": str,
-        "keyboard": InlineKeyboardMarkup
-    }
+    Central screen storage with contract enforcement layer.
     """
 
     def __init__(self):
