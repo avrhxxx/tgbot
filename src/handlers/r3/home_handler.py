@@ -1,8 +1,7 @@
 # src/handlers/r3/home_handler.py
 
 from aiogram import Router, F
-from aiogram.types import Message
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
 router = Router()
 
@@ -16,12 +15,11 @@ async def home(message: Message, **data):
     user_id = str(message.from_user.id)
 
     # =========================
-    # SAFE SERVICE ACCESS (TEMP FIX)
+    # SAFE SERVICE ACCESS
     # =========================
     user_service = app.services.get("user")
     nav_service = app.services.get("nav")
 
-    # TEMP fallback (żeby bot nie crashował)
     if user_service is None or nav_service is None:
         await message.answer(
             "⚠️ Bot is not fully initialized yet.\nServices are not connected."
@@ -29,24 +27,33 @@ async def home(message: Message, **data):
         return
 
     # =========================
-    # NORMAL FLOW
+    # DATA
     # =========================
     role = user_service.get_role(user_id)
 
-    text = nav_service.get_home_screen(
-        role=role,
-        demo_mode=app.is_demo()
+    first_name = (
+        message.from_user.first_name
+        or message.from_user.username
+        or "User"
     )
 
-    keyboard = []
+    text = nav_service.get_home_screen(
+        first_name=first_name,
+        role=role,
+        game_nick=None
+    )
 
-    if app.is_demo():
-        keyboard.append([
+    # =========================
+    # KEYBOARD
+    # =========================
+    keyboard = [
+        [
             InlineKeyboardButton(
-                text="Switch Roles",
-                callback_data="switch_roles"
+                text="🔁 Switch Role",
+                callback_data="demo.switch_role"
             )
-        ])
+        ]
+    ]
 
     reply_markup = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
