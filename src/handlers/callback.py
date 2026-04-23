@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.types import CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 
@@ -10,8 +10,12 @@ from src.engine.action_handler import ActionHandler
 from src.engine.bootstrap_state_machine import build_state_machine
 from src.engine.transition_engine import TransitionEngine
 
-from src.ui.definitions.action_ids import ActionID
 from src.core.role_cycle import get_next_role
+
+# NEW CALLBACK SYSTEM
+from src.ui.callbacks.navigation import NavigationCB
+from src.ui.callbacks.event import EventCB
+from src.ui.callbacks.role import RoleCB
 
 router = Router()
 
@@ -24,29 +28,9 @@ handler = ActionHandler(transition_engine)
 
 
 # =========================
-# UI → ACTION MAP
-# =========================
-UI_TO_ACTION_MAP = {
-    ActionID.GO_HOME: ActionID.GO_HOME,
-    ActionID.GO_EVENTS: ActionID.GO_EVENTS,
-    ActionID.GO_SETTINGS: ActionID.GO_SETTINGS,
-    ActionID.BACK: ActionID.BACK,
-
-    ActionID.JOIN_EVENT: ActionID.JOIN_EVENT,
-    ActionID.OPEN_EVENT: ActionID.OPEN_EVENT,
-    ActionID.LEAVE_EVENT: ActionID.LEAVE_EVENT,
-
-    ActionID.GO_EVENT_MANAGEMENT: ActionID.GO_EVENT_MANAGEMENT,
-    ActionID.CREATE_EVENT: ActionID.CREATE_EVENT,
-
-    ActionID.CHANGE_GAME_NICK: ActionID.CHANGE_GAME_NICK,
-}
-
-
-# =========================
 # MAIN HANDLER
 # =========================
-@router.callback_query(F.data)
+@router.callback_query()
 async def process_callback(callback: CallbackQuery):
     user_id = callback.from_user.id
     data = callback.data
@@ -64,68 +48,81 @@ async def process_callback(callback: CallbackQuery):
     )
 
     # =========================
-    # 🎭 ROLE SWITCH (PRE-FSM SAFE PATH)
+    # 🎭 ROLE CALLBACK
     # =========================
-    if data == ActionID.SWITCH_ROLE:
-        next_role = get_next_role(state.role)
+    try:
+        role_cb = RoleCB.parse(data)
+        if role_cb:
 
-        state = UIState(
-            user_id=state.user_id,
-            screen=state.screen,
-            role=next_role,
-        )
+            next_role = get_next_role(state.role)
 
-        state_store.set(user_id, state)
+            state = UIState(
+                user_id=state.user_id,
+                screen=state.screen,
+                role=next_role,
+            )
 
-        screen_payload = resolve_screen(state.screen, state)
+            state_store.set(user_id, state)
 
-        try:
+            screen_payload = resolve_screen(state.screen, state)
+
             await callback.message.edit_text(
                 text=screen_payload.get("text", "No UI"),
                 reply_markup=screen_payload.get("keyboard"),
             )
-        except TelegramBadRequest as e:
-            if "message is not modified" not in str(e):
-                raise
 
-        await callback.answer()
-        return
-
-    # =========================
-    # UI → ACTION RESOLVE
-    # =========================
-    action = UI_TO_ACTION_MAP.get(data)
-
-    if action is None:
-        await callback.answer()
-        return
+            await callback.answer()
+            return
+    except Exception:
+        pass
 
     # =========================
-    # FSM TRANSITION
+    # NAVIGATION CALLBACK
     # =========================
-    new_state = await handler.handle(state, action)
-
-    # =========================
-    # SAVE STATE
-    # =========================
-    state_store.set(user_id, new_state)
-
-    # =========================
-    # RENDER SCREEN
-    # =========================
-    screen_payload = resolve_screen(new_state.screen, new_state)
-
-    new_text = screen_payload.get("text", "No UI")
-    new_kb = screen_payload.get("keyboard")
-
     try:
-        await callback.message.edit_text(
-            text=new_text,
-            reply_markup=new_kb,
-        )
-    except TelegramBadRequest as e:
-        # 🔥 CRITICAL FIX: ignore identical render crash
-        if "message is not modified" not in str(e):
-            raise
+        nav_cb = NavigationCB.parse(data)
+        if nav_cb:
 
+            state.screen = nav_cb.target
+
+            state_store.set(user_id, state)
+
+            screen_payload = resolve_screen(state.screen, state)
+
+            await callback.message.edit_text(
+                text=screen_payload.get("text", "No UI"),
+                reply_markup=screen_payload.get("keyboard"),
+            )
+
+            await callback.answer()
+            return
+    except Exception:
+        pass
+
+    # =========================
+    # EVENT CALLBACK
+    # =========================
+    try:
+        event_cb = EventCB.parse(data)
+        if event_cb:
+
+            new_state = await handler.handle(state, event_cb.action)
+
+            state_store.set(user_id, new_state)
+
+            screen_payload = resolve_screen(new_state.screen, new_state)
+
+            await callback.message.edit_text(
+                text=screen_payload.get("text", "No UI"),
+                reply_markup=screen_payload.get("keyboard"),
+            )
+
+            await callback.answer()
+            return
+    except Exception:
+        pass
+
+    # =========================
+    # UNKNOWN CALLBACK
+    # =========================
     await callback.answer()
