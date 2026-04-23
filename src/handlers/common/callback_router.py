@@ -1,6 +1,6 @@
 # src/handlers/common/callback_router.py
 
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.types import CallbackQuery, Message
 
 router = Router()
