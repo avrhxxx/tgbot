@@ -1,9 +1,10 @@
 # src/engine/session_engine.py
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 from src.engine.state_machine import StateMachine, UserState
+from src.storage.session_cache import SESSION_CACHE
 
 
 # =========================
@@ -14,24 +15,23 @@ class SessionEngine:
     """
     Central user session manager.
 
-    Wraps:
-    - in-memory storage
-    - state machine rules
+    Uses:
+    - cachetools TTLCache (in-memory global store)
+    - state machine validation
     """
 
-    store: Dict[str, dict]
     state_machine: StateMachine
 
     # =========================
     # GET SESSION
     # =========================
     def get(self, user_id: str) -> dict:
-        if user_id not in self.store:
-            self.store[user_id] = {
+        if user_id not in SESSION_CACHE:
+            SESSION_CACHE[user_id] = {
                 "state": UserState.NEW,
                 "game_nick": None,
             }
-        return self.store[user_id]
+        return SESSION_CACHE[user_id]
 
     # =========================
     # STATE HANDLING
@@ -59,5 +59,4 @@ class SessionEngine:
     # RESET SESSION
     # =========================
     def clear(self, user_id: str) -> None:
-        if user_id in self.store:
-            del self.store[user_id]
+        SESSION_CACHE.pop(user_id, None)
