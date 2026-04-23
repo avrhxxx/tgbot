@@ -26,10 +26,9 @@ RUN pip install --no-cache-dir -r requirements/production.txt
 COPY . /app
 
 # =========================
-# PRE-FLIGHT CHECKS
+# STATIC TOOLS (preflight deps)
 # =========================
-# (TS-like safety gate before runtime)
-RUN pip install ruff
+RUN pip install ruff mypy
 
 # =========================
 # RAILWAY PORT
@@ -37,6 +36,6 @@ RUN pip install ruff
 EXPOSE 8080
 
 # =========================
-# START (SAFE ENTRYPOINT)
+# ENTRYPOINT (JEDYNY FLOW)
 # =========================
-CMD ["sh", "-c", "python scripts/preflight.py && python src/bootstrap/bot.py"]
+CMD ["sh", "scripts/entrypoint.sh"]
