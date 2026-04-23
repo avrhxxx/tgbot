@@ -1,21 +1,25 @@
 # src/handlers/common/start.py
 
 from aiogram import types
-from ui.screen_engine import ScreenEngine
+
 from ui.screen_contracts import ScreenContext
+from ui.screens.home.r3_home_screen import render as r3_home_screen
 
 
 async def start_handler(message: types.Message, app):
+
     user_id = str(message.from_user.id)
 
-    context = {
+    context: ScreenContext = {
         "app": app,
-        "user_id": user_id
+        "user_id": user_id,
+        "callback": None
     }
 
-    screen = await ScreenEngine.resolve_home_screen(context)
-
-    result = await screen(context)
+    # -------------------------
+    # TEMP: ONLY R3 HOME SCREEN
+    # -------------------------
+    result = await r3_home_screen(context)
 
     await message.answer(
         text=result["text"],
