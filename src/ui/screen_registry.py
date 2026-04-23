@@ -3,16 +3,20 @@
 import logging
 from typing import Dict, Protocol, Any, Awaitable
 
-from src.ui.screen_contracts import ScreenResult
+from src.ui.screen_contracts import ScreenResult, ScreenContext
 
 logger = logging.getLogger("shadow.ui.registry")
 
 
 class Screen(Protocol):
-    def __call__(self, **context: Any) -> Awaitable[ScreenResult]:
+    """
+    Strict screen contract used by ScreenRegistry.
+    """
+
+    def __call__(self, context: ScreenContext) -> Awaitable[ScreenResult]:
         """
         Async screen callable contract.
-        Must return ScreenResult wrapped in coroutine.
+        Must return ScreenResult.
         """
         ...
 
@@ -35,13 +39,12 @@ class ScreenRegistry:
             raise ValueError(f"Screen not found: {screen_id}")
         return self._screens[screen_id]
 
-    async def render(self, screen_id: str, **context: Any) -> ScreenResult:
+    async def render(self, screen_id: str, context: ScreenContext) -> ScreenResult:
         logger.debug(f"[REGISTRY] render: {screen_id}")
 
         screen = self.get(screen_id)
-        result = await screen(**context)
+        result = await screen(context)
 
-        # SAFETY CHECK (TypedDict-safe version)
         if not isinstance(result, dict):
             logger.error(f"[REGISTRY] invalid screen output type: {screen_id}")
             raise ValueError(f"Screen '{screen_id}' must return dict")
