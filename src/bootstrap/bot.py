@@ -49,10 +49,10 @@ except ImportError:
     _register_screens = _fallback_register_screens
 
 
-# FIX: unify type for mypy (avoid Any vs None mismatch)
-register_screens = cast(
-    Callable[[ScreenRegistry], None],
-    _register_screens
+RegisterScreensType = Callable[[ScreenRegistry], None]
+
+register_screens: RegisterScreensType = cast(
+    RegisterScreensType, _register_screens
 )
 
 
