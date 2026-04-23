@@ -4,22 +4,28 @@ import subprocess
 import sys
 
 
-def run(cmd: str):
+def run(cmd: str) -> int:
     print(f"[PRECHECK] {cmd}")
     result = subprocess.run(cmd, shell=True)
     if result.returncode != 0:
         print(f"[FAILED] {cmd}")
-        sys.exit(result.returncode)
+    return result.returncode
 
 
 def main():
     print("=== PRE-FLIGHT CHECK START ===")
 
-    # Static linting (fast fail)
-    run("ruff check src/")
+    errors = 0
 
-    # Type checking (optional but now enabled TS-like gate)
-    run("mypy src/")
+    # 1. Lint + importy + basic errors (FULL REPORT)
+    errors += run("ruff check src/")
+
+    # 2. Type system check (TS-like safety)
+    errors += run("mypy src/")
+
+    if errors != 0:
+        print("=== BUILD FAILED - FIX ERRORS ABOVE ===")
+        sys.exit(1)
 
     print("=== PRE-FLIGHT OK ===")
 
