@@ -1,11 +1,11 @@
-# scripts/preflight.py
-
 import subprocess
 import sys
 
 
 def run(cmd: str):
-    print(f"\n>>> RUNNING: {cmd}\n", flush=True)
+    print("\n" + "=" * 60)
+    print(f"RUNNING: {cmd}")
+    print("=" * 60 + "\n", flush=True)
 
     result = subprocess.run(
         cmd,
@@ -18,28 +18,26 @@ def run(cmd: str):
 
 def main():
     print("\n===============================")
-    print("  SHADOW BOT - PRE-FLIGHT CI   ")
+    print(" SHADOW BOT - PRE-FLIGHT CI")
     print("===============================\n", flush=True)
 
     errors = 0
 
-    # 1. Ruff (full report, no suppression)
+    # Ruff
     errors += run("ruff check src/")
 
-    # 2. Mypy (single run, no partial interruption noise)
+    # Mypy
     errors += run("mypy src/")
 
     print("\n===============================")
 
-    if errors != 0:
+    if errors:
         print("❌ PRE-FLIGHT FAILED")
-        print("Fix errors above and redeploy.")
         print("===============================\n")
         sys.exit(1)
 
     print("✅ PRE-FLIGHT OK")
     print("===============================\n")
-
     sys.exit(0)
 
 
