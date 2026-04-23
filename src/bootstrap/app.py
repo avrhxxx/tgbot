@@ -36,6 +36,7 @@ class AppContext:
         # =========================
         self.state_machine = StateMachine()
 
+        # FIX: proper SessionEngine initialization
         self.session_engine = SessionEngine(
             store={},
             state_machine=self.state_machine
@@ -48,7 +49,7 @@ class AppContext:
         return self.session_engine.get(user_id)
 
     def set_session(self, user_id: str, data: dict) -> None:
-        self.session_engine.store[user_id] = data
+        self.session_engine.set(user_id, data)
 
     def delete_session(self, user_id: str) -> None:
         self.session_engine.clear(user_id)
