@@ -12,16 +12,22 @@ from src.bootstrap.middleware import AppMiddleware
 from src.services.user_service import UserService
 
 from src.ui.screen_registry import ScreenRegistry
-from src.ui.bootstrap_screens import register_screens
-from src.ui.screen_middleware import ScreenMiddlewareManager, InjectUserMiddleware
 from src.ui.screen_engine import ScreenEngine
 from src.ui.screen_router import ScreenRouter
+from src.ui.screen_middleware import ScreenMiddlewareManager, InjectUserMiddleware
 
 from src.handlers.common import callback_router, text_router
 from src.handlers.common.start import start_handler
 
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
+
+
+# SAFE IMPORT (FIX FOR MYPY + RUNTIME SAFETY)
+try:
+    from src.ui.bootstrap_screens import register_screens
+except ImportError:
+    register_screens = None
 
 
 # =========================
@@ -49,15 +55,19 @@ async def main():
     app = AppContext(config=config)
 
     # =========================
-    # SERVICES (FIXED STRUCTURE)
+    # SERVICES
     # =========================
     app.services.user_service = UserService()
 
     # =========================
     # SCREEN SYSTEM
     # =========================
-
     registry = ScreenRegistry()
+
+    # SAFE SCREEN REGISTRATION
+    if register_screens is None:
+        raise RuntimeError("register_screens not found in src.ui.bootstrap_screens")
+
     register_screens(registry)
 
     middleware = ScreenMiddlewareManager()
@@ -85,7 +95,7 @@ async def main():
     dp.include_router(text_router.router)
 
     # =========================
-    # START HANDLER (IMPORTANT)
+    # HANDLERS
     # =========================
     dp.message.register(start_handler)
 
