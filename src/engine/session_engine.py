@@ -1,7 +1,7 @@
 # src/engine/session_engine.py
 
 from dataclasses import dataclass
-from typing import Optional, TypedDict, Any
+from typing import Optional, TypedDict, cast
 
 from src.engine.state_machine import StateMachine, UserState
 from src.storage.session_cache import SESSION_CACHE
@@ -40,7 +40,7 @@ class SessionEngine:
                 "game_nick": None,
             }
 
-        return SESSION_CACHE[user_id]
+        return cast(SessionData, SESSION_CACHE[user_id])
 
     # =========================
     # STATE HANDLING
