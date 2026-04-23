@@ -1,10 +1,16 @@
 # src/ui/screen_contracts.py
-from typing import TypedDict, Any
+
+"""
+Screen system contracts.
+Defines strict UI input/output shapes.
+"""
+
+from typing import Any, TypedDict
 
 
 class ScreenResult(TypedDict):
     text: str
-    keyboard: Any  # aiogram InlineKeyboardMarkup / ReplyMarkup (dynamic type in runtime)
+    keyboard: Any  # aiogram InlineKeyboardMarkup / ReplyMarkup (runtime dynamic type)
 
 
 class ScreenContext(TypedDict, total=False):
