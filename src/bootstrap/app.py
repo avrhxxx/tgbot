@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from src.engine.state_machine import StateMachine
-from src.engine.session_engine import SessionEngine
+from src.engine.session_engine import SessionEngine, SessionData
 
 # =========================
 # SCREEN SYSTEM (kept for runtime reference only)
@@ -28,7 +28,7 @@ class AppContext:
         self.demo_mode: bool = self.config.features.demo_mode
 
         # =========================
-        # TYPE-SAFE CONTAINERS (FIX)
+        # TYPE-SAFE CONTAINERS
         # =========================
         self.services: dict[str, object] = {}
         self.engines: dict[str, object] = {}
@@ -47,7 +47,7 @@ class AppContext:
         )
 
         # =========================
-        # SCREEN SYSTEM (no bootstrap duplication)
+        # SCREEN SYSTEM
         # =========================
         self.screen_registry = ScreenRegistry()
         self.screen_router = ScreenRouter(self.screen_registry)
@@ -57,7 +57,7 @@ class AppContext:
     # =========================
     # SESSION HELPERS
     # =========================
-    def get_session(self, user_id: str) -> dict:
+    def get_session(self, user_id: str) -> SessionData:
         return self.session_engine.get(user_id)
 
     def set_session_state(self, user_id: str, state) -> None:
