@@ -3,26 +3,33 @@ mypy_path = "src"
 explicit_package_bases = true
 namespace_packages = true
 python_version = "3.11"
+
+# CI / UX output
+show_error_codes = true
+pretty = true
+
+# stricter safety (polecane dla bota)
 warn_return_any = true
 warn_unused_configs = true
 no_implicit_optional = true
 check_untyped_defs = true
 strict_optional = true
 
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100
 
-# podstawowe reguły (możesz rozszerzyć później)
+# core lint rules (balanced CI preset)
 select = [
-    "E",   # pycodestyle errors
+    "E",   # pycodestyle
     "F",   # pyflakes
-    "I",   # isort
+    "I",   # import sorting
     "B",   # bugbear
 ]
 
 ignore = [
-    "E501", # line too long (jeśli chcesz kontrolować ręcznie)
+    "E501", # line length (handled by formatter discipline)
 ]
 
 [tool.ruff.isort]
