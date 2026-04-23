@@ -33,14 +33,12 @@ class AppContext:
         # =========================
         self.state_machine = StateMachine()
 
-        # SAFETY INIT
+        # =========================
+        # SESSION ENGINE (CACHETOOLS BACKED)
+        # =========================
         self.session_engine = SessionEngine(
-            store={},
             state_machine=self.state_machine
         )
-
-        if self.session_engine is None:
-            raise RuntimeError("SessionEngine failed to initialize")
 
     # =========================
     # SESSION HELPERS (SAFE WRAPPERS)
