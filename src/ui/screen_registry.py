@@ -1,8 +1,8 @@
 # src/ui/screen_registry.py
 import logging
-from typing import Dict, Protocol, Any, Callable, Awaitable
+from typing import Dict, Protocol, Any
 
-from src.ui.screen_contracts import ScreenResult, ScreenContext
+from src.ui.screen_contracts import ScreenResult
 
 logger = logging.getLogger("shadow.ui.registry")
 
@@ -30,12 +30,17 @@ class ScreenRegistry:
             raise ValueError(f"Screen not found: {screen_id}")
         return self._screens[screen_id]
 
-    def render(self, screen_id: str, **context: Any) -> ScreenResult:
+    async def render(self, screen_id: str, **context: Any) -> ScreenResult:
         logger.debug(f"[REGISTRY] render: {screen_id}")
 
-        result = self.get(screen_id)(**context)
+        screen = self.get(screen_id)
+        result = await screen(**context)
 
-        # SAFETY CHECK
+        # SAFETY CHECK (TypedDict-safe version)
+        if not isinstance(result, dict):
+            logger.error(f"[REGISTRY] invalid screen output type: {screen_id}")
+            raise ValueError(f"Screen '{screen_id}' must return dict")
+
         if "text" not in result or "keyboard" not in result:
             logger.error(f"[REGISTRY] invalid screen output: {screen_id}")
             raise ValueError(f"Screen '{screen_id}' must return text + keyboard")
