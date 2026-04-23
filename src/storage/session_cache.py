@@ -1,15 +1,15 @@
 # src/storage/session_cache.py
 
-from typing import Dict, Any
-
-from cachetools import TTLCache
-
 """
 Global in-memory session cache for Shadow Bot.
 
 - TTL = 24h
-- maxsize = limit RAM safety
+- maxsize = RAM safety limit
 """
+
+from typing import Any, Dict
+
+from cachetools import TTLCache
 
 # =========================
 # SESSION DATA TYPE
