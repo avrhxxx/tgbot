@@ -3,6 +3,8 @@
 from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
+from src.engine.state_machine import UserState
+
 router = Router()
 
 
@@ -27,10 +29,15 @@ async def home(message: Message, **data):
         return
 
     # =========================
+    # SESSION ENGINE
+    # =========================
+    session_engine = app.session_engine
+
+    # =========================
     # USER DATA
     # =========================
     role = user_service.get_role(user_id)
-    game_nick = user_service.get_game_nick(user_id)
+    game_nick = session_engine.get_nick(user_id)
 
     first_name = (
         message.from_user.first_name
@@ -42,7 +49,7 @@ async def home(message: Message, **data):
     # 🚨 ONBOARDING GATE
     # =========================
     if game_nick is None:
-        app.set_session(user_id, {"state": "awaiting_nick"})
+        session_engine.set_state(user_id, UserState.AWAITING_NICK)
 
         await message.answer(
             "🎮 Welcome!\n\n"
