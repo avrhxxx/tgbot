@@ -3,6 +3,9 @@
 from dataclasses import dataclass
 from typing import Any, Dict
 
+from src.engine.state_machine import StateMachine
+from src.engine.session_engine import SessionEngine
+
 
 # =========================
 # SHADOW BOT RUNTIME CONTEXT
@@ -11,59 +14,47 @@ from typing import Any, Dict
 class AppContext:
     """
     Central runtime container for Shadow Bot.
-
-    Holds:
-    - config
-    - demo mode flag
-    - in-memory sessions
-    - service registry
-    - engine registry
-    - UI registry
     """
 
     config: Any
 
     def __post_init__(self):
         # =========================
-        # DEMO MODE SWITCH
+        # DEMO MODE
         # =========================
         self.demo_mode: bool = self.config.features.demo_mode
 
         # =========================
-        # IN-MEMORY SESSION STORE (MVP)
-        # =========================
-        self.sessions: Dict[str, dict] = {}
-
-        # =========================
-        # SERVICE REGISTRY
+        # REGISTRIES
         # =========================
         self.services: Dict[str, Any] = {}
-
-        # =========================
-        # ENGINE REGISTRY
-        # =========================
         self.engines: Dict[str, Any] = {}
-
-        # =========================
-        # UI REGISTRY (screens/keyboards/renderers)
-        # =========================
         self.ui: Dict[str, Any] = {}
 
+        # =========================
+        # STATE SYSTEM (NEW CORE)
+        # =========================
+        self.state_machine = StateMachine()
+
+        self.session_engine = SessionEngine(
+            store={},
+            state_machine=self.state_machine
+        )
+
     # =========================
-    # SESSION HELPERS
+    # SESSION HELPERS (WRAPPED)
     # =========================
-    def get_session(self, user_id: str) -> dict | None:
-        return self.sessions.get(user_id)
+    def get_session(self, user_id: str) -> dict:
+        return self.session_engine.get(user_id)
 
     def set_session(self, user_id: str, data: dict) -> None:
-        self.sessions[user_id] = data
+        self.session_engine.store[user_id] = data
 
     def delete_session(self, user_id: str) -> None:
-        if user_id in self.sessions:
-            del self.sessions[user_id]
+        self.session_engine.clear(user_id)
 
     # =========================
-    # DEMO MODE GUARD
+    # DEMO MODE
     # =========================
     def is_demo(self) -> bool:
         return self.demo_mode
