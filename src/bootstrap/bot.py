@@ -22,8 +22,7 @@ from src.handlers.common.start import start_handler
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
 
-
-# SAFE IMPORT (FIX FOR MYPY + RUNTIME SAFETY)
+# SAFE IMPORT (fallback for bootstrap stability)
 try:
     from src.ui.bootstrap_screens import register_screens
 except ImportError:
@@ -55,16 +54,15 @@ async def main():
     app = AppContext(config=config)
 
     # =========================
-    # SERVICES
+    # SERVICES (FIX: dict-safe assignment)
     # =========================
-    app.services.user_service = UserService()
+    app.services["user_service"] = UserService()
 
     # =========================
     # SCREEN SYSTEM
     # =========================
     registry = ScreenRegistry()
 
-    # SAFE SCREEN REGISTRATION
     if register_screens is None:
         raise RuntimeError("register_screens not found in src.ui.bootstrap_screens")
 
@@ -77,7 +75,7 @@ async def main():
     router = ScreenRouter(engine)
 
     # =========================
-    # ATTACH TO APP
+    # ATTACH TO APP (dict-based container)
     # =========================
     app.ui["registry"] = registry
     app.ui["engine"] = engine
@@ -100,7 +98,7 @@ async def main():
     dp.message.register(start_handler)
 
     # =========================
-    # WEBHOOK
+    # WEBHOOK SETUP
     # =========================
     await setup_webhook(
         bot=bot,
