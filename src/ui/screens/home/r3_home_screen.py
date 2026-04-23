@@ -11,14 +11,20 @@ async def render_r3_home_screen(context: ScreenContext) -> ScreenResult:
     user_id = context["user_id"]
 
     # -------------------------
-    # USER DATA FETCH
+    # USER SERVICE (FIXED ACCESS)
     # -------------------------
-    user_service = app.services["user"]
+    user_service = app.services.user_service
     user = await user_service.get_user(user_id)
 
-    telegram_first_name = getattr(user, "first_name", None)
-    telegram_username = getattr(user, "telegram_username", None)
-    game_nick = getattr(user, "game_nick", None)
+    # SAFETY: user can be None
+    if user is None:
+        telegram_first_name = None
+        telegram_username = None
+        game_nick = None
+    else:
+        telegram_first_name = getattr(user, "first_name", None)
+        telegram_username = getattr(user, "telegram_username", None)
+        game_nick = getattr(user, "game_nick", None)
 
     # -------------------------
     # WELCOME RESOLUTION
