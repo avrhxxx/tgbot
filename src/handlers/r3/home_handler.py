@@ -1,7 +1,9 @@
 # src/handlers/r3/home_handler.py
 
 from aiogram import Router, F
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message
+
+from src.engine.state_machine import UserState
 
 router = Router()
 
@@ -22,12 +24,10 @@ async def home(message: Message, **data):
         return
 
     # =========================
-    # STATE SYSTEM (SOURCE OF TRUTH)
+    # USER DATA
     # =========================
-    session = app.session_engine.get(user_id)
-    game_nick = session.get("game_nick")
-
     role = user_service.get_role(user_id)
+    game_nick = user_service.get_game_nick(user_id)
 
     first_name = (
         message.from_user.first_name
@@ -39,46 +39,25 @@ async def home(message: Message, **data):
     # ONBOARDING
     # =========================
     if game_nick is None:
-        app.set_session_state(user_id, "awaiting_nick")
+        app.session_engine.set_state(user_id, UserState.AWAITING_NICK)
 
         await message.answer(
-            "🎮 Welcome!\n\n"
+            "Welcome!\n\n"
             "Send your Game Nick:"
         )
         return
 
     # =========================
-    # HOME
+    # HOME VIEW (COMPOSED)
     # =========================
-    text = nav_service.get_home_screen(
+    view = nav_service.get_home_view(
         first_name=first_name,
         role=role,
-        game_nick=game_nick
+        game_nick=game_nick,
+        is_demo=app.is_demo(),
     )
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="📅 Events",
-                    callback_data="nav.events"
-                ),
-                InlineKeyboardButton(
-                    text="⚡ Quick Join",
-                    callback_data="nav.quick_join"
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text="⚙️ Settings",
-                    callback_data="nav.settings"
-                ),
-                InlineKeyboardButton(
-                    text="❓ Help",
-                    callback_data="nav.help"
-                ),
-            ],
-        ]
+    await message.answer(
+        view["text"],
+        reply_markup=view["keyboard"]
     )
-
-    await message.answer(text, reply_markup=keyboard)
