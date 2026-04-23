@@ -12,7 +12,7 @@ from src.bootstrap.middleware import AppMiddleware
 from src.services.user_service import UserService
 from src.services.navigation_service import NavigationService
 
-from src.handlers.r3 import home_handler, home_router
+from src.handlers.r3 import home_handler
 from src.handlers.common import callback_router, text_router
 
 from src.webhook.setup import setup_webhook
@@ -42,11 +42,10 @@ async def main():
     config = load_config()
 
     # =========================
-    # BOT CORE
+    # BOT CORE (aiogram v3 safe init)
     # =========================
     bot = Bot(
         token=config.tg_bot.token,
-        parse_mode="HTML",
     )
 
     dp = Dispatcher()
@@ -63,22 +62,14 @@ async def main():
     app.services["nav"] = NavigationService()
 
     # =========================
-    # SESSION ENGINE (MVP PLACEHOLDER)
+    # MIDDLEWARE (GLOBAL INJECTION)
     # =========================
-    app.session_engine = None  # ready for next stage
-
-    # =========================
-    # MIDDLEWARE (FIXED)
-    # =========================
-    dp.update.outer_middleware(
-        AppMiddleware(app)
-    )
+    dp.update.outer_middleware(AppMiddleware(app))
 
     # =========================
     # ROUTERS
     # =========================
     dp.include_router(home_handler.router)
-    dp.include_router(home_router.router)
     dp.include_router(callback_router.router)
     dp.include_router(text_router.router)
 
