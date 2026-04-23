@@ -3,12 +3,13 @@
 import logging
 from aiogram.types import CallbackQuery
 
-logger = logging.getLogger("shadow.ui.screen_router")
+logger = logging.getLogger("shadow.ui.router")
 
 
 class ScreenRouter:
     """
-    Only resolves callback → delegates to ScreenEngine.
+    ONLY routing layer.
+    No rendering logic.
     """
 
     def __init__(self, engine):
@@ -24,15 +25,20 @@ class ScreenRouter:
         return callback_data
 
     async def handle(self, callback: CallbackQuery, app):
-        screen_id = self.resolve(callback.data)
 
-        logger.info(f"[ROUTER] Callback received: {callback.data}")
-        logger.info(f"[ROUTER] Resolved screen: {screen_id}")
+        screen_id = self.resolve(callback.data)
+        user_id = str(callback.from_user.id)
+
+        logger.info(f"[ROUTER] {callback.data} → {screen_id}")
+
+        # BACK SUPPORT
+        if callback.data == "nav.back":
+            screen_id = self.engine.pop(user_id) or "home"
 
         view = await self.engine.render(
             screen_id,
             app=app,
-            user_id=str(callback.from_user.id),
+            user_id=user_id,
             callback=callback,
         )
 
@@ -43,4 +49,4 @@ class ScreenRouter:
 
         await callback.answer()
 
-        logger.info(f"[ROUTER] Response sent for: {screen_id}")
+        logger.info(f"[ROUTER] done {screen_id}")
