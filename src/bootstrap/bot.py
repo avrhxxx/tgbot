@@ -7,7 +7,6 @@ Shadow Bot bootstrap entrypoint.
 import asyncio
 import logging
 from typing import Callable
-
 from aiogram import Bot, Dispatcher
 from config.config import load_config
 from src.bootstrap.app import AppContext
