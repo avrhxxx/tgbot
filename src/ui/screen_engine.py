@@ -55,13 +55,13 @@ class ScreenEngine:
     async def render(
         self,
         screen_id: str,
-        **context: dict[str, Any],
+        **context: Any,  # ✅ FIX: poprawne typing kwargs
     ) -> ScreenResult:
         user_id = context.get("user_id")
 
         logger.info(f"[ENGINE] render {screen_id} user={user_id}")
 
-        if user_id:
+        if isinstance(user_id, str):
             self.push(user_id, screen_id)
 
         # middleware pre
