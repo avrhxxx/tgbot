@@ -1,7 +1,9 @@
 # src/ui/screens/home/r3_home_screen.py
 
-from ui.screen_contracts import ScreenResult, ScreenContext
-from ui.keyboards.home.r3_home_kb import build_r3_home_kb
+from datetime import datetime
+
+from src.ui.screen_contracts import ScreenResult, ScreenContext
+from src.ui.keyboards.home.r3_home_kb import build_r3_home_kb
 
 
 async def render(context: ScreenContext) -> ScreenResult:
@@ -9,9 +11,10 @@ async def render(context: ScreenContext) -> ScreenResult:
     user_id = context["user_id"]
 
     # -------------------------
-    # USER DATA FETCH (via app layer)
+    # USER DATA FETCH
     # -------------------------
-    user = await app.services.user_service.get_user(user_id)
+    user_service = app.services["user"]
+    user = await user_service.get_user(user_id)
 
     telegram_first_name = getattr(user, "first_name", None)
     telegram_username = getattr(user, "telegram_username", None)
@@ -28,18 +31,18 @@ async def render(context: ScreenContext) -> ScreenResult:
         welcome_name = "Telegram User"
 
     # -------------------------
-    # SAFE FALLBACKS
+    # FALLBACKS
     # -------------------------
     if not game_nick:
         game_nick = "Not set"
 
-    # Role is static for this screen (R3)
+    # R3 fixed role for this screen stage
     role = "R3"
 
     # -------------------------
     # UTC DATE (UI ONLY)
     # -------------------------
-    today_utc = app.time_service.utcnow().strftime("%Y-%m-%d")
+    today_utc = datetime.utcnow().strftime("%Y-%m-%d")
 
     # -------------------------
     # TEXT RENDER
