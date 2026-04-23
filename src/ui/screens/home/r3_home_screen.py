@@ -5,7 +5,6 @@ R3 Home Screen.
 """
 
 from datetime import datetime
-
 from src.ui.screen_contracts import ScreenContext, ScreenResult
 from src.ui.keyboards.home.r3_home_kb import build_r3_home_kb
 
