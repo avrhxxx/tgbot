@@ -28,12 +28,8 @@ class ScreenEngine:
         self.registry = registry
         self.middleware = middleware
 
-        # user_id → stack
         self._stack: dict[str, list[str]] = defaultdict(list)
 
-    # =========================
-    # STACK OPS
-    # =========================
     def push(self, user_id: str, screen_id: str) -> None:
         self._stack[user_id].append(screen_id)
         logger.info(f"[STACK] push {user_id} → {screen_id}")
@@ -56,9 +52,6 @@ class ScreenEngine:
             return None
         return self._stack[user_id][-1]
 
-    # =========================
-    # MAIN PIPELINE
-    # =========================
     async def render(
         self,
         screen_id: str,
@@ -71,16 +64,13 @@ class ScreenEngine:
         if isinstance(user_id, str):
             self.push(user_id, screen_id)
 
-        # middleware pre
         context = await self.middleware.run_before(screen_id, context)
 
-        # registry render
         result: ScreenResult = await self.registry.render(
             screen_id,
             **context,
         )
 
-        # middleware post
         result = await self.middleware.run_after(
             screen_id,
             context,
