@@ -1,5 +1,9 @@
 # src/ui/screen_middleware.py
 
+"""
+Middleware pipeline for screen rendering system.
+"""
+
 import logging
 from typing import Any, Dict, List, Protocol
 
@@ -31,7 +35,7 @@ class ScreenMiddlewareManager:
     def __init__(self):
         self._middlewares: List[ScreenMiddleware] = []
 
-    def add(self, middleware: ScreenMiddleware):
+    def add(self, middleware: ScreenMiddleware) -> None:
         logger.info(f"[MW] add {middleware.__class__.__name__}")
         self._middlewares.append(middleware)
 
@@ -52,7 +56,6 @@ class ScreenMiddlewareManager:
     ) -> ScreenResult:
         for mw in self._middlewares:
             result = await mw.after_render(screen_id, context, result)
-
         return result
 
 
