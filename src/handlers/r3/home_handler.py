@@ -3,8 +3,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
-from src.engine.state_machine import UserState
-
 router = Router()
 
 
@@ -12,32 +10,24 @@ router = Router()
 async def home(message: Message, **data):
     app = data.get("app")
     if app is None:
-        raise RuntimeError("App context not found in handler data. Check middleware injection.")
+        raise RuntimeError("App context not found")
 
     user_id = str(message.from_user.id)
 
-    # =========================
-    # SERVICES
-    # =========================
     user_service = app.services.get("user")
     nav_service = app.services.get("nav")
 
     if user_service is None or nav_service is None:
-        await message.answer(
-            "⚠️ Bot is not fully initialized yet.\nServices are not connected."
-        )
+        await message.answer("⚠️ Bot not initialized")
         return
 
     # =========================
-    # SESSION ENGINE
+    # STATE SYSTEM (SOURCE OF TRUTH)
     # =========================
-    session_engine = app.session_engine
+    session = app.session_engine.get(user_id)
+    game_nick = session.get("game_nick")
 
-    # =========================
-    # USER DATA
-    # =========================
     role = user_service.get_role(user_id)
-    game_nick = session_engine.get_nick(user_id)
 
     first_name = (
         message.from_user.first_name
@@ -46,20 +36,19 @@ async def home(message: Message, **data):
     )
 
     # =========================
-    # 🚨 ONBOARDING GATE
+    # ONBOARDING
     # =========================
     if game_nick is None:
-        session_engine.set_state(user_id, UserState.AWAITING_NICK)
+        app.set_session_state(user_id, "awaiting_nick")
 
         await message.answer(
             "🎮 Welcome!\n\n"
-            "Before you continue, please set your Game Nick:\n\n"
-            "👉 Send me your nickname in next message."
+            "Send your Game Nick:"
         )
         return
 
     # =========================
-    # HOME SCREEN
+    # HOME
     # =========================
     text = nav_service.get_home_screen(
         first_name=first_name,
