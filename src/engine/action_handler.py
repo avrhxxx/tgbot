@@ -20,10 +20,9 @@ class ActionHandler:
         """
 
         # =========================
-        # ROLE ACTION
+        # ROLE ACTION (NO FSM)
         # =========================
         if isinstance(callback, RoleCB):
-            # role switching is handled outside FSM in router
             return state
 
         # =========================
@@ -36,8 +35,7 @@ class ActionHandler:
                 history = getattr(state, "history", [])
 
                 if history:
-                    previous_screen = history.pop()
-                    state.screen = previous_screen
+                    state.screen = history.pop()
                     state.history = history
 
                 return state
@@ -47,7 +45,7 @@ class ActionHandler:
             history.append(state.screen)
             state.history = history
 
-            # screen transition = navigation target
+            # screen transition via UI routing
             return self.transition_engine.transition(state, callback.target)
 
         # =========================
@@ -55,12 +53,11 @@ class ActionHandler:
         # =========================
         if isinstance(callback, EventCB):
 
-            # FORWARD STACK
             history = getattr(state, "history", [])
             history.append(state.screen)
             state.history = history
 
-            # FSM TRANSITION
+            # FSM-like transition via engine
             return self.transition_engine.transition(
                 state,
                 f"event:{callback.action}"
