@@ -1,5 +1,12 @@
 # src/ui/screen_engine.py
 
+"""
+Core UI Engine:
+- registry execution
+- middleware pipeline
+- screen stack (BACK system)
+"""
+
 import logging
 from collections import defaultdict
 from typing import Any
@@ -55,7 +62,7 @@ class ScreenEngine:
     async def render(
         self,
         screen_id: str,
-        **context: Any,  # ✅ FIX: poprawne typing kwargs
+        **context: Any,
     ) -> ScreenResult:
         user_id = context.get("user_id")
 
