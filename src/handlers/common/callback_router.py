@@ -2,7 +2,7 @@
 # src/handlers/common/callback_router.py
 
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import CallbackQuery
 
 router = Router()
 
@@ -16,47 +16,39 @@ async def switch_role(callback: CallbackQuery, **data):
     user_id = str(callback.from_user.id)
 
     user_service = app.services["user"]
-    nav_service = app.services["nav"]
 
     # =========================
-    # ROLE SWITCH
+    # ROLE SWITCH (BUSINESS LOGIC ONLY)
     # =========================
     current_role = user_service.get_role(user_id)
     new_role = user_service.cycle_role(current_role)
     user_service.set_role(user_id, new_role)
 
     # =========================
-    # USER INFO
+    # SCREEN SYSTEM RENDER
     # =========================
-    first_name = (
-        callback.from_user.first_name
-        or callback.from_user.username
-        or "User"
-    )
+    engine = app.ui["engine"]
 
-    # =========================
-    # RENDER UI
-    # =========================
-    text = nav_service.get_home_screen(
-        first_name=first_name,
+    view = await engine.render(
+        "home",
+        app=app,
+        user_id=user_id,
+        first_name=(
+            callback.from_user.first_name
+            or callback.from_user.username
+            or "User"
+        ),
         role=new_role,
-        game_nick=None
+        game_nick=None,
+        callback=callback,
     )
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="🔁 Switch Role (Only in Demo)",
-                    callback_data="demo.switch_role"
-                )
-            ]
-        ]
-    )
-
+    # =========================
+    # UPDATE MESSAGE (SAFE UI OUTPUT)
+    # =========================
     await callback.message.edit_text(
-        text,
-        reply_markup=keyboard
+        view["text"],
+        reply_markup=view["keyboard"]
     )
 
     await callback.answer()
