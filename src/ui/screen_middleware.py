@@ -42,19 +42,27 @@ class ScreenMiddlewareManager:
         context: ScreenContext,
         result: ScreenResult
     ) -> ScreenResult:
-
         for mw in self._middlewares:
             result = await mw.after_render(screen_id, context, result)
 
         return result
 
 
-# OPTIONAL DEFAULTS
-
+# =========================
+# FIXED MIDDLEWARE
+# =========================
 class InjectUserMiddleware:
+    """
+    SAFE VERSION:
+    - no assumption about callback presence
+    """
+
     async def before_render(self, screen_id, context):
-        if "user_id" not in context and "callback" in context:
-            context["user_id"] = str(context["callback"].from_user.id)
+        if "user_id" not in context:
+            callback = context.get("callback")
+            if callback:
+                context["user_id"] = str(callback.from_user.id)
+
         return context
 
     async def after_render(self, screen_id, context, result):
