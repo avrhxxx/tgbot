@@ -3,14 +3,8 @@
 from dataclasses import dataclass
 from typing import Any
 
-from src.engine.state_machine import StateMachine
 from src.engine.session_engine import SessionEngine, SessionData
-
-# =========================
-# SCREEN SYSTEM (kept for runtime reference only)
-# =========================
-from src.ui.screen_registry import ScreenRegistry
-from src.ui.screen_router import ScreenRouter
+from src.engine.state_machine import StateMachine
 
 
 @dataclass
@@ -35,24 +29,13 @@ class AppContext:
         self.ui: dict[str, object] = {}
 
         # =========================
-        # STATE SYSTEM
+        # CORE SYSTEMS
         # =========================
         self.state_machine = StateMachine()
 
-        # =========================
-        # SESSION ENGINE
-        # =========================
         self.session_engine = SessionEngine(
             state_machine=self.state_machine
         )
-
-        # =========================
-        # SCREEN SYSTEM
-        # =========================
-        self.screen_registry = ScreenRegistry()
-        self.screen_router = ScreenRouter(self.screen_registry)
-
-        self.engines["screen_router"] = self.screen_router
 
     # =========================
     # SESSION HELPERS
