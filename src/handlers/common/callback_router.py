@@ -1,7 +1,8 @@
+
 # src/handlers/common/callback_router.py
 
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 router = Router()
 
@@ -18,25 +19,29 @@ async def switch_role(callback: CallbackQuery, **data):
     nav_service = app.services["nav"]
 
     # =========================
-    # CURRENT ROLE
+    # ROLE SWITCH
     # =========================
     current_role = user_service.get_role(user_id)
-
-    # =========================
-    # NEXT ROLE
-    # =========================
     new_role = user_service.cycle_role(current_role)
     user_service.set_role(user_id, new_role)
 
     # =========================
-    # BUILD NEW UI
+    # USER INFO
     # =========================
-    text = nav_service.get_home_screen(
-        role=new_role,
-        demo_mode=app.is_demo()
+    first_name = (
+        callback.from_user.first_name
+        or callback.from_user.username
+        or "User"
     )
 
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    # =========================
+    # RENDER UI
+    # =========================
+    text = nav_service.get_home_screen(
+        first_name=first_name,
+        role=new_role,
+        game_nick=None
+    )
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -49,9 +54,6 @@ async def switch_role(callback: CallbackQuery, **data):
         ]
     )
 
-    # =========================
-    # UPDATE MESSAGE
-    # =========================
     await callback.message.edit_text(
         text,
         reply_markup=keyboard
