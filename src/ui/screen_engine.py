@@ -30,13 +30,23 @@ class ScreenEngine:
         logger.info(f"[STACK] push {user_id} → {screen_id}")
 
     def pop(self, user_id: str) -> str | None:
+        """
+        FIX:
+        - safe pop
+        - returns previous screen correctly
+        """
         if not self._stack[user_id]:
             return None
 
-        removed = self._stack[user_id].pop()
-        logger.info(f"[STACK] pop {user_id} ← {removed}")
+        self._stack[user_id].pop()
 
-        return self.current(user_id)
+        if not self._stack[user_id]:
+            return None
+
+        previous = self._stack[user_id][-1]
+
+        logger.info(f"[STACK] pop → {previous}")
+        return previous
 
     def current(self, user_id: str) -> str | None:
         if not self._stack[user_id]:
