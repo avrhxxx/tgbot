@@ -1,5 +1,6 @@
 # src/ui/screen_context.py
-from typing import TypedDict, Optional, Any
+
+from typing import Any, Optional, TypedDict
 
 
 class HomeScreenContext(TypedDict):
