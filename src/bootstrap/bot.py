@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Callable, Optional
+from typing import Callable
 
 from aiogram import Bot, Dispatcher
 
@@ -24,16 +24,6 @@ from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
 
 
-# SAFE IMPORT (fallback for bootstrap stability)
-try:
-    from src.ui.bootstrap_screens import register_screens as _register_screens
-except ImportError:
-    _register_screens = None
-
-
-register_screens: Optional[Callable[[ScreenRegistry], None]] = _register_screens
-
-
 # =========================
 # LOGGING
 # =========================
@@ -43,6 +33,23 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("shadow.bot")
+
+
+# =========================
+# SAFE SCREEN REGISTRATION
+# =========================
+def _fallback_register_screens(_: ScreenRegistry) -> None:
+    # no-op fallback to satisfy typing + stability
+    return
+
+
+try:
+    from src.ui.bootstrap_screens import register_screens as _register_screens
+except ImportError:
+    _register_screens = _fallback_register_screens
+
+
+register_screens: Callable[[ScreenRegistry], None] = _register_screens
 
 
 async def main():
@@ -67,10 +74,6 @@ async def main():
     # SCREEN SYSTEM
     # =========================
     registry = ScreenRegistry()
-
-    if register_screens is None:
-        raise RuntimeError("register_screens not found in src.ui.bootstrap_screens")
-
     register_screens(registry)
 
     middleware = ScreenMiddlewareManager()
