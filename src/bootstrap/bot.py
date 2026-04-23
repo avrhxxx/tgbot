@@ -18,6 +18,7 @@ from src.ui.screen_engine import ScreenEngine
 from src.ui.screen_router import ScreenRouter
 
 from src.handlers.common import callback_router, text_router
+from src.handlers.common.start import start_handler
 
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
@@ -48,37 +49,32 @@ async def main():
     app = AppContext(config=config)
 
     # =========================
-    # SERVICES
+    # SERVICES (FIXED STRUCTURE)
     # =========================
-    app.services["user"] = UserService()
+    app.services.user_service = UserService()
 
     # =========================
-    # SCREEN SYSTEM (FULL PIPELINE)
+    # SCREEN SYSTEM
     # =========================
 
-    # 1. Registry
     registry = ScreenRegistry()
     register_screens(registry)
 
-    # 2. Middleware
     middleware = ScreenMiddlewareManager()
     middleware.add(InjectUserMiddleware())
 
-    # 3. Engine
     engine = ScreenEngine(registry, middleware)
-
-    # 4. Router (IMPORTANT: ENGINE not registry)
     router = ScreenRouter(engine)
 
     # =========================
-    # ATTACH TO APP CONTEXT
+    # ATTACH TO APP
     # =========================
     app.ui["registry"] = registry
     app.ui["engine"] = engine
     app.ui["router"] = router
 
     # =========================
-    # MIDDLEWARE (GLOBAL APP)
+    # MIDDLEWARE
     # =========================
     dp.update.outer_middleware(AppMiddleware(app))
 
@@ -87,6 +83,11 @@ async def main():
     # =========================
     dp.include_router(callback_router.router)
     dp.include_router(text_router.router)
+
+    # =========================
+    # START HANDLER (IMPORTANT)
+    # =========================
+    dp.message.register(start_handler)
 
     # =========================
     # WEBHOOK
