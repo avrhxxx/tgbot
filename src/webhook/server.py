@@ -1,7 +1,11 @@
 # src/webhook/server.py
 
-import logging
+"""
+Webhook HTTP server for Telegram updates (aiohttp bridge).
+"""
+
 import asyncio
+import logging
 
 from aiohttp import web
 from aiogram import Bot, Dispatcher
