@@ -2,39 +2,29 @@
 
 set -e
 
-LOCK="/tmp/shadow_preflight_done.lock"
-
-echo "====================================="
-echo "     SHADOW BOT - BOOT SEQUENCE      "
-echo "====================================="
+LOCK="/tmp/shadow_bot.lock"
 
 if [ -f "$LOCK" ]; then
-    echo "[ENTRYPOINT] Preflight already executed - EXITING DUPLICATE PROCESS"
+    echo "[ENTRYPOINT] Already executed - exit"
     exit 0
 fi
 
 touch "$LOCK"
 
-echo "[ENTRYPOINT] Running preflight ONCE..."
+echo "[CI] Running preflight..."
 
 python -u scripts/preflight.py
 EXIT_CODE=$?
 
-echo ""
-
 if [ $EXIT_CODE -ne 0 ]; then
-    echo "====================================="
-    echo "           ❌ BUILD FAILED            "
-    echo "====================================="
-    echo "Stopping process (no restart, no loop)"
-    echo "====================================="
-
+    echo ""
+    echo "==============================="
+    echo " ❌ PRE-FLIGHT FAILED"
+    echo " ==============================="
+    echo ""
     exit 1
 fi
 
-echo "====================================="
-echo "           ✅ BUILD OK                "
-echo "         STARTING RUNTIME            "
-echo "====================================="
+echo "[CI] OK - starting runtime"
 
 exec python -u src/bootstrap/bot.py
