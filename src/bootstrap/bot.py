@@ -13,14 +13,14 @@ from src.services.user_service import UserService
 from src.services.navigation_service import NavigationService
 
 from src.handlers.r3 import home_handler
-from src.handlers.common import callback_router
+from src.handlers.common import callback_router, text_router
 
 from src.webhook.setup import setup_webhook
 from src.webhook.server import WebhookServer
 
 
 # =========================
-# LOGGING (STANDARD PYTHON)
+# LOGGING
 # =========================
 logging.basicConfig(
     level=logging.INFO,
@@ -52,29 +52,27 @@ async def main():
     dp = Dispatcher()
 
     # =========================
-    # APP CONTEXT (RUNTIME CORE)
+    # APP CONTEXT
     # =========================
     app = AppContext(config=config)
 
     # =========================
-    # ATTACH SERVICES (FIX 🔥)
+    # SERVICES
     # =========================
     app.services["user"] = UserService()
     app.services["nav"] = NavigationService()
-    app.services["session"] = None
 
     # =========================
-    # MIDDLEWARE INJECTION
+    # MIDDLEWARE (FIXED)
     # =========================
-    dp.update.outer_middleware(
-        AppMiddleware(app)
-    )
+    dp.update.middleware(AppMiddleware(app))
 
     # =========================
     # ROUTERS
     # =========================
     dp.include_router(home_handler.router)
     dp.include_router(callback_router.router)
+    dp.include_router(text_router.router)
 
     # =========================
     # WEBHOOK SETUP
