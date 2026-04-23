@@ -1,7 +1,7 @@
 # src/handlers/common/callback_router.py
 
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 router = Router()
 
@@ -14,7 +14,10 @@ async def switch_role(callback: CallbackQuery, **data):
 
     user_id = str(callback.from_user.id)
 
-    user_service = app.services["user"]
+    # =========================
+    # FIX: correct service key
+    # =========================
+    user_service = app.services["user_service"]
 
     # =========================
     # ROLE SWITCH
@@ -47,9 +50,29 @@ async def switch_role(callback: CallbackQuery, **data):
         callback=callback,
     )
 
-    await callback.message.edit_text(
-        view["text"],
-        reply_markup=view["keyboard"]
-    )
+    # =========================
+    # FIX: aiogram union-safe message handling
+    # =========================
+    message = callback.message
+
+    if message is None:
+        await callback.answer()
+        return
+
+    if not isinstance(message, Message):
+        # InaccessibleMessage cannot be edited
+        await callback.answer()
+        return
+
+    try:
+        await message.edit_text(
+            view["text"],
+            reply_markup=view["keyboard"],
+        )
+    except Exception:
+        await message.answer(
+            view["text"],
+            reply_markup=view["keyboard"],
+        )
 
     await callback.answer()
