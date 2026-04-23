@@ -1,9 +1,9 @@
 # src/ui/screen_registry.py
 
 import logging
-from typing import Dict, Protocol, Awaitable
+from typing import Awaitable, Dict, Protocol
 
-from src.ui.screen_contracts import ScreenResult, ScreenContext
+from src.ui.screen_contracts import ScreenContext, ScreenResult
 
 logger = logging.getLogger("shadow.ui.registry")
 
