@@ -13,6 +13,7 @@ from src.services.user_service import UserService
 from src.services.navigation_service import NavigationService
 
 from src.handlers.r3 import home_handler
+from src.handlers.r3 import home_router   # ✅ DODANE
 from src.handlers.common import callback_router, text_router
 
 from src.webhook.setup import setup_webhook
@@ -42,7 +43,7 @@ async def main():
     config = load_config()
 
     # =========================
-    # BOT CORE (aiogram v3 safe init)
+    # BOT CORE
     # =========================
     bot = Bot(
         token=config.tg_bot.token,
@@ -62,7 +63,7 @@ async def main():
     app.services["nav"] = NavigationService()
 
     # =========================
-    # MIDDLEWARE (GLOBAL INJECTION)
+    # MIDDLEWARE
     # =========================
     dp.update.outer_middleware(AppMiddleware(app))
 
@@ -70,6 +71,7 @@ async def main():
     # ROUTERS
     # =========================
     dp.include_router(home_handler.router)
+    dp.include_router(home_router.router)   # ✅ DODANE TUTAJ
     dp.include_router(callback_router.router)
     dp.include_router(text_router.router)
 
