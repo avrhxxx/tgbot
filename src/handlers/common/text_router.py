@@ -23,14 +23,20 @@ async def text_router(message: Message, **data):
     session_engine = app.session_engine
     user_service = app.services.get("user")
 
-    if user_service is None:
+    if user_service is None or session_engine is None:
         return
 
     # =========================
-    # SESSION
+    # SESSION SAFE LOAD
     # =========================
     session = session_engine.get(user_id)
-    state = session["state"]
+
+    if session is None:
+        # fallback safety init
+        session_engine.set_state(user_id, UserState.HOME)
+        session = session_engine.get(user_id)
+
+    state = session.get("state")
 
     # =========================
     # CASE 1: AWAITING NICK
@@ -46,7 +52,7 @@ async def text_router(message: Message, **data):
             await message.answer("❌ Nick too long (max 20 chars). Try again:")
             return
 
-        # SAVE NICK INTO SESSION ENGINE
+        # SAVE NICK
         session_engine.set_nick(user_id, nick)
 
         # MOVE STATE → HOME
