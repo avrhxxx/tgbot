@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e  # 🔴 KLUCZ: zatrzymaj build przy pierwszym błędzie
+set -e
 
 echo "=== PRE-FLIGHT CHECK ==="
 
