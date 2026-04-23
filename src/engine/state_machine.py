@@ -1,3 +1,5 @@
+# src/engine/state_machine.py
+
 from enum import Enum
 from dataclasses import dataclass
 
@@ -6,6 +8,10 @@ from dataclasses import dataclass
 # USER FLOW STATES
 # =========================
 class UserState(str, Enum):
+    """
+    Global user lifecycle states.
+    """
+
     NEW = "new"
     AWAITING_NICK = "awaiting_nick"
     HOME = "home"
@@ -17,11 +23,31 @@ class UserState(str, Enum):
 # STATE TRANSITIONS RULES
 # =========================
 ALLOWED_TRANSITIONS: dict[UserState, set[UserState]] = {
-    UserState.NEW: {UserState.AWAITING_NICK},
-    UserState.AWAITING_NICK: {UserState.HOME},
-    UserState.HOME: {UserState.IN_EVENT},
-    UserState.IN_EVENT: {UserState.HOME, UserState.IN_SQUAD},
-    UserState.IN_SQUAD: {UserState.HOME},
+    UserState.NEW: {
+        UserState.AWAITING_NICK,
+    },
+
+    UserState.AWAITING_NICK: {
+        UserState.HOME,
+        UserState.AWAITING_NICK,  # idempotent safety
+    },
+
+    UserState.HOME: {
+        UserState.IN_EVENT,
+        UserState.AWAITING_NICK,  # FIX: onboarding fallback
+        UserState.HOME,           # idempotent safety
+    },
+
+    UserState.IN_EVENT: {
+        UserState.HOME,
+        UserState.IN_SQUAD,
+        UserState.IN_EVENT,       # idempotent safety
+    },
+
+    UserState.IN_SQUAD: {
+        UserState.HOME,
+        UserState.IN_SQUAD,       # idempotent safety
+    },
 }
 
 
@@ -35,7 +61,7 @@ class StateMachine:
     """
 
     def can_transition(self, current: UserState, new: UserState) -> bool:
-        # 🔥 allow same-state transitions (idempotency fix)
+        # hard safety: allow idempotent transitions globally
         if current == new:
             return True
 
@@ -46,7 +72,8 @@ class StateMachine:
         """
         Safe transition. Raises error if invalid.
         """
-        # 🔥 FIX: idempotent transition allowed
+
+        # idempotent protection (VERY IMPORTANT for UI flows)
         if current == new:
             return current
 
