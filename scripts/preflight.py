@@ -15,7 +15,11 @@ def run(cmd: str):
 def main():
     print("=== PRE-FLIGHT CHECK START ===")
 
+    # 1. Lint + importy + basic errors
     run("ruff check src/")
+
+    # 2. Type system check (ARCHITECTURE SAFETY)
+    run("mypy src/")
 
     print("=== PRE-FLIGHT OK ===")
 
