@@ -6,7 +6,7 @@ from src.ui.screen_contracts import ScreenResult, ScreenContext
 from src.ui.keyboards.home.r3_home_kb import build_r3_home_kb
 
 
-async def render(context: ScreenContext) -> ScreenResult:
+async def render_r3_home_screen(context: ScreenContext) -> ScreenResult:
     app = context["app"]
     user_id = context["user_id"]
 
