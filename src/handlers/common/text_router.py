@@ -1,6 +1,6 @@
 # src/handlers/common/text_router.py
 
-from aiogram import Router, F
+from aiogram import F, Router
 from aiogram.types import Message
 
 from src.engine.state_machine import UserState
