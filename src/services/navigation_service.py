@@ -6,15 +6,11 @@ class NavigationService:
     """
 
     def get_home_screen(self, role: str, demo_mode: bool) -> str:
-        base = f"🏠 HOME SCREEN\nRole: {role}\n"
-
-        if demo_mode:
-            base += "\n🧪 DEMO MODE ACTIVE\n"
-
-        return base
+        # ❌ usunięty demo_mode z UI
+        return f"🏠 HOME SCREEN\nRole: {role}"
 
     def get_switch_roles_button(self):
         return {
-            "text": "🔁 Switch Role (Demo)",
+            "text": "🔁 Switch Role",
             "callback_data": "demo.switch_role"
         }
