@@ -1,5 +1,3 @@
-# src/engine/state_machine.py
-
 from enum import Enum
 from dataclasses import dataclass
 
@@ -8,10 +6,6 @@ from dataclasses import dataclass
 # USER FLOW STATES
 # =========================
 class UserState(str, Enum):
-    """
-    Global user lifecycle states.
-    """
-
     NEW = "new"
     AWAITING_NICK = "awaiting_nick"
     HOME = "home"
@@ -41,6 +35,10 @@ class StateMachine:
     """
 
     def can_transition(self, current: UserState, new: UserState) -> bool:
+        # 🔥 allow same-state transitions (idempotency fix)
+        if current == new:
+            return True
+
         allowed = ALLOWED_TRANSITIONS.get(current, set())
         return new in allowed
 
@@ -48,10 +46,15 @@ class StateMachine:
         """
         Safe transition. Raises error if invalid.
         """
+        # 🔥 FIX: idempotent transition allowed
+        if current == new:
+            return current
+
         if not self.can_transition(current, new):
             raise ValueError(
                 f"Invalid state transition: {current} -> {new}"
             )
+
         return new
 
     def force(self, new: UserState) -> UserState:
