@@ -49,7 +49,7 @@ async def home(message: Message, **data):
     keyboard = [
         [
             InlineKeyboardButton(
-                text="🔁 Switch Role",
+                text="🔁 Switch Role (Only in Demo)",
                 callback_data="demo.switch_role"
             )
         ]
