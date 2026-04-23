@@ -1,7 +1,6 @@
 # src/ui/screen_registry.py
-
 import logging
-from typing import Dict, Callable, Any, Protocol
+from typing import Dict, Callable, Protocol, Any
 
 logger = logging.getLogger("shadow.ui.registry")
 
@@ -31,4 +30,12 @@ class ScreenRegistry:
 
     def render(self, screen_id: str, **context) -> dict:
         logger.debug(f"[REGISTRY] render: {screen_id}")
-        return self.get(screen_id)(**context)
+
+        result = self.get(screen_id)(**context)
+
+        # SAFETY CHECK (important in production)
+        if "text" not in result or "keyboard" not in result:
+            logger.error(f"[REGISTRY] invalid screen output: {screen_id}")
+            raise ValueError(f"Screen '{screen_id}' must return text + keyboard")
+
+        return result
