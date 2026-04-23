@@ -12,8 +12,10 @@ from src.bootstrap.middleware import AppMiddleware
 from src.services.user_service import UserService
 from src.services.navigation_service import NavigationService
 
-from src.handlers.r3 import home_handler
-from src.handlers.r3 import home_router   # ✅ DODANE
+from src.ui.screen_registry import ScreenRegistry
+from src.ui.bootstrap_screens import register_screens
+from src.ui.screen_router import ScreenRouter
+
 from src.handlers.common import callback_router, text_router
 
 from src.webhook.setup import setup_webhook
@@ -31,24 +33,12 @@ logging.basicConfig(
 logger = logging.getLogger("shadow.bot")
 
 
-# =========================
-# MAIN ENTRYPOINT
-# =========================
 async def main():
     logger.info("Starting Shadow Bot...")
 
-    # =========================
-    # CONFIG
-    # =========================
     config = load_config()
 
-    # =========================
-    # BOT CORE
-    # =========================
-    bot = Bot(
-        token=config.tg_bot.token,
-    )
-
+    bot = Bot(token=config.tg_bot.token)
     dp = Dispatcher()
 
     # =========================
@@ -60,7 +50,20 @@ async def main():
     # SERVICES
     # =========================
     app.services["user"] = UserService()
-    app.services["nav"] = NavigationService()
+
+    # =========================
+    # SCREEN SYSTEM BOOTSTRAP
+    # =========================
+    registry = ScreenRegistry()
+    register_screens(registry)
+
+    app.ui["screens"] = registry
+
+    # navigation service tylko jako wrapper (opcjonalny)
+    app.services["nav"] = NavigationService(registry)
+
+    router = ScreenRouter(registry)
+    app.ui["router"] = router
 
     # =========================
     # MIDDLEWARE
@@ -70,13 +73,11 @@ async def main():
     # =========================
     # ROUTERS
     # =========================
-    dp.include_router(home_handler.router)
-    dp.include_router(home_router.router)   # ✅ DODANE TUTAJ
     dp.include_router(callback_router.router)
     dp.include_router(text_router.router)
 
     # =========================
-    # WEBHOOK SETUP
+    # WEBHOOK
     # =========================
     await setup_webhook(
         bot=bot,
@@ -100,9 +101,6 @@ async def main():
         logger.info("Bot stopped safely")
 
 
-# =========================
-# ENTRYPOINT
-# =========================
 if __name__ == "__main__":
     try:
         asyncio.run(main())
