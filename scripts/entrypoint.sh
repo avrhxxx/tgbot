@@ -5,11 +5,10 @@ set -e
 echo "====================================="
 echo "     SHADOW BOT - BOOT SEQUENCE      "
 echo "====================================="
-
 echo ""
-echo "[1/2] Running preflight checks..."
 
-python scripts/preflight.py
+echo "[1/1] Running preflight CI gate..."
+python -u scripts/preflight.py
 EXIT_CODE=$?
 
 echo ""
@@ -17,18 +16,15 @@ echo ""
 if [ $EXIT_CODE -ne 0 ]; then
     echo "====================================="
     echo "           ❌ BUILD FAILED            "
-    echo "     BOT WILL NOT START RUNTIME      "
     echo "====================================="
     echo ""
-    echo "Fix errors and redeploy manually."
-    echo "Container will stay ALIVE (no crash loop)."
+    echo "Preflight failed. Runtime WILL NOT START."
+    echo "Fix issues and redeploy."
     echo ""
 
-    # 🔒 HARD LOCK STATE (NO EXIT, NO RESTART LOOP)
-    # Railway keeps container alive, but stable
-    while true; do
-        sleep 3600
-    done
+    # 🔥 CRITICAL: EXIT, not sleep, not tail
+    # to jest CI MODE, nie runtime mode
+    exit 1
 fi
 
 echo "====================================="
@@ -37,4 +33,4 @@ echo "         STARTING RUNTIME            "
 echo "====================================="
 echo ""
 
-exec python src/bootstrap/bot.py
+exec python -u src/bootstrap/bot.py
