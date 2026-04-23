@@ -1,5 +1,3 @@
-# src/Dockerfile
-
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -12,14 +10,18 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # =========================
+# PYTHON PATH FIX (KLUCZOWE)
+# =========================
+ENV PYTHONPATH=/app
+
+# =========================
 # REQUIREMENTS
 # =========================
 COPY requirements/ /app/requirements/
-
 RUN pip install --no-cache-dir -r requirements/production.txt
 
 # =========================
-# SOURCE CODE
+# CODE
 # =========================
 COPY . /app
 
