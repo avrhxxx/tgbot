@@ -1,7 +1,7 @@
 # src/engine/state_machine.py
 
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 
 
 # =========================
