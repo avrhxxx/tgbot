@@ -1,16 +1,36 @@
 #!/bin/bash
 
-echo "=== PRE-FLIGHT CHECK ==="
+set -e
+
+echo "==============================="
+echo "  SHADOW BOT - PRE-FLIGHT CI  "
+echo "==============================="
 
 python scripts/preflight.py
 
-if [ $? -ne 0 ]; then
-    echo "=== BUILD FAILED - FIX ERRORS ABOVE ==="
+EXIT_CODE=$?
 
-    # zatrzymaj kontener bez restart loopa
-    tail -f /dev/null
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "==============================="
+    echo "  ❌ BUILD FAILED"
+    echo "  Bot will NOT start"
+    echo "  Fix errors above"
+    echo "==============================="
+    echo ""
+
+    # utrzymuje kontener ALIVE, ale bez restart loop
+    # i z jasnym stanem
+    while true; do
+        sleep 3600
+    done
 fi
 
-echo "=== START BOT ==="
+echo ""
+echo "==============================="
+echo "  ✅ PRE-FLIGHT OK"
+echo "  STARTING BOT"
+echo "==============================="
+echo ""
 
 exec python src/bootstrap/bot.py
