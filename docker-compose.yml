@@ -1,0 +1,12 @@
+# src/docker-compose.yml
+
+version: "3.8"
+
+services:
+  bot-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "src/bootstrap/bot.py"]
+    ports:
+      - "8080:8080"
