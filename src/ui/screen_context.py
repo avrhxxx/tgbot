@@ -1,5 +1,5 @@
 # src/ui/screen_context.py
-from typing import TypedDict, Optional
+from typing import TypedDict, Optional, Any
 
 
 class HomeScreenContext(TypedDict):
@@ -11,9 +11,9 @@ class HomeScreenContext(TypedDict):
 
 class EventsScreenContext(TypedDict, total=False):
     user_id: str
-    app: object
+    app: Any
 
 
 class SettingsScreenContext(TypedDict, total=False):
     user_id: str
-    app: object
+    app: Any
