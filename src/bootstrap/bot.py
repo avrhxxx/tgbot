@@ -10,10 +10,11 @@ from src.bootstrap.app import AppContext
 from src.bootstrap.middleware import AppMiddleware
 
 from src.services.user_service import UserService
-from src.services.navigation_service import NavigationService
 
 from src.ui.screen_registry import ScreenRegistry
 from src.ui.bootstrap_screens import register_screens
+from src.ui.screen_middleware import ScreenMiddlewareManager, InjectUserMiddleware
+from src.ui.screen_engine import ScreenEngine
 from src.ui.screen_router import ScreenRouter
 
 from src.handlers.common import callback_router, text_router
@@ -52,21 +53,32 @@ async def main():
     app.services["user"] = UserService()
 
     # =========================
-    # SCREEN SYSTEM BOOTSTRAP
+    # SCREEN SYSTEM (FULL PIPELINE)
     # =========================
+
+    # 1. Registry
     registry = ScreenRegistry()
     register_screens(registry)
 
-    app.ui["screens"] = registry
+    # 2. Middleware
+    middleware = ScreenMiddlewareManager()
+    middleware.add(InjectUserMiddleware())
 
-    # navigation service tylko jako wrapper (opcjonalny)
-    app.services["nav"] = NavigationService(registry)
+    # 3. Engine
+    engine = ScreenEngine(registry, middleware)
 
-    router = ScreenRouter(registry)
+    # 4. Router (IMPORTANT: ENGINE not registry)
+    router = ScreenRouter(engine)
+
+    # =========================
+    # ATTACH TO APP CONTEXT
+    # =========================
+    app.ui["registry"] = registry
+    app.ui["engine"] = engine
     app.ui["router"] = router
 
     # =========================
-    # MIDDLEWARE
+    # MIDDLEWARE (GLOBAL APP)
     # =========================
     dp.update.outer_middleware(AppMiddleware(app))
 
