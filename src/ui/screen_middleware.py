@@ -1,5 +1,4 @@
 # src/ui/screen_middleware.py
-# src/ui/screen_middleware.py
 
 from typing import Callable, Dict, Any, List, Protocol
 
