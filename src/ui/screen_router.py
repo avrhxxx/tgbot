@@ -16,15 +16,24 @@ class ScreenRouter:
         self.engine = engine
 
     def resolve(self, callback_data: str) -> str:
+        if not callback_data:
+            return "home"
+
         if callback_data.startswith("nav."):
             return callback_data.replace("nav.", "")
 
         if callback_data.startswith("screen:"):
-            return callback_data.split(":")[1]
+            parts = callback_data.split(":")
+            return parts[1] if len(parts) > 1 else "home"
 
         return callback_data
 
     async def handle(self, callback: CallbackQuery, app):
+
+        if callback.data is None:
+            logger.error("[ROUTER] callback.data is None")
+            await callback.answer()
+            return
 
         screen_id = self.resolve(callback.data)
         user_id = str(callback.from_user.id)
@@ -41,6 +50,12 @@ class ScreenRouter:
             user_id=user_id,
             callback=callback,
         )
+
+        # SAFE MESSAGE ACCESS (CRITICAL FIX)
+        if callback.message is None:
+            logger.error("[ROUTER] callback.message is None")
+            await callback.answer()
+            return
 
         await callback.message.answer(
             view["text"],
