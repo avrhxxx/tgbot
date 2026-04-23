@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Callable
+from typing import Callable, cast
 
 from aiogram import Bot, Dispatcher
 
@@ -49,7 +49,11 @@ except ImportError:
     _register_screens = _fallback_register_screens
 
 
-register_screens: Callable[[ScreenRegistry], None] = _register_screens
+# FIX: unify type for mypy (avoid Any vs None mismatch)
+register_screens = cast(
+    Callable[[ScreenRegistry], None],
+    _register_screens
+)
 
 
 async def main():
