@@ -32,33 +32,17 @@ def build_screen_system():
 
 
 # =========================================================
-# COMPAT LAYER (FIX FOR BOT IMPORT EXPECTATION)
+# COMPAT LAYER (USED BY bot.py)
 # =========================================================
 
-_registry = None
-_middleware = None
-_engine = None
-
-
-def register_screens():
+def register_screens(registry: ScreenRegistry):
     """
-    Legacy compatibility for bootstrap entrypoints expecting:
-    register_screens()
-    """
+    Compatibility layer for bot.py bootstrap.
 
-    global _registry, _middleware, _engine
+    bot.py expects:
+        register_screens(registry)
+    """
 
     logger.info("[BOOTSTRAP] register_screens() called")
 
-    _registry, _middleware, _engine = build_screen_system()
-
-    return _registry, _middleware, _engine
-
-
-def get_screen_system():
-    """
-    Optional accessor for app/bootstrap layer
-    """
-    if _registry is None:
-        return build_screen_system()
-    return _registry, _middleware, _engine
+    registry.register("home", render_r3_home_screen)
