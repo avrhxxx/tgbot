@@ -6,9 +6,7 @@ from src.ui.screen_registry import ScreenRegistry
 from src.ui.screen_middleware import ScreenMiddlewareManager, InjectUserMiddleware
 from src.ui.screen_engine import ScreenEngine
 
-from src.ui.screens.home_screen import build_home_screen
-from src.ui.screens.events_screen import render_events_screen
-from src.ui.screens.settings_screen import render_settings_screen
+from src.ui.screens.home.r3_home_screen import render_r3_home_screen
 
 logger = logging.getLogger("shadow.ui.bootstrap")
 
@@ -19,9 +17,10 @@ def build_screen_system():
 
     registry = ScreenRegistry()
 
-    registry.register("home", build_home_screen)
-    registry.register("events", render_events_screen)
-    registry.register("settings", render_settings_screen)
+    # =========================
+    # R3 TEST ONLY
+    # =========================
+    registry.register("home", render_r3_home_screen)
 
     middleware = ScreenMiddlewareManager()
     middleware.add(InjectUserMiddleware())
