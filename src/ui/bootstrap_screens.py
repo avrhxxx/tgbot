@@ -36,7 +36,7 @@ def build_screen_system():
 # COMPAT LAYER (USED BY bot.py)
 # =========================================================
 
-def register_screens(registry: ScreenRegistry):
+def register_screens(registry: ScreenRegistry) -> None:
     """
     Compatibility layer for bot.py bootstrap.
 
