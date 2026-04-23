@@ -10,8 +10,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # =========================
-# PYTHON PATH FIX
+# PYTHON ENV
 # =========================
+ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
 # =========================
@@ -21,21 +22,21 @@ COPY requirements/ /app/requirements/
 RUN pip install --no-cache-dir -r requirements/production.txt
 
 # =========================
-# CODE
+# SOURCE CODE
 # =========================
 COPY . /app
 
 # =========================
-# STATIC TOOLS (preflight deps)
+# STATIC ANALYSIS TOOLS
 # =========================
 RUN pip install ruff mypy
 
 # =========================
-# RAILWAY PORT
+# PORT (Railway/hosting)
 # =========================
 EXPOSE 8080
 
 # =========================
-# ENTRYPOINT (JEDYNY FLOW)
+# ENTRYPOINT
 # =========================
-CMD ["sh", "scripts/entrypoint.sh"]
+CMD ["bash", "scripts/entrypoint.sh"]
