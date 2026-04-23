@@ -6,7 +6,6 @@ Webhook HTTP server for Telegram updates.
 
 import asyncio
 import logging
-
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.types import Update
