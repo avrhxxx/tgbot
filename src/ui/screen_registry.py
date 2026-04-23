@@ -1,7 +1,7 @@
 # src/ui/screen_registry.py
 
 import logging
-from typing import Dict, Protocol, Any, Awaitable
+from typing import Dict, Protocol, Awaitable
 
 from src.ui.screen_contracts import ScreenResult, ScreenContext
 
@@ -39,12 +39,18 @@ class ScreenRegistry:
             raise ValueError(f"Screen not found: {screen_id}")
         return self._screens[screen_id]
 
-    async def render(self, screen_id: str, context: ScreenContext) -> ScreenResult:
+    async def render(
+        self,
+        screen_id: str,
+        context: ScreenContext,
+    ) -> ScreenResult:
+
         logger.debug(f"[REGISTRY] render: {screen_id}")
 
         screen = self.get(screen_id)
         result = await screen(context)
 
+        # runtime safety (optional but ok in CI environment)
         if not isinstance(result, dict):
             logger.error(f"[REGISTRY] invalid screen output type: {screen_id}")
             raise ValueError(f"Screen '{screen_id}' must return dict")
