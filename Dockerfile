@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # =========================
-# PYTHON PATH FIX (KLUCZOWE)
+# PYTHON PATH FIX
 # =========================
 ENV PYTHONPATH=/app
 
@@ -26,11 +26,17 @@ RUN pip install --no-cache-dir -r requirements/production.txt
 COPY . /app
 
 # =========================
+# PRE-FLIGHT CHECKS
+# =========================
+# (TS-like safety gate before runtime)
+RUN pip install ruff
+
+# =========================
 # RAILWAY PORT
 # =========================
 EXPOSE 8080
 
 # =========================
-# START
+# START (SAFE ENTRYPOINT)
 # =========================
-CMD ["python", "src/bootstrap/bot.py"]
+CMD ["sh", "-c", "python scripts/preflight.py && python src/bootstrap/bot.py"]
