@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from src.engine.session_engine import SessionEngine, SessionData
+from src.engine.session_engine import SessionData, SessionEngine
 from src.engine.state_machine import StateMachine
 
 
