@@ -7,6 +7,7 @@ from aiogram import Bot, Dispatcher
 
 from config.config import load_config
 from src.bootstrap.app import AppContext
+from src.bootstrap.middleware import AppMiddleware  # ✅ DODANE
 
 from src.handlers.r3 import home_handler
 from src.handlers.common import callback_router
@@ -56,6 +57,13 @@ async def main():
     # ATTACH SERVICES (PLACEHOLDERS FOR NOW)
     # =========================
     app.services["session"] = None  # will be injected in next step
+
+    # =========================
+    # 🔥 MIDDLEWARE INJECTION (FIX FOR home(app))
+    # =========================
+    dp.update.outer_middleware(
+        AppMiddleware(app)
+    )
 
     # =========================
     # ROUTERS (ROLE-BASED SYSTEM)
