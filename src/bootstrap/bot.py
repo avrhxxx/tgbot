@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Callable, cast
+from typing import Callable
 
 from aiogram import Bot, Dispatcher
 
@@ -38,7 +38,7 @@ logger = logging.getLogger("shadow.bot")
 # =========================
 # SAFE SCREEN REGISTRATION
 # =========================
-def _fallback_register_screens(_: ScreenRegistry) -> None:
+def _fallback_register_screens(registry: ScreenRegistry) -> None:
     # no-op fallback to satisfy typing + stability
     return
 
@@ -46,14 +46,10 @@ def _fallback_register_screens(_: ScreenRegistry) -> None:
 try:
     from src.ui.bootstrap_screens import register_screens as _register_screens
 except ImportError:
-    _register_screens = _fallback_register_screens
+    _register_screens = _fallback_register_screens  # type: ignore[assignment]
 
 
-RegisterScreensType = Callable[[ScreenRegistry], None]
-
-register_screens: RegisterScreensType = cast(
-    RegisterScreensType, _register_screens
-)
+register_screens: Callable[[ScreenRegistry], None] = _register_screens
 
 
 async def main():
