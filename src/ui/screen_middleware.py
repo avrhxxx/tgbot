@@ -1,6 +1,7 @@
 # src/ui/screen_middleware.py
+
 import logging
-from typing import Dict, Any, List, Protocol
+from typing import Any, Dict, List, Protocol
 
 logger = logging.getLogger("shadow.ui.middleware")
 
@@ -10,20 +11,23 @@ ScreenResult = Dict[str, Any]
 
 
 class ScreenMiddleware(Protocol):
-    async def before_render(self, screen_id: str, context: ScreenContext) -> ScreenContext:
+    async def before_render(
+        self,
+        screen_id: str,
+        context: ScreenContext,
+    ) -> ScreenContext:
         ...
 
     async def after_render(
         self,
         screen_id: str,
         context: ScreenContext,
-        result: ScreenResult
+        result: ScreenResult,
     ) -> ScreenResult:
         ...
 
 
 class ScreenMiddlewareManager:
-
     def __init__(self):
         self._middlewares: List[ScreenMiddleware] = []
 
@@ -31,7 +35,11 @@ class ScreenMiddlewareManager:
         logger.info(f"[MW] add {middleware.__class__.__name__}")
         self._middlewares.append(middleware)
 
-    async def run_before(self, screen_id: str, context: ScreenContext) -> ScreenContext:
+    async def run_before(
+        self,
+        screen_id: str,
+        context: ScreenContext,
+    ) -> ScreenContext:
         for mw in self._middlewares:
             context = await mw.before_render(screen_id, context)
         return context
@@ -40,7 +48,7 @@ class ScreenMiddlewareManager:
         self,
         screen_id: str,
         context: ScreenContext,
-        result: ScreenResult
+        result: ScreenResult,
     ) -> ScreenResult:
         for mw in self._middlewares:
             result = await mw.after_render(screen_id, context, result)
