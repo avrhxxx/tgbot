@@ -1,3 +1,4 @@
+# src/handlers/r3/home_router.py
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
