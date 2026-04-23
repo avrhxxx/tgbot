@@ -5,6 +5,7 @@ import logging
 from src.ui.screen_registry import ScreenRegistry
 from src.ui.screen_middleware import ScreenMiddlewareManager, InjectUserMiddleware
 from src.ui.screen_engine import ScreenEngine
+from src.ui.screen_contracts import ScreenContext
 
 from src.ui.screens.home.r3_home_screen import render_r3_home_screen
 
