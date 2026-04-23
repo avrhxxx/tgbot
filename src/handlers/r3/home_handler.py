@@ -16,18 +16,20 @@ async def home(message: Message, **data):
 
     user_id = str(message.from_user.id)
 
-    user_service = app.services.get("user")
+    session_engine = app.session_engine
     nav_service = app.services.get("nav")
 
-    if user_service is None or nav_service is None:
+    if session_engine is None or nav_service is None:
         await message.answer("⚠️ Bot not initialized")
         return
 
     # =========================
-    # USER DATA
+    # USER DATA (SINGLE SOURCE OF TRUTH)
     # =========================
-    role = user_service.get_role(user_id)
-    game_nick = user_service.get_game_nick(user_id)
+    session = session_engine.get(user_id)
+
+    game_nick = session.get("game_nick")
+    role = session.get("role", "R3")
 
     first_name = (
         message.from_user.first_name
@@ -39,7 +41,7 @@ async def home(message: Message, **data):
     # ONBOARDING
     # =========================
     if game_nick is None:
-        app.session_engine.set_state(user_id, UserState.AWAITING_NICK)
+        session_engine.set_state(user_id, UserState.AWAITING_NICK)
 
         await message.answer(
             "Welcome!\n\n"
@@ -48,7 +50,7 @@ async def home(message: Message, **data):
         return
 
     # =========================
-    # HOME VIEW (COMPOSED)
+    # HOME VIEW (COMPOSED SCREEN)
     # =========================
     view = nav_service.get_home_view(
         first_name=first_name,
