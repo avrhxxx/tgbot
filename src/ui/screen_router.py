@@ -1,7 +1,10 @@
 # src/ui/screen_router.py
 
 import logging
-from aiogram.types import CallbackQuery, Message, InaccessibleMessage
+
+from aiogram.types import CallbackQuery, InaccessibleMessage
+
+from src.ui.screen_contracts import ScreenResult
 
 logger = logging.getLogger("shadow.ui.router")
 
@@ -28,7 +31,7 @@ class ScreenRouter:
 
         return callback_data
 
-    async def handle(self, callback: CallbackQuery, app):
+    async def handle(self, callback: CallbackQuery, app: object):
 
         if callback.data is None:
             logger.error("[ROUTER] callback.data is None")
@@ -44,14 +47,13 @@ class ScreenRouter:
         if callback.data == "nav.back":
             screen_id = self.engine.pop(user_id) or "home"
 
-        view = await self.engine.render(
+        view: ScreenResult = await self.engine.render(
             screen_id,
             app=app,
             user_id=user_id,
             callback=callback,
         )
 
-        # SAFE MESSAGE ACCESS (AIogram STRICT TYPE HANDLING)
         message = callback.message
 
         if message is None:
@@ -60,14 +62,14 @@ class ScreenRouter:
             return
 
         if isinstance(message, InaccessibleMessage):
-            logger.error("[ROUTER] message is InaccessibleMessage (cannot edit)")
+            logger.error("[ROUTER] message is InaccessibleMessage")
             await callback.answer()
             return
 
-        # At this point: guaranteed Message
+        # SAFE UPDATE
         await message.edit_text(
             view["text"],
-            reply_markup=view["keyboard"]
+            reply_markup=view["keyboard"],
         )
 
         await callback.answer()
