@@ -1,10 +1,10 @@
 # src/ui/screen_contracts.py
-from typing import TypedDict, Any
+from typing import TypedDict, Optional, Any
 
 
 class ScreenResult(TypedDict):
     text: str
-    keyboard: Any  # UI layer (aiogram markup is dynamic)
+    keyboard: Any  # aiogram InlineKeyboardMarkup / ReplyMarkup (dynamic type in runtime)
 
 
 class ScreenContext(TypedDict, total=False):
