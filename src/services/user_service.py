@@ -1,5 +1,12 @@
 # src/services/user_service.py
 
+from typing import TypedDict, Optional
+
+
+class UserData(TypedDict):
+    role: str
+    game_nick: Optional[str]
+
 
 class UserService:
     """
@@ -8,12 +15,12 @@ class UserService:
 
     def __init__(self):
         # user_id -> user data
-        self.users = {}
+        self.users: dict[str, UserData] = {}
 
     # =========================
     # INTERNAL USER MODEL
     # =========================
-    def _ensure_user(self, user_id: str):
+    def _ensure_user(self, user_id: str) -> None:
         if user_id not in self.users:
             self.users[user_id] = {
                 "role": "R3",
@@ -27,7 +34,7 @@ class UserService:
         self._ensure_user(user_id)
         return self.users[user_id]["role"]
 
-    def set_role(self, user_id: str, role: str):
+    def set_role(self, user_id: str, role: str) -> None:
         self._ensure_user(user_id)
         self.users[user_id]["role"] = role
 
@@ -39,11 +46,11 @@ class UserService:
     # =========================
     # GAME NICK SYSTEM (ONBOARDING)
     # =========================
-    def get_game_nick(self, user_id: str) -> str | None:
+    def get_game_nick(self, user_id: str) -> Optional[str]:
         self._ensure_user(user_id)
         return self.users[user_id]["game_nick"]
 
-    def set_game_nick(self, user_id: str, nick: str):
+    def set_game_nick(self, user_id: str, nick: str) -> None:
         self._ensure_user(user_id)
         self.users[user_id]["game_nick"] = nick
 
