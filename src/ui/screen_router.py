@@ -1,7 +1,7 @@
 # src/ui/screen_router.py
 
 import logging
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 logger = logging.getLogger("shadow.ui.router")
 
@@ -51,16 +51,26 @@ class ScreenRouter:
             callback=callback,
         )
 
-        # SAFE MESSAGE ACCESS (CRITICAL FIX)
-        if callback.message is None:
+        # SAFE MESSAGE ACCESS (STRICT AIogram TYPE FIX)
+        message: Message | None = callback.message
+
+        if message is None:
             logger.error("[ROUTER] callback.message is None")
             await callback.answer()
             return
 
-        await callback.message.answer(
-            view["text"],
-            reply_markup=view["keyboard"]
-        )
+        # Prefer edit_text for callback UI flow (standard Telegram UX)
+        try:
+            await message.edit_text(
+                view["text"],
+                reply_markup=view["keyboard"]
+            )
+        except Exception as e:
+            logger.warning(f"[ROUTER] edit_text failed, fallback to answer: {e}")
+            await message.answer(
+                view["text"],
+                reply_markup=view["keyboard"]
+            )
 
         await callback.answer()
 
