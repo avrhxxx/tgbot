@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, List, Any, Optional
 
-from src.ui.screen_contracts import ScreenContext, ScreenResult
+from src.ui.screen_contracts import ScreenResult
 
 logger = logging.getLogger("shadow.ui.engine")
 
@@ -50,7 +50,7 @@ class ScreenEngine:
         return self._stack[user_id][-1]
 
     # =========================
-    # MAIN RENDER PIPELINE
+    # MAIN PIPELINE
     # =========================
     async def render(self, screen_id: str, **context: Any) -> ScreenResult:
         user_id = context.get("user_id")
@@ -60,11 +60,20 @@ class ScreenEngine:
         if user_id:
             self.push(user_id, screen_id)
 
+        # middleware pre
         context = await self.middleware.run_before(screen_id, context)
 
-        # IMPORTANT: async screen execution expectation
-        result = await self.registry.render(screen_id, **context)
+        # registry render (ALREADY async)
+        result: ScreenResult = await self.registry.render(screen_id, **context)
 
+        # middleware post
         result = await self.middleware.run_after(screen_id, context, result)
+
+        # SAFETY GUARD (runtime + mypy alignment)
+        if not isinstance(result, dict):
+            raise ValueError("ScreenResult must be dict")
+
+        if "text" not in result or "keyboard" not in result:
+            raise ValueError("ScreenResult must contain text + keyboard")
 
         return result
