@@ -3,17 +3,15 @@
 from aiogram import Router, F
 from aiogram.types import Message
 
+from src.engine.state_machine import UserState
+
 router = Router()
 
 
 @router.message(F.text)
 async def text_router(message: Message, **data):
     """
-    GLOBAL TEXT HANDLER (FSM-lite)
-
-    Handles:
-    - onboarding nick input
-    - future text flows
+    GLOBAL TEXT HANDLER (ONBOARDING + FUTURE FLOWS)
     """
 
     app = data.get("app")
@@ -22,16 +20,22 @@ async def text_router(message: Message, **data):
 
     user_id = str(message.from_user.id)
 
-    session = app.get_session(user_id)
+    session_engine = app.session_engine
     user_service = app.services.get("user")
 
     if user_service is None:
         return
 
     # =========================
-    # CASE 1: WAITING FOR GAME NICK
+    # SESSION
     # =========================
-    if session and session.get("state") == "awaiting_nick":
+    session = session_engine.get(user_id)
+    state = session["state"]
+
+    # =========================
+    # CASE 1: AWAITING NICK
+    # =========================
+    if state == UserState.AWAITING_NICK:
         nick = message.text.strip()
 
         if len(nick) < 2:
@@ -42,15 +46,15 @@ async def text_router(message: Message, **data):
             await message.answer("❌ Nick too long (max 20 chars). Try again:")
             return
 
-        # SAVE NICK
-        user_service.set_game_nick(user_id, nick)
+        # SAVE NICK INTO SESSION ENGINE
+        session_engine.set_nick(user_id, nick)
 
-        # CLEAR SESSION STATE
-        app.delete_session(user_id)
+        # MOVE STATE → HOME
+        session_engine.set_state(user_id, UserState.HOME)
 
         await message.answer(f"✅ Nick set: {nick}")
 
-        # REDIRECT TO HOME FLOW (trigger /start logic manually)
+        # REDIRECT TO HOME FLOW
         from src.handlers.r3.home_handler import home
         await home(message, app=app)
 
@@ -59,4 +63,4 @@ async def text_router(message: Message, **data):
     # =========================
     # DEFAULT FALLBACK
     # =========================
-    await message.answer("🤖 Unknown command. Use /start")
+    await message.answer("🤖 Unknown input. Use /start")
