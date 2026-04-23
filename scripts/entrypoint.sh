@@ -1,29 +1,24 @@
 #!/bin/bash
 
-set -e
-
 echo "==============================="
 echo "  SHADOW BOT - PRE-FLIGHT CI  "
 echo "==============================="
 
+set +e
 python scripts/preflight.py
-
 EXIT_CODE=$?
+set -e
 
 if [ $EXIT_CODE -ne 0 ]; then
     echo ""
     echo "==============================="
     echo "  ❌ BUILD FAILED"
     echo "  Bot will NOT start"
-    echo "  Fix errors above"
     echo "==============================="
     echo ""
 
-    # utrzymuje kontener ALIVE, ale bez restart loop
-    # i z jasnym stanem
-    while true; do
-        sleep 3600
-    done
+    # HARD STOP MODE (bez restart loop triggerowania Railway)
+    tail -f /dev/null
 fi
 
 echo ""
