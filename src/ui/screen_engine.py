@@ -10,7 +10,6 @@ Core UI Engine:
 import logging
 from collections import defaultdict
 from typing import Any
-
 from src.ui.screen_contracts import ScreenResult
 
 logger = logging.getLogger("shadow.ui.engine")
