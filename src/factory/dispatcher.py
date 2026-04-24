@@ -13,8 +13,6 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_dialog import setup_dialogs
 
 from src.telegram.handlers.start import router as start_router
-from src.telegram.dialogs.home.dialog import home_dialog
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +30,9 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(start_router)
 
     # =========================
-    # DIALOGS (CORRECT WAY)
+    # DIALOGS
     # =========================
-    logger.info("Registering dialogs...")
-    dp.include_router(home_dialog)
-
+    logger.info("Setting up aiogram-dialog...")
     setup_dialogs(dp)
 
     logger.info("Dispatcher ready")
