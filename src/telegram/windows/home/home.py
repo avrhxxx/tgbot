@@ -35,23 +35,32 @@ home_window = Window(
         "🧭 Role: {role}"
     ),
 
-    # 🔥 ALL ACTIONS IN SINGLE ROW (clean UI)
+    # 🔥 EACH BUTTON IN ITS OWN ROW (clean + scalable UI)
     Row(
         Button(
             Format("⚡ Quick Join"),
             id="quick_join",
             on_click=route_click("quick_join"),
         ),
+    ),
+
+    Row(
         Button(
             Format("📅 Events"),
             id="events",
             on_click=route_click("events"),
         ),
+    ),
+
+    Row(
         Button(
             Format("⚙️ Settings"),
             id="settings",
             on_click=route_click("settings"),
         ),
+    ),
+
+    Row(
         Button(
             Format("❓ Help"),
             id="help",
