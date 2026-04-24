@@ -1,4 +1,3 @@
-# src/telegram/handlers/events.py
 # =========================================
 # GROUP: telegram.handlers
 # FILE: events.py
@@ -7,9 +6,15 @@
 # Will handle Event List Window + Event Detail Windows.
 # =========================================
 
+import logging
+
 from aiogram import Router
 
+logger = logging.getLogger(__name__)
+
 router = Router()
+
+logger.info("Events router initialized")
 
 # FUTURE:
 # - event list (dynamic buttons)
