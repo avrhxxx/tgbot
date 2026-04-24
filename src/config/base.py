@@ -21,7 +21,9 @@ def getenv(var_name: str, cast_to=str):
     try:
         value = os.environ[var_name]
         return cast_to(value)
-    except KeyError:
-        raise ImproperlyConfigured(var_name)
-    except ValueError:
-        raise ValueError(f"Cannot cast {var_name} to {cast_to}")
+
+    except KeyError as err:
+        raise ImproperlyConfigured(var_name) from err
+
+    except ValueError as err:
+        raise ValueError(f"Cannot cast {var_name} to {cast_to}") from err
