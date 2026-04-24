@@ -27,4 +27,7 @@ fi
 
 echo "[CI] OK - starting runtime"
 
+# 🔥 FIX: allow `src.*` imports
+export PYTHONPATH=/app
+
 exec python -u src/bootstrap/bot.py
