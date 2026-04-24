@@ -1,16 +1,26 @@
-# src/telegram/dialogs/__init__.py
 # =========================================
 # GROUP: telegram.dialogs
 # FILE: __init__.py
 # DESCRIPTION:
-# Dialog registration entry point.
+# Dialog system bootstrap entry.
+# Uses aiogram-dialog auto discovery via setup_dialogs.
 # =========================================
 
+import logging
 from aiogram_dialog import setup_dialogs
 
-from src.telegram.dialogs.home.dialog import home_dialog
+logger = logging.getLogger(__name__)
 
 
-def setup_all_dialogs(dp):
-    dp.include_router(home_dialog)
+def setup_all_dialogs(dp) -> None:
+    """
+    Initializes aiogram-dialog system.
+
+    NOTE:
+    Dialogs are now registered via include_router(Dialog(...))
+    in factory layer, not imported manually here.
+    """
+
+    logger.info("Setting up aiogram-dialog system...")
     setup_dialogs(dp)
+    logger.info("aiogram-dialog setup completed")
