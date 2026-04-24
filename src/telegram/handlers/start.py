@@ -11,8 +11,7 @@ import logging
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
-from aiogram_dialog import DialogManager
-from aiogram_dialog.api.protocols import StartMode
+from aiogram_dialog import DialogManager, StartMode
 
 from src.telegram.states.home import HomeSG
 
