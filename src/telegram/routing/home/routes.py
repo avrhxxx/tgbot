@@ -18,11 +18,21 @@ EVENTS = RouteAction(id="events", target="events")
 SETTINGS = RouteAction(id="settings", target="settings")
 HELP = RouteAction(id="help", target="help")
 
+# 🔥 QUICK JOIN (NEW)
+QUICK_JOIN = RouteAction(
+    id="quick_join",
+    target="events",  # tymczasowo kieruje do events (możemy potem podpiąć handler)
+)
+
 
 # auto-registration on import
 register(HOME)
 register(EVENTS)
 register(SETTINGS)
 register(HELP)
+register(QUICK_JOIN)
 
-logger.info("Home routes registered (%s)", ["home", "events", "settings", "help"])
+logger.info(
+    "Home routes registered (%s)",
+    ["home", "events", "settings", "help", "quick_join"],
+)
