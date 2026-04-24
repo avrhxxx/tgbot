@@ -12,6 +12,7 @@ from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Row, Button
 
 from src.telegram.dialogs.home.routing import HOME
+from src.telegram.dialogs.home.state import HomeSG
 
 logger = logging.getLogger(__name__)
 
@@ -27,4 +28,5 @@ help_window = Window(
     Row(
         Button(Format("⬅️ Back"), id=HOME),
     ),
+    state=HomeSG.main,
 )
