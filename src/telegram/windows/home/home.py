@@ -12,13 +12,14 @@ from aiogram_dialog import Window, DialogManager
 from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Row, Button
 
-from src.telegram.dialogs.home.state import HomeSG
+from src.telegram.states.home import HomeSG
 
 logger = logging.getLogger(__name__)
 
 
 async def get_home_data(dialog_manager: DialogManager, **kwargs: Any):
     logger.info("Rendering Home window")
+
     return {
         "name": "User",
         "game_nick": "Not set",
@@ -28,7 +29,7 @@ async def get_home_data(dialog_manager: DialogManager, **kwargs: Any):
 
 home_window = Window(
     Format(
-        "👋 Welcome\n\n"
+        "👋 Welcome, {name}\n\n"
         "🎮 Game Nick: {game_nick}\n"
         "🧭 Role: {role}"
     ),
@@ -40,4 +41,5 @@ home_window = Window(
         Button(Format("❓ Help"), id="help"),
     ),
     getter=get_home_data,
+    state=HomeSG.main,
 )
