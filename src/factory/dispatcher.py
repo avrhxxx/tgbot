@@ -20,6 +20,9 @@ from src.telegram.dialogs.home.events_dialog import events_dialog
 from src.telegram.dialogs.home.settings_dialog import settings_dialog
 from src.telegram.dialogs.home.help_dialog import help_dialog
 
+# 🔥 CRITICAL: routing initialization (must be imported for side-effects)
+import src.telegram.routing.home.routes  # noqa
+
 logger = logging.getLogger(__name__)
 
 
