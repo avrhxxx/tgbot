@@ -6,7 +6,7 @@
 import logging
 from typing import Any
 
-from aiogram_dialog import Window, DialogManager
+from aiogram_dialog import Window
 from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Row, Button
 
