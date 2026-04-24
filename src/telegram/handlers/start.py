@@ -15,5 +15,11 @@ async def start_handler(message: Message, dialog_manager: DialogManager):
     Routes directly into Home dialog (R3 base UI).
     """
 
-    # 🚀 Direct transition to UI (no intermediate message)
-    await dialog_manager.start(HomeSG.main)
+    # safety log (optional but useful for debugging flow)
+    print(f"[START] user_id={message.from_user.id}")
+
+    # 🚀 Start dialog flow (explicit reset = safest in production)
+    await dialog_manager.start(
+        state=HomeSG.main,
+        mode="RESET_STACK"
+    )
