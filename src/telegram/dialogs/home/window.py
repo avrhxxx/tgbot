@@ -6,22 +6,29 @@
 # R3 Home Window (base UI entry point).
 # =========================================
 
-from aiogram_dialog import Window
+from typing import Any
+
+from aiogram_dialog import Window, DialogManager
 from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Row, Button
 
-from aiogram_dialog import DialogManager
 
-
-async def get_home_data(dialog_manager: DialogManager, **kwargs):
+async def get_home_data(dialog_manager: DialogManager, **kwargs: Any):
     """
     Temporary mock data (later from DB/cache).
     """
 
+    event = getattr(dialog_manager, "event", None)
+    user = getattr(event, "from_user", None) if event else None
+
+    name = (
+        getattr(user, "username", None)
+        or getattr(user, "first_name", None)
+        or "User"
+    )
+
     return {
-        "name": dialog_manager.event.from_user.username
-        or dialog_manager.event.from_user.first_name
-        or "User",
+        "name": name,
         "game_nick": "Not set",
         "role": "R3",
     }
@@ -42,5 +49,5 @@ home_window = Window(
         Button(Format("❓ Help"), id="help"),
     ),
     getter=get_home_data,
-    state=None,  # placeholder (we add state later)
+    # state zostanie podpięte przez Dialog (nie tutaj)
 )
