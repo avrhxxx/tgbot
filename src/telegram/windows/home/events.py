@@ -10,16 +10,24 @@ from aiogram_dialog import Window, DialogManager
 from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Row, Button
 
+from src.telegram.states.home import EventsSG
+
 logger = logging.getLogger(__name__)
 
 
 async def get_events_data(**kwargs: Any):
     logger.info("Rendering Events window")
-    return {"title": "Events"}
+
+    return {
+        "title": "Events"
+    }
 
 
 events_window = Window(
     Format("📅 {title}\n\nNo events yet."),
-    Row(Button(Format("⬅️ Back"), id="home")),
+    Row(
+        Button(Format("⬅️ Back"), id="back"),
+    ),
     getter=get_events_data,
+    state=EventsSG.main,
 )
