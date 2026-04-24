@@ -11,7 +11,7 @@ import logging
 
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram_dialog import setup_dialogs, Dialog
+from aiogram_dialog import setup_dialogs, DialogRegistry
 
 from src.telegram.handlers.start import router as start_router
 from src.telegram.dialogs.home.window import home_window
@@ -21,10 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 def create_dispatcher() -> Dispatcher:
-    """
-    Creates configured Dispatcher instance.
-    """
-
     logger.info("Initializing Dispatcher...")
 
     storage = MemoryStorage()
@@ -37,11 +33,12 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(start_router)
 
     # =========================
-    # DIALOGS (UI LAYER)
+    # DIALOG SYSTEM (CORRECT WAY)
     # =========================
-    logger.info("Registering dialogs...")
-    dialog = Dialog(home_window)
-    dp.include_router(dialog)
+    logger.info("Setting up Dialog system...")
+
+    registry = DialogRegistry(dp)
+    registry.register(home_window)
 
     setup_dialogs(dp)
 
