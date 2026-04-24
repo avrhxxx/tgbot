@@ -13,19 +13,21 @@ logger = logging.getLogger("shadow.webhook.setup")
 
 
 async def setup_webhook(bot: Bot, webhook_url: str, secret: str):
-    logger.info("Checking webhook status...")
+    logger.info("🔍 Checking webhook status...")
 
     info = await bot.get_webhook_info()
+    logger.info("Current webhook URL: %s", info.url or "None")
 
     if info.url == webhook_url:
-        logger.info("Webhook already set, skipping")
+        logger.info("✅ Webhook already correct, skipping setup")
         return
 
     if info.url:
-        logger.info("Deleting existing webhook...")
+        logger.warning("⚠️ Existing webhook found, deleting...")
         await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("🧹 Old webhook removed")
 
-    logger.info("Setting webhook...")
+    logger.info("🔗 Setting new webhook...")
 
     await bot.set_webhook(
         url=webhook_url,
@@ -33,4 +35,4 @@ async def setup_webhook(bot: Bot, webhook_url: str, secret: str):
         drop_pending_updates=True,
     )
 
-    logger.info("Webhook set successfully: %s", webhook_url)
+    logger.info("✅ Webhook successfully set: %s", webhook_url)
