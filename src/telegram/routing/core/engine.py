@@ -6,7 +6,7 @@
 import logging
 from typing import Optional, Any
 
-from aiogram_dialog import DialogManager
+from aiogram_dialog import DialogManager, StartMode
 
 from src.telegram.routing.core.registry import get_route
 from src.telegram.routing.core.actions import RouteAction
@@ -45,21 +45,22 @@ class RoutingEngine:
             return False
 
         try:
-            # custom handler
             if route.handler:
                 await route.handler(dialog_manager, **kwargs)
                 return True
 
-            # state mapping
             state = STATE_MAP.get(route.target)
 
             if not state:
                 logger.error("No state mapping for target=%s", route.target)
                 return False
 
-            logger.info("Switching state | %s", route.target)
+            logger.info("Starting dialog | %s", route.target)
 
-            await dialog_manager.switch_to(state)
+            await dialog_manager.start(
+                state=state,
+                mode=StartMode.NORMAL,
+            )
 
             return True
 
