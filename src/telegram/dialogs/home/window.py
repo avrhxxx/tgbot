@@ -6,6 +6,7 @@
 # R3 Home Window (base UI entry point).
 # =========================================
 
+import logging
 from typing import Any
 
 from aiogram_dialog import Window, DialogManager
@@ -13,6 +14,9 @@ from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.kbd import Row, Button
 
 from src.telegram.dialogs.home.state import HomeSG
+
+
+logger = logging.getLogger(__name__)
 
 
 async def get_home_data(dialog_manager: DialogManager, **kwargs: Any):
@@ -53,3 +57,5 @@ home_window = Window(
     getter=get_home_data,
     state=HomeSG.main,
 )
+
+logger.info("Home window loaded (R3 entry UI)")
