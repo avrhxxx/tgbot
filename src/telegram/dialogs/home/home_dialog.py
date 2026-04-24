@@ -8,7 +8,7 @@
 import logging
 from aiogram_dialog import Dialog
 
-from src.telegram.dialogs.home.window import home_window
+from src.telegram.windows.home.home import home_window
 from src.telegram.dialogs.home.state import HomeSG
 
 logger = logging.getLogger(__name__)
