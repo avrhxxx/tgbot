@@ -1,9 +1,23 @@
+# =========================================
+# GROUP: telegram.handlers
+# FILE: start.py
+# DESCRIPTION:
+# Entry point of the bot.
+# Routes user into Home dialog (R3 base UI).
+# =========================================
+
+import logging
+
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 from aiogram_dialog import DialogManager
+from aiogram_dialog.api.protocols import StartMode
 
 from src.telegram.dialogs.home.state import HomeSG
+
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -15,11 +29,15 @@ async def start_handler(message: Message, dialog_manager: DialogManager):
     Routes directly into Home dialog (R3 base UI).
     """
 
-    # safety log (optional but useful for debugging flow)
-    print(f"[START] user_id={message.from_user.id}")
+    user_id = getattr(message.from_user, "id", None)
 
-    # 🚀 Start dialog flow (explicit reset = safest in production)
+    if user_id is None:
+        logger.warning("START received without from_user")
+        return
+
+    logger.info("Start command received | user_id=%s", user_id)
+
     await dialog_manager.start(
         state=HomeSG.main,
-        mode="RESET_STACK"
+        mode=StartMode.RESET_STACK,
     )
