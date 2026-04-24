@@ -1,4 +1,3 @@
-# src/factory/dispatcher.py
 # =========================================
 # GROUP: factory
 # FILE: dispatcher.py
@@ -14,8 +13,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_dialog import setup_dialogs
 
 from src.telegram.handlers.start import router as start_router
-from src.telegram.dialogs.home.window import home_window
-from aiogram_dialog import Dialog
+from src.telegram.dialogs.home.dialog import home_dialog
 
 
 logger = logging.getLogger(__name__)
@@ -37,9 +35,7 @@ def create_dispatcher() -> Dispatcher:
     # DIALOGS (CORRECT WAY)
     # =========================
     logger.info("Registering dialogs...")
-
-    dialog = Dialog(home_window)
-    dp.include_router(dialog)
+    dp.include_router(home_dialog)
 
     setup_dialogs(dp)
 
