@@ -35,16 +35,13 @@ home_window = Window(
         "🧭 Role: {role}"
     ),
 
-    # 🔥 QUICK JOIN (wrócił)
+    # 🔥 ALL ACTIONS IN SINGLE ROW (clean UI)
     Row(
         Button(
             Format("⚡ Quick Join"),
             id="quick_join",
             on_click=route_click("quick_join"),
         ),
-    ),
-
-    Row(
         Button(
             Format("📅 Events"),
             id="events",
@@ -55,14 +52,13 @@ home_window = Window(
             id="settings",
             on_click=route_click("settings"),
         ),
-    ),
-    Row(
         Button(
             Format("❓ Help"),
             id="help",
             on_click=route_click("help"),
         ),
     ),
+
     getter=get_home_data,
     state=HomeSG.main,
 )
