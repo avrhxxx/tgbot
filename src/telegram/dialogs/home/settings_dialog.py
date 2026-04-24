@@ -9,7 +9,6 @@ import logging
 from aiogram_dialog import Dialog
 
 from src.telegram.windows.home.settings import settings_window
-from src.telegram.dialogs.home.state import SettingsSG
 
 logger = logging.getLogger(__name__)
 
