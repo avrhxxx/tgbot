@@ -9,7 +9,6 @@ import logging
 from aiogram_dialog import Dialog
 
 from src.telegram.windows.home.events import events_window
-from src.telegram.dialogs.home.state import EventsSG
 
 logger = logging.getLogger(__name__)
 
