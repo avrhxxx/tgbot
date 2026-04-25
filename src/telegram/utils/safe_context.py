@@ -2,35 +2,21 @@
 # GROUP: telegram.utils
 # FILE: safe_context.py
 # DESCRIPTION:
-# Safe access layer for aiogram-dialog event/user
-# fixes union-type mypy crashes
+# Safe extraction layer for aiogram dialog events.
+# Prevents union-attr / ErrorEvent crashes.
 # =========================================
 
-from typing import Optional, Any
-
+from typing import Optional
 from aiogram.types import User
+from aiogram_dialog import DialogManager
 
 
-def get_event_user(dialog_manager) -> Optional[User]:
-    event = getattr(dialog_manager, "event", None)
-
-    if not event:
-        return None
+def get_user_safe(dialog_manager: DialogManager) -> Optional[User]:
+    event = dialog_manager.event
 
     user = getattr(event, "from_user", None)
 
-    return user if isinstance(user, User) else None
+    if user is None:
+        return None
 
-
-def get_user_safe(dialog_manager) -> Optional[User]:
-    """
-    Priority:
-    1. middleware user
-    2. event.from_user (safe)
-    """
-    user = dialog_manager.middleware_data.get("user")
-
-    if user:
-        return user
-
-    return get_event_user(dialog_manager)
+    return user
