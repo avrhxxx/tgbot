@@ -1,29 +1,37 @@
 # =========================================
 # GROUP: ui.controller
 # FILE: ui_controller.py
-# DESCRIPTION:
-# Event bus UI controller (single render engine)
 # =========================================
 
 import logging
 
 from src.ui.state.ui_state import UIState
+from src.ui.renderer.message_renderer import render_screen
 
 logger = logging.getLogger(__name__)
 
 
 class UIController:
-    def __init__(self):
+    def __init__(self, bot):
+        self.bot = bot
         self.state = UIState()
 
-    def set_screen(self, screen: str, payload: dict | None = None):
-        """
-        Safe state transition (no direct assignment typing issues)
-        """
-        logger.info("UI switch -> %s", screen)
+    async def open_screen(self, chat_id: int, screen: str):
+        self.state.screen = screen
 
-        self.state.screen = screen  # type: ignore
-        self.state.payload = payload
+        text, keyboard = await render_screen(screen, chat_id)
 
-    def get_screen(self) -> str:
-        return self.state.screen
+        if self.state.message_id:
+            await self.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=self.state.message_id,
+                text=text,
+                reply_markup=keyboard,
+            )
+        else:
+            msg = await self.bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=keyboard,
+            )
+            self.state.message_id = msg.message_id
