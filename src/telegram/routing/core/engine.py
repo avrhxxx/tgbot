@@ -10,6 +10,9 @@ from aiogram_dialog import DialogManager, StartMode
 
 from src.telegram.routing.core.registry import get_route
 from src.telegram.routing.core.actions import RouteAction
+from src.telegram.routing.core.guard import guard  # 🔥 ADD
+
+from src.telegram.permissions.context import UserContext  # 🔥 ADD
 
 from src.telegram.states.home import HomeSG, EventsSG, SettingsSG, HelpSG
 
@@ -33,10 +36,28 @@ class RoutingEngine:
         self,
         route_id: str,
         dialog_manager: DialogManager,
+        user: UserContext,  # 🔥 ADD (critical)
         **kwargs: Any
     ) -> bool:
 
-        logger.info("Routing request | route_id=%s", route_id)
+        logger.info(
+            "Routing request | user=%s role=%s route_id=%s",
+            user.user_id,
+            user.role,
+            route_id,
+        )
+
+        # =====================================================
+        # 🔐 GUARD LAYER (NEW)
+        # =====================================================
+        if not guard.can_access(user, route_id):
+            logger.warning(
+                "Access denied | user=%s role=%s route=%s",
+                user.user_id,
+                user.role,
+                route_id,
+            )
+            return False
 
         route: Optional[RouteAction] = get_route(route_id)
 
