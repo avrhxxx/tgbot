@@ -16,7 +16,7 @@ from aiogram_dialog import DialogManager, StartMode
 from src.telegram.states.home import HomeSG
 from src.telegram.permissions.context_builder import context_builder
 from src.services.user.user_profile import user_profile
-from src.telegram.windows.home.home import render_home
+
 
 logger = logging.getLogger(__name__)
 
