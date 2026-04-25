@@ -14,11 +14,18 @@ from aiogram_dialog import setup_dialogs
 
 from src.telegram.handlers.start import router as start_router
 
-# dialogs (NEW ARCHITECTURE)
+# =========================
+# DIALOGS (HOME MODULE)
+# =========================
 from src.telegram.dialogs.home.home_dialog import home_dialog
 from src.telegram.dialogs.home.events_dialog import events_dialog
 from src.telegram.dialogs.home.settings_dialog import settings_dialog
 from src.telegram.dialogs.home.help_dialog import help_dialog
+
+# =========================
+# DIALOGS (REGISTER MODULE)
+# =========================
+from src.telegram.dialogs.register.register_dialog import register_dialog
 
 # 🔥 CRITICAL: routing initialization (must be imported for side-effects)
 import src.telegram.routing.home.routes  # noqa
@@ -43,10 +50,14 @@ def create_dispatcher() -> Dispatcher:
     # =========================
     logger.info("Registering dialogs...")
 
+    # home
     dp.include_router(home_dialog)
     dp.include_router(events_dialog)
     dp.include_router(settings_dialog)
     dp.include_router(help_dialog)
+
+    # register (ONBOARDING FLOW)
+    dp.include_router(register_dialog)
 
     setup_dialogs(dp)
 
