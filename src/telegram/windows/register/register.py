@@ -10,8 +10,10 @@ import logging
 from aiogram_dialog import Window, DialogManager
 from aiogram_dialog.widgets.text import Format
 from aiogram_dialog.widgets.input import TextInput
+from aiogram_dialog import StartMode
 
 from src.telegram.states.register import RegisterSG
+from src.telegram.states.home import HomeSG
 from src.services.user.onboarding_service import onboarding_service
 
 logger = logging.getLogger(__name__)
@@ -24,7 +26,11 @@ async def on_nick_enter(message, widget, dialog_manager: DialogManager, value: s
 
     logger.info("Onboarding completed | user=%s", user_id)
 
-    await dialog_manager.done()
+    # 🔥 IMPORTANT: redirect to HOME
+    await dialog_manager.start(
+        state=HomeSG.main,
+        mode=StartMode.RESET_STACK,
+    )
 
 
 register_window = Window(
