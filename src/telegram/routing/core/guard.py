@@ -2,22 +2,18 @@
 # GROUP: telegram.routing.core
 # FILE: guard.py
 # DESCRIPTION:
-# Central routing guard layer (permissions, future rate limits, audit hooks).
+# Thin access layer using policy.py
 # =========================================
 
 import logging
 
-from src.telegram.permissions.context import UserContext
 from src.telegram.permissions.policy import get_permission
+from src.telegram.permissions.context import UserContext
 
 logger = logging.getLogger(__name__)
 
 
-class RoutingGuard:
-    """
-    Responsible ONLY for access decisions.
-    No routing logic here.
-    """
+class Guard:
 
     def can_access(self, user: UserContext, route_id: str) -> bool:
         permission = get_permission(route_id)
@@ -35,5 +31,4 @@ class RoutingGuard:
         return allowed
 
 
-# global instance
-guard = RoutingGuard()
+guard = Guard()
