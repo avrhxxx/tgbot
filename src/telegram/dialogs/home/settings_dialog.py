@@ -1,20 +1,21 @@
 # =========================================
-# GROUP: telegram.windows.home
-# FILE: settings.py
+# GROUP: telegram.dialogs.home
+# FILE: settings_dialog.py
+# DESCRIPTION:
+# Settings dialog (aiogram_dialog compatible)
 # =========================================
 
-from src.services.user.user_profile import user_profile
+from aiogram_dialog import Dialog, Window
+from aiogram_dialog.widgets.text import Format
+
+from src.telegram.states.home import SettingsSG
+from src.telegram.windows.home.settings import get_settings_data
 
 
-async def get_settings_data(dialog_manager, **kwargs):
-    user_id = dialog_manager.event.from_user.id
+settings_window = Window(
+    Format("{text}"),
+    state=SettingsSG.main,
+    getter=get_settings_data,
+)
 
-    profile = user_profile.get(user_id)
-
-    return {
-        "text": (
-            "⚙️ SETTINGS\n\n"
-            f"👤 Nick: {profile.nickname if profile else 'User'}\n"
-            f"🎮 Role: {profile.role if profile else 'R3'}"
-        )
-    }
+settings_dialog = Dialog(settings_window)
