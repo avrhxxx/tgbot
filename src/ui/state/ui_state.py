@@ -1,18 +1,16 @@
 # =========================================
 # GROUP: ui.state
 # FILE: ui_state.py
-# DESCRIPTION:
-# Central UI state machine (event-driven navigation)
 # =========================================
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 
 
-ScreenType = Literal["home", "settings", "events", "help"]
+Screen = Literal["home", "settings", "events", "help"]
 
 
 @dataclass
 class UIState:
-    screen: ScreenType = "home"
-    payload: dict | None = None
+    screen: Screen = "home"
+    message_id: Optional[int] = None
