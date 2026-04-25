@@ -1,33 +1,35 @@
 # =========================================
 # GROUP: telegram.components
 # FILE: home_buttons.py
-# DESCRIPTION:
-# Pure UI builder (NO roles, NO permissions)
 # =========================================
 
-from dataclasses import dataclass
 from typing import List
 
 
-@dataclass
-class Button:
-    label: str
-    route: str
+def build_home_buttons(routes: list[str]) -> List[list]:
+    """
+    Returns aiogram-dialog compatible keyboard rows
+    (NO dataclasses, NO UI logic, NO roles)
+    """
 
+    buttons = []
 
-BUTTON_LABELS = {
-    "home": "🏠 Home",
-    "events": "🎮 Events",
-    "help": "❓ Help",
-    "r4_panel": "📊 R4 PANEL",
-    "r5_panel": "🛡 R5 PANEL",
-    "admin": "⚙️ ADMIN",
-}
+    if "home" in routes:
+        buttons.append(["🏠 Home"])
 
+    if "events" in routes:
+        buttons.append(["🎮 Events"])
 
-def build_home_buttons(routes: list[str]) -> List[Button]:
-    return [
-        Button(BUTTON_LABELS[r], r)
-        for r in routes
-        if r in BUTTON_LABELS
-    ]
+    if "settings" in routes:
+        buttons.append(["⚙️ Settings"])
+
+    if "help" in routes:
+        buttons.append(["❓ Help"])
+
+    if "r4_panel" in routes:
+        buttons.append(["📊 R4 PANEL"])
+
+    if "r5_panel" in routes:
+        buttons.append(["🛡 R5 PANEL"])
+
+    return buttons
