@@ -2,7 +2,7 @@
 # GROUP: telegram.windows.r4
 # FILE: r4.py
 # DESCRIPTION:
-# R4 panel window (Officer UI).
+# R4 panel UI window (Officer dashboard).
 # =========================================
 
 import logging
@@ -17,12 +17,18 @@ from src.telegram.routing.core.binder import route_click
 logger = logging.getLogger(__name__)
 
 
+async def get_r4_data(**kwargs):
+    logger.info("Rendering R4 window")
+    return {}
+
+
 r4_window = Window(
     Format(
         "🛡 R4 PANEL\n\n"
-        "Officer tools will be here."
+        "Officer dashboard\n"
     ),
 
+    # BACK (wraca do HOME)
     Row(
         Button(
             Format("⬅️ Back"),
@@ -31,5 +37,6 @@ r4_window = Window(
         )
     ),
 
+    getter=get_r4_data,
     state=R4SG.main,
 )
