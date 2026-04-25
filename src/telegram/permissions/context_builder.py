@@ -7,7 +7,7 @@
 # =========================================
 
 import logging
-from typing import Optional
+
 
 from aiogram.types import User as TgUser
 
