@@ -2,7 +2,7 @@
 # GROUP: telegram.states
 # FILE: r4.py
 # DESCRIPTION:
-# R4 (Officer) panel states.
+# R4 (Officer) panel state definition.
 # =========================================
 
 from aiogram.fsm.state import StatesGroup, State
