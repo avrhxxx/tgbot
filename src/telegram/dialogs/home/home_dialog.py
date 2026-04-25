@@ -9,8 +9,7 @@ from aiogram_dialog import Dialog, Window
 from aiogram_dialog.widgets.text import Format
 
 from src.telegram.states.home import HomeSG
-from src.telegram.windows.home.home import get_home_data
-
+from src.telegram.windows.home import get_home_data
 
 home_window = Window(
     Format("{text}"),
