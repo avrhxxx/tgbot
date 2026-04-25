@@ -33,7 +33,7 @@ class UserProfileService:
     def get(self, user_id: int) -> UserProfile | None:
         return self._storage.get(user_id)
 
-    def create_or_update(self, user_id: int, nickname: str):
+    def create_or_update(self, user_id: int, nickname: str) -> UserProfile:
         profile = self._storage.get(user_id)
 
         if profile:
@@ -52,6 +52,34 @@ class UserProfileService:
             nickname,
         )
 
+        return profile
+
+    # =========================================
+    # 🔥 COMPAT LAYER (fix for onboarding)
+    # =========================================
+
+    def set_nick(self, user_id: int, nick: str) -> UserProfile:
+        profile = self._storage.get(user_id)
+
+        if not profile:
+            profile = UserProfile(user_id=user_id, nickname=nick, role="R3")
+            self._storage[user_id] = profile
+        else:
+            profile.nickname = nick
+
+        logger.info("Nick updated | user_id=%s nick=%s", user_id, nick)
+        return profile
+
+    def set_role(self, user_id: int, role: str) -> UserProfile:
+        profile = self._storage.get(user_id)
+
+        if not profile:
+            profile = UserProfile(user_id=user_id, role=role)
+            self._storage[user_id] = profile
+        else:
+            profile.role = role
+
+        logger.info("Role updated | user_id=%s role=%s", user_id, role)
         return profile
 
 
