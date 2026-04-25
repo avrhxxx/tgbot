@@ -1,9 +1,6 @@
 # =========================================
 # GROUP: factory
 # FILE: dispatcher.py
-# DESCRIPTION:
-# Creates Aiogram Dispatcher instance with dialog + routers.
-# FIXED: correct dialog imports + safe setup
 # =========================================
 
 import logging
@@ -14,19 +11,12 @@ from aiogram_dialog import setup_dialogs
 
 from src.telegram.handlers.start import router as start_router
 
-# =========================
-# DIALOGS (FIXED IMPORT STYLE)
-# =========================
 from src.telegram.dialogs.home.home_dialog import home_dialog
 from src.telegram.dialogs.home.events_dialog import events_dialog
 from src.telegram.dialogs.home.settings_dialog import settings_dialog
 from src.telegram.dialogs.home.help_dialog import help_dialog
 
-# routing (side effects)
 import src.telegram.routing.home.routes  # noqa
-import src.telegram.routing.events.routes  # noqa
-import src.telegram.routing.settings.routes  # noqa
-import src.telegram.routing.help.routes  # noqa
 
 logger = logging.getLogger(__name__)
 
@@ -34,21 +24,13 @@ logger = logging.getLogger(__name__)
 def create_dispatcher() -> Dispatcher:
     logger.info("Initializing Dispatcher...")
 
-    storage = MemoryStorage()
-    dp = Dispatcher(storage=storage)
+    dp = Dispatcher(storage=MemoryStorage())
 
-    # =========================
-    # ROUTERS
-    # =========================
     logger.info("Registering routers...")
     dp.include_router(start_router)
 
-    # =========================
-    # DIALOGS
-    # =========================
     logger.info("Registering dialogs...")
 
-    # IMPORTANT: dialogs are already Dialog objects
     dp.include_router(home_dialog)
     dp.include_router(events_dialog)
     dp.include_router(settings_dialog)
