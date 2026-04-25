@@ -7,17 +7,11 @@ from aiogram_dialog import Window
 from aiogram_dialog.widgets.text import Format
 
 from src.telegram.states.home import SettingsSG
-
-
-def safe_user(dialog_manager):
-    user = dialog_manager.middleware_data.get("user")
-    if user:
-        return user
-    return getattr(dialog_manager.event, "from_user", None)
+from src.telegram.utils.safe_context import get_user_safe
 
 
 async def get_settings_data(dialog_manager, **kwargs):
-    user = safe_user(dialog_manager)
+    user = get_user_safe(dialog_manager)
     profile = dialog_manager.middleware_data.get("profile")
 
     username = (
