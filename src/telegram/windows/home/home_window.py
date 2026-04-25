@@ -7,22 +7,27 @@ from aiogram_dialog import Window
 from aiogram_dialog.widgets.text import Format
 
 from src.telegram.states.home import HomeSG
-from src.telegram.routing.core.engine import engine
+from src.telegram.utils.safe_context import get_user_safe
 
 
 async def get_home_data(dialog_manager, **kwargs):
-    user = dialog_manager.middleware_data.get("user")
-
-    if not user:
-        user = dialog_manager.event.from_user
-
+    user = get_user_safe(dialog_manager)
     profile = dialog_manager.middleware_data.get("profile")
+
+    username = (
+        getattr(profile, "nickname", None)
+        or getattr(user, "username", None)
+        or getattr(user, "first_name", None)
+        or "User"
+    )
+
+    role = getattr(getattr(user, "role", None), "value", "R3")
 
     return {
         "text": (
             "🏠 HOME\n\n"
-            f"👤 Nick: {getattr(profile, 'nickname', None) or getattr(user, 'username', None) or getattr(user, 'first_name', None) or 'User'}\n"
-            f"🎮 Role: {getattr(getattr(user, 'role', None), 'value', user.role if hasattr(user, 'role') else 'R3')}"
+            f"👤 Nick: {username}\n"
+            f"🎮 Role: {role}"
         )
     }
 
