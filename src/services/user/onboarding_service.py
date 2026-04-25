@@ -10,7 +10,7 @@
 
 import logging
 
-from src.telegram.services.user_profile import user_profile
+from src.services.user.user_profile import user_profile
 from src.telegram.permissions.roles import Role
 
 logger = logging.getLogger(__name__)
