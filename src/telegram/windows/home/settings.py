@@ -1,44 +1,32 @@
 # =========================================
 # GROUP: telegram.windows.home
 # FILE: settings.py
+# DESCRIPTION:
+# Settings screen (role-aware, safe rendering)
 # =========================================
 
 import logging
-from typing import Any
 
-from aiogram_dialog import Window, DialogManager
-from aiogram_dialog.widgets.text import Format
-from aiogram_dialog.widgets.kbd import Row, Button
-
-from src.telegram.states.home import SettingsSG
-from src.telegram.routing.core.binder import route_click
+from src.services.user.user_profile import user_profile
 
 logger = logging.getLogger(__name__)
 
 
-async def get_settings_data(dialog_manager: DialogManager, **kwargs: Any):
-    logger.info("Rendering Settings window")
+def render_settings(user_id: int):
+    profile = user_profile.get(user_id)
 
-    return {
-        "title": "Settings"
-    }
+    if not profile:
+        return "⚙️ Settings unavailable"
 
+    logger.info("Rendering Settings window | user=%s", user_id)
 
-settings_window = Window(
-    Format(
-        "⚙️ {title}\n\n"
-        "User preferences coming soon."
-    ),
+    base = (
+        "⚙️ Settings\n\n"
+        f"👤 Nick: {profile.nickname or 'User'}\n"
+        f"🎮 Role: {profile.role}\n"
+    )
 
-    # 🔥 routing v2 navigation
-    Row(
-        Button(
-            Format("⬅️ Back"),
-            id="home",
-            on_click=route_click("home"),
-        ),
-    ),
+    if profile.role == "R3":
+        base += "\n🔒 Limited access (R3)"
 
-    getter=get_settings_data,
-    state=SettingsSG.main,
-)
+    return base
