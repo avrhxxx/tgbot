@@ -1,6 +1,8 @@
 # =========================================
 # GROUP: telegram.routing.core
 # FILE: engine.py
+# DESCRIPTION:
+# Routing engine uses guard (which uses policy.py)
 # =========================================
 
 import logging
@@ -9,10 +11,8 @@ from typing import Optional, Any
 from aiogram_dialog import DialogManager, StartMode
 
 from src.telegram.routing.core.registry import get_route
-from src.telegram.routing.core.actions import RouteAction
-from src.telegram.routing.core.guard import guard  # 🔥 ADD
-
-from src.telegram.permissions.context import UserContext  # 🔥 ADD
+from src.telegram.routing.core.guard import guard
+from src.telegram.permissions.context import UserContext
 
 from src.telegram.states.home import HomeSG, EventsSG, SettingsSG, HelpSG
 
@@ -29,27 +29,22 @@ STATE_MAP = {
 
 class RoutingEngine:
 
-    def __init__(self):
-        logger.info("RoutingEngine initialized")
-
     async def execute(
         self,
         route_id: str,
         dialog_manager: DialogManager,
-        user: UserContext,  # 🔥 ADD (critical)
+        user: UserContext,
         **kwargs: Any
     ) -> bool:
 
         logger.info(
-            "Routing request | user=%s role=%s route_id=%s",
+            "Routing request | user=%s role=%s route=%s",
             user.user_id,
             user.role,
             route_id,
         )
 
-        # =====================================================
-        # 🔐 GUARD LAYER (NEW)
-        # =====================================================
+        # 🔐 POLICY-BASED GUARD
         if not guard.can_access(user, route_id):
             logger.warning(
                 "Access denied | user=%s role=%s route=%s",
@@ -59,7 +54,7 @@ class RoutingEngine:
             )
             return False
 
-        route: Optional[RouteAction] = get_route(route_id)
+        route = get_route(route_id)
 
         if not route:
             logger.warning("Route not found | %s", route_id)
@@ -73,7 +68,7 @@ class RoutingEngine:
             state = STATE_MAP.get(route.target)
 
             if not state:
-                logger.error("No state mapping for target=%s", route.target)
+                logger.error("No state mapping for %s", route.target)
                 return False
 
             logger.info("Starting dialog | %s", route.target)
