@@ -3,29 +3,37 @@
 # FILE: settings_window.py
 # =========================================
 
-import logging
-
 from aiogram_dialog import Window
 from aiogram_dialog.widgets.text import Format
 
 from src.telegram.states.home import SettingsSG
 
-logger = logging.getLogger(__name__)
+
+def safe_user(dialog_manager):
+    user = dialog_manager.middleware_data.get("user")
+    if user:
+        return user
+    return getattr(dialog_manager.event, "from_user", None)
 
 
 async def get_settings_data(dialog_manager, **kwargs):
-    user = dialog_manager.middleware_data.get("user")
-
-    if not user:
-        user = dialog_manager.event.from_user
-
+    user = safe_user(dialog_manager)
     profile = dialog_manager.middleware_data.get("profile")
+
+    username = (
+        getattr(profile, "nickname", None)
+        or getattr(user, "username", None)
+        or getattr(user, "first_name", None)
+        or "User"
+    )
+
+    role = getattr(getattr(user, "role", None), "value", "R3")
 
     return {
         "text": (
             "⚙️ SETTINGS\n\n"
-            f"👤 Nick: {getattr(profile, 'nickname', None) or user.username or user.first_name or 'User'}\n"
-            f"🎮 Role: {getattr(user.role, 'value', user.role)}"
+            f"👤 Nick: {username}\n"
+            f"🎮 Role: {role}"
         )
     }
 
