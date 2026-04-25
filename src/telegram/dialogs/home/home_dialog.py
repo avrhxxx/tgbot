@@ -1,20 +1,20 @@
 # =========================================
 # GROUP: telegram.dialogs.home
 # FILE: home_dialog.py
-# DESCRIPTION:
-# Home entry dialog (R3 dashboard)
 # =========================================
 
-import logging
-from aiogram_dialog import Dialog
+from aiogram_dialog import Dialog, Window
+from aiogram_dialog.widgets.text import Format
+from aiogram_dialog.widgets.kbd import Button
 
-from src.telegram.windows.home.home import home_window
+from src.telegram.states.home import HomeSG
+from src.telegram.windows.home.home import get_home_data  # 🔥 FIX GETTER
 
-logger = logging.getLogger(__name__)
 
-
-home_dialog = Dialog(
-    home_window,
+home_window = Window(
+    Format("{text}"),
+    state=HomeSG.main,
+    getter=get_home_data,
 )
 
-logger.info("Home dialog registered")
+home_dialog = Dialog(home_window)
