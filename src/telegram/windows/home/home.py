@@ -3,7 +3,6 @@
 # FILE: home.py
 # DESCRIPTION:
 # Home UI window (R3 dashboard)
-# ROUTING v2 ONLY
 # =========================================
 
 import logging
@@ -15,6 +14,7 @@ from aiogram_dialog.widgets.kbd import Row, Button
 
 from src.telegram.states.home import HomeSG
 from src.telegram.routing.core.binder import route_click
+from src.services.user.user_profile import user_profile
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,17 @@ logger = logging.getLogger(__name__)
 async def get_home_data(dialog_manager: DialogManager, **kwargs: Any):
     logger.info("Rendering Home window")
 
+    user = dialog_manager.middleware_data.get("user_context")
+
+    profile = user_profile.get(user.user_id) if user else None
+
+    nickname = profile.nickname if profile and profile.nickname else "Not set"
+    role = str(user.role) if user else "R3"
+
     return {
-        "name": "User",
-        "game_nick": "Not set",
-        "role": "R3",
+        "name": nickname,
+        "game_nick": nickname,
+        "role": role,
     }
 
 
@@ -35,8 +42,6 @@ home_window = Window(
         "🎮 Game Nick: {game_nick}\n"
         "🧭 Role: {role}"
     ),
-
-    # 🔥 ALL ROUTED VIA ENGINE
 
     Row(
         Button(
