@@ -2,8 +2,8 @@
 # GROUP: factory
 # FILE: dispatcher.py
 # DESCRIPTION:
-# Creates Aiogram Dispatcher instance with routers + dialogs.
-# OPTION A routing architecture (central registry).
+# Creates Aiogram Dispatcher instance with dialog + routers.
+# FIXED: correct dialog imports + safe setup
 # =========================================
 
 import logging
@@ -12,24 +12,21 @@ from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram_dialog import setup_dialogs
 
-# =========================
-# ROUTERS
-# =========================
 from src.telegram.handlers.start import router as start_router
 
 # =========================
-# DIALOGS
+# DIALOGS (FIXED IMPORT STYLE)
 # =========================
 from src.telegram.dialogs.home.home_dialog import home_dialog
 from src.telegram.dialogs.home.events_dialog import events_dialog
 from src.telegram.dialogs.home.settings_dialog import settings_dialog
 from src.telegram.dialogs.home.help_dialog import help_dialog
-from src.telegram.dialogs.register.register_dialog import register_dialog  # 🔥 REQUIRED
 
-# =========================
-# ROUTING (SIDE EFFECT IMPORTS)
-# =========================
-import src.telegram.routing.routes  # noqa
+# routing (side effects)
+import src.telegram.routing.home.routes  # noqa
+import src.telegram.routing.events.routes  # noqa
+import src.telegram.routing.settings.routes  # noqa
+import src.telegram.routing.help.routes  # noqa
 
 logger = logging.getLogger(__name__)
 
@@ -51,19 +48,14 @@ def create_dispatcher() -> Dispatcher:
     # =========================
     logger.info("Registering dialogs...")
 
-    dialogs = [
-        register_dialog,  # onboarding MUST BE FIRST
-        home_dialog,
-        events_dialog,
-        settings_dialog,
-        help_dialog,
-    ]
-
-    for dialog in dialogs:
-        dp.include_router(dialog)
+    # IMPORTANT: dialogs are already Dialog objects
+    dp.include_router(home_dialog)
+    dp.include_router(events_dialog)
+    dp.include_router(settings_dialog)
+    dp.include_router(help_dialog)
 
     setup_dialogs(dp)
 
-    logger.info("Dispatcher ready (OPTION A enabled)")
+    logger.info("Dispatcher ready")
 
     return dp
