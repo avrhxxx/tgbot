@@ -2,68 +2,52 @@
 # GROUP: telegram.permissions
 # FILE: context_builder.py
 # DESCRIPTION:
-# Builds UserContext from Telegram update/user.
-# Central identity resolver for routing system.
+# Builds unified UserContext from UserProfileService.
+# SINGLE SOURCE OF TRUTH for user identity + role.
 # =========================================
 
 import logging
 
-
-from aiogram.types import User as TgUser
-
+from src.services.user.user_profile import user_profile
 from src.telegram.permissions.context import UserContext
-from src.telegram.permissions.roles import Role
 
 logger = logging.getLogger(__name__)
 
 
 class ContextBuilder:
-    """
-    Converts Telegram user into internal UserContext.
-    """
 
-    def __init__(self):
-        logger.info("ContextBuilder initialized")
-
-    async def build(self, tg_user: TgUser) -> UserContext:
+    async def build(self, tg_user) -> UserContext:
         """
-        Resolve user role and build context.
+        Always builds context from UserProfileService.
+        No FSM / middleware dependency.
         """
 
         user_id = tg_user.id
 
-        # -------------------------------------------------
-        # TEMP MOCK (later: DB / Redis / API)
-        # -------------------------------------------------
-        role = await self._resolve_role(user_id)
+        profile = user_profile.get(user_id)
+
+        if not profile:
+            # fallback safe state
+            profile = user_profile.create_or_update(
+                user_id=user_id,
+                nickname=tg_user.username or tg_user.first_name or "User",
+            )
 
         context = UserContext(
             user_id=user_id,
-            role=role,
+            role=profile.role,
+            nickname=profile.nickname,
+            username=tg_user.username,
+            first_name=tg_user.first_name,
         )
 
         logger.info(
             "UserContext built | user_id=%s role=%s",
             user_id,
-            role,
+            context.role,
         )
 
         return context
 
-    async def _resolve_role(self, user_id: int) -> Role:
-        """
-        Temporary role resolver.
-        Replace later with DB / external service.
-        """
 
-        # 🔥 TEMP LOGIC (safe default)
-        # later: database lookup, alliance membership, admin table
-
-        if user_id == 1:
-            return Role.OWNER
-
-        return Role.R3
-
-
-# global instance
 context_builder = ContextBuilder()
