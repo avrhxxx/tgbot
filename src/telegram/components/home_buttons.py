@@ -2,14 +2,11 @@
 # GROUP: telegram.components
 # FILE: home_buttons.py
 # DESCRIPTION:
-# Role-aware UI builder using policy.py (NOT hardcoded roles)
+# Pure UI builder (NO roles, NO permissions)
 # =========================================
 
 from dataclasses import dataclass
 from typing import List
-
-from src.telegram.permissions.policy import get_permission
-from src.telegram.permissions.context import UserContext
 
 
 @dataclass
@@ -18,24 +15,19 @@ class Button:
     route: str
 
 
-def can_show(user: UserContext, route_id: str) -> bool:
-    return get_permission(route_id).allows(user.role)
+BUTTON_LABELS = {
+    "home": "🏠 Home",
+    "events": "🎮 Events",
+    "help": "❓ Help",
+    "r4_panel": "📊 R4 PANEL",
+    "r5_panel": "🛡 R5 PANEL",
+    "admin": "⚙️ ADMIN",
+}
 
 
-def build_home_buttons(user: UserContext) -> List[Button]:
-
-    buttons = [
-        Button("🏠 Home", "home"),
-        Button("🎮 Events", "events"),
-        Button("❓ Help", "help"),
+def build_home_buttons(routes: list[str]) -> List[Button]:
+    return [
+        Button(BUTTON_LABELS[r], r)
+        for r in routes
+        if r in BUTTON_LABELS
     ]
-
-    # R4 / R5
-    if can_show(user, "events"):
-        buttons.append(Button("📊 R4 PANEL", "events"))
-
-    # R5 only (settings access level)
-    if can_show(user, "settings"):
-        buttons.append(Button("🛡 R5 PANEL", "settings"))
-
-    return buttons
