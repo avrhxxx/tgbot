@@ -1,20 +1,20 @@
 # =========================================
-# GROUP: telegram.dialogs.home
-# FILE: home_dialog.py
+# GROUP: telegram.windows.home
+# FILE: home.py
 # =========================================
 
-from aiogram_dialog import Dialog, Window
-from aiogram_dialog.widgets.text import Format
-from aiogram_dialog.widgets.kbd import Button
-
-from src.telegram.states.home import HomeSG
-from src.telegram.windows.home.home import get_home_data  # 🔥 FIX GETTER
+from src.services.user.user_profile import user_profile
 
 
-home_window = Window(
-    Format("{text}"),
-    state=HomeSG.main,
-    getter=get_home_data,
-)
+async def get_home_data(dialog_manager, **kwargs):
+    user_id = dialog_manager.event.from_user.id
 
-home_dialog = Dialog(home_window)
+    profile = user_profile.get(user_id)
+
+    return {
+        "text": (
+            "🏠 HOME\n\n"
+            f"👤 Nick: {profile.nickname if profile else 'User'}\n"
+            f"🎮 Role: {profile.role if profile else 'R3'}"
+        )
+    }
