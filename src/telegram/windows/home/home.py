@@ -2,79 +2,37 @@
 # GROUP: telegram.windows.home
 # FILE: home.py
 # DESCRIPTION:
-# Home UI window (R3 dashboard)
+# Home screen renderer (role-aware UI).
+# SINGLE SOURCE OF TRUTH = UserProfileService.
 # =========================================
 
 import logging
-from typing import Any
 
-from aiogram_dialog import Window, DialogManager
-from aiogram_dialog.widgets.text import Format
-from aiogram_dialog.widgets.kbd import Row, Button
-
-from src.telegram.states.home import HomeSG
-from src.telegram.routing.core.binder import route_click
 from src.services.user.user_profile import user_profile
 
 logger = logging.getLogger(__name__)
 
 
-async def get_home_data(dialog_manager: DialogManager, **kwargs: Any):
-    logger.info("Rendering Home window")
+def render_home(user_id: int):
+    """
+    Builds Home UI from live profile data.
+    """
 
-    user = dialog_manager.middleware_data.get("user_context")
+    profile = user_profile.get(user_id)
 
-    profile = user_profile.get(user.user_id) if user else None
+    if not profile:
+        nickname = "User"
+        role = "R3"
+    else:
+        nickname = profile.nickname or "User"
+        role = profile.role
 
-    nickname = profile.nickname if profile and profile.nickname else "Not set"
-    role = str(user.role) if user else "R3"
+    logger.info("Rendering Home window | user=%s role=%s", user_id, role)
 
-    return {
-        "name": nickname,
-        "game_nick": nickname,
-        "role": role,
-    }
+    text = (
+        f"🏠 Home\n\n"
+        f"👤 Nick: {nickname}\n"
+        f"🎮 Role: {role}"
+    )
 
-
-home_window = Window(
-    Format(
-        "👋 Welcome, {name}\n\n"
-        "🎮 Game Nick: {game_nick}\n"
-        "🧭 Role: {role}"
-    ),
-
-    Row(
-        Button(
-            Format("⚡ Quick Join"),
-            id="quick_join",
-            on_click=route_click("quick_join"),
-        ),
-    ),
-
-    Row(
-        Button(
-            Format("📅 Events"),
-            id="events",
-            on_click=route_click("events"),
-        ),
-    ),
-
-    Row(
-        Button(
-            Format("⚙️ Settings"),
-            id="settings",
-            on_click=route_click("settings"),
-        ),
-    ),
-
-    Row(
-        Button(
-            Format("❓ Help"),
-            id="help",
-            on_click=route_click("help"),
-        ),
-    ),
-
-    getter=get_home_data,
-    state=HomeSG.main,
-)
+    return text
