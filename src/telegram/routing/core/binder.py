@@ -3,7 +3,7 @@
 # FILE: binder.py
 # DESCRIPTION:
 # UI → Routing v2 binding layer.
-# Injects UserContext into routing engine.
+# Injects UserContext safely via runtime store.
 # =========================================
 
 import logging
@@ -12,7 +12,7 @@ from typing import Callable, Any
 from aiogram_dialog import DialogManager
 
 from src.telegram.routing.core.engine import engine
-from src.telegram.permissions.context import UserContext
+from src.services.user.context_store import user_context_store
 
 logger = logging.getLogger(__name__)
 
@@ -28,20 +28,20 @@ def route_click(route_id: str) -> Callable:
         dialog_manager: DialogManager,
     ) -> None:
 
-        logger.info("UI click intercepted | route_id=%s", route_id)
+        user_id = callback.from_user.id if callback.from_user else None
 
-        # -----------------------------------
-        # 🔥 USER CONTEXT RESOLVE
-        # -----------------------------------
-        user: UserContext | None = dialog_manager.middleware_data.get("user_context")
+        logger.info("UI click intercepted | route_id=%s user_id=%s", route_id, user_id)
 
-        if not user:
-            logger.warning("Missing UserContext | route_id=%s", route_id)
+        if not user_id:
+            logger.warning("Missing user_id in callback")
             return
 
-        # -----------------------------------
-        # ENGINE EXECUTION
-        # -----------------------------------
+        user = user_context_store.get(user_id)
+
+        if not user:
+            logger.warning("Missing UserContext | route_id=%s user_id=%s", route_id, user_id)
+            return
+
         success = await engine.execute(
             route_id=route_id,
             dialog_manager=dialog_manager,
