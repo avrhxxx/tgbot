@@ -3,6 +3,7 @@
 # FILE: home.py
 # DESCRIPTION:
 # Home UI window (R3 dashboard)
+# ROUTING v2 ONLY
 # =========================================
 
 import logging
@@ -35,7 +36,8 @@ home_window = Window(
         "🧭 Role: {role}"
     ),
 
-    # 🔥 EACH BUTTON IN ITS OWN ROW (clean + scalable UI)
+    # 🔥 ALL ROUTED VIA ENGINE
+
     Row(
         Button(
             Format("⚡ Quick Join"),
