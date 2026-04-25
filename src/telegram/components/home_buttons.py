@@ -2,13 +2,14 @@
 # GROUP: telegram.components
 # FILE: home_buttons.py
 # DESCRIPTION:
-# Role-aware dynamic button builder for Home screen.
+# Role-aware UI builder using policy.py (NOT hardcoded roles)
 # =========================================
 
 from dataclasses import dataclass
 from typing import List
 
-from src.services.user.user_profile import user_profile
+from src.telegram.permissions.policy import get_permission
+from src.telegram.permissions.context import UserContext
 
 
 @dataclass
@@ -17,10 +18,11 @@ class Button:
     route: str
 
 
-def build_home_buttons(user_id: int) -> List[Button]:
-    profile = user_profile.get(user_id)
+def can_show(user: UserContext, route_id: str) -> bool:
+    return get_permission(route_id).allows(user.role)
 
-    role = profile.role if profile else "R3"
+
+def build_home_buttons(user: UserContext) -> List[Button]:
 
     buttons = [
         Button("🏠 Home", "home"),
@@ -28,12 +30,12 @@ def build_home_buttons(user_id: int) -> List[Button]:
         Button("❓ Help", "help"),
     ]
 
-    # R4 / R5 shared access
-    if role in ["R4", "R5"]:
+    # R4 / R5
+    if can_show(user, "events"):
         buttons.append(Button("📊 R4 PANEL", "events"))
 
-    # R5 ONLY
-    if role == "R5":
+    # R5 only (settings access level)
+    if can_show(user, "settings"):
         buttons.append(Button("🛡 R5 PANEL", "settings"))
 
     return buttons
