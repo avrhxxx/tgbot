@@ -1,12 +1,10 @@
 # =========================================
 # GROUP: telegram.routing.core
 # FILE: engine.py
-# DESCRIPTION:
-# Routing engine uses guard (which uses policy.py)
 # =========================================
 
 import logging
-from typing import Optional, Any
+from typing import Any
 
 from aiogram_dialog import DialogManager, StartMode
 
@@ -44,12 +42,10 @@ class RoutingEngine:
             route_id,
         )
 
-        # 🔐 POLICY-BASED GUARD
         if not guard.can_access(user, route_id):
             logger.warning(
-                "Access denied | user=%s role=%s route=%s",
+                "Access denied | user=%s route=%s",
                 user.user_id,
-                user.role,
                 route_id,
             )
             return False
@@ -70,8 +66,6 @@ class RoutingEngine:
             if not state:
                 logger.error("No state mapping for %s", route.target)
                 return False
-
-            logger.info("Starting dialog | %s", route.target)
 
             await dialog_manager.start(
                 state=state,
