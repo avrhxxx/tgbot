@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard (MVP single-dialog flow)
+# Moderator panel + broadcast wizard v2 (UX chat-style + media + preview)
 # =========================================
 
 import logging
@@ -18,105 +18,129 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
+# HELPERS
+# =========================
+
+def data(dm: DialogManager) -> dict:
+    return dm.dialog_data or {}
+
+
+# =========================
 # NAVIGATION
 # =========================
 
-async def to_broadcast_menu(callback, button, dialog_manager: DialogManager):
-    logger.info("Navigating to broadcast menu")
-    await dialog_manager.switch_to(PanelSG.broadcast_menu)
+async def to_broadcast_menu(callback, button, dm: DialogManager):
+    await dm.switch_to(PanelSG.broadcast_menu)
 
 
-async def back_to_main(callback, button, dialog_manager: DialogManager):
-    logger.info("Back to main panel")
-    await dialog_manager.switch_to(PanelSG.main)
+async def back_to_main(callback, button, dm: DialogManager):
+    await dm.switch_to(PanelSG.main)
 
 
 # =========================
-# BROADCAST FLOW
+# FLOW
 # =========================
 
-# --- TAG SELECT ---
-async def select_tag(callback, button, dialog_manager: DialogManager):
-    tag = button.widget_id
-    dialog_manager.dialog_data["tag"] = tag
-
-    logger.info(f"Broadcast tag selected: {tag}")
-
-    await dialog_manager.switch_to(PanelSG.broadcast_title)
+# --- TAG ---
+async def select_tag(callback, button, dm: DialogManager):
+    dm.dialog_data["tag"] = button.widget_id
+    await dm.switch_to(PanelSG.broadcast_title)
 
 
-# --- TITLE INPUT ---
-async def save_title(message: types.Message, widget, dialog_manager: DialogManager):
-    title = message.text or ""
-    dialog_manager.dialog_data["title"] = title
+# --- TITLE (UX MODE) ---
+async def save_title(message: types.Message, widget, dm: DialogManager):
+    text = (message.text or "").strip()
 
-    logger.info(f"Broadcast title set: {title}")
+    if not text:
+        await message.answer("❌ Please send a valid title")
+        return
 
-    await dialog_manager.switch_to(PanelSG.broadcast_content)
+    dm.dialog_data["title"] = text
+    logger.info("Title saved")
 
-
-# --- CONTENT INPUT ---
-async def save_content(message: types.Message, widget, dialog_manager: DialogManager):
-    content = message.text or ""
-    dialog_manager.dialog_data["content"] = content
-
-    logger.info("Broadcast content received")
-
-    await dialog_manager.switch_to(PanelSG.broadcast_preview)
+    await message.answer("✍️ Nice. Now send me the broadcast content.")
+    await dm.switch_to(PanelSG.broadcast_content)
 
 
-# --- SEND BROADCAST ---
-async def send_broadcast(callback, button, dialog_manager: DialogManager):
-    data = dialog_manager.dialog_data
+# --- CONTENT + MEDIA SUPPORT ---
+async def save_content(message: types.Message, widget, dm: DialogManager):
+    text = (message.text or "").strip()
 
-    title = data.get("title", "")
-    content = data.get("content", "")
-    tag = data.get("tag", "unknown")
+    if not text:
+        await message.answer("❌ Please send valid content")
+        return
 
-    text = (
+    media = None
+
+    # support photo/video/document/gif
+    if message.photo:
+        media = ("photo", message.photo[-1].file_id)
+    elif message.video:
+        media = ("video", message.video.file_id)
+    elif message.document:
+        media = ("document", message.document.file_id)
+    elif message.animation:
+        media = ("animation", message.animation.file_id)
+
+    dm.dialog_data["content"] = text
+    dm.dialog_data["media"] = media
+
+    logger.info("Content + media saved")
+
+    await dm.switch_to(PanelSG.broadcast_preview)
+
+
+# =========================
+# SEND BROADCAST
+# =========================
+
+async def send_broadcast(callback, button, dm: DialogManager):
+    d = data(dm)
+
+    title = d.get("title", "No title")
+    content = d.get("content", "No content")
+    tag = d.get("tag", "unknown")
+    media = d.get("media")
+
+    bot = dm.middleware_data.get("bot")
+    config = dm.middleware_data.get("config")
+
+    if not bot or not config:
+        await callback.message.answer("❌ Missing bot/config")
+        return
+
+    caption = (
         f"📣 <b>{title}</b>\n\n"
         f"{content}\n\n"
         f"────────────\n"
         f"🏷 Tag: {tag}\n"
-        f"👤 Sent by: system"
+        f"👤 Sent by moderator"
     )
-
-    bot = dialog_manager.middleware_data.get("bot")
-    config = dialog_manager.middleware_data.get("config")
-
-    if not bot or not config:
-        logger.error("Bot or config missing in middleware_data")
-        await callback.message.answer("❌ Bot/config not available")
-        return
-
-    chat_ids = config.access.chat_ids
 
     sent = 0
 
-    for chat_id in chat_ids:
+    for chat_id in config.access.chat_ids:
         try:
-            await bot.send_message(chat_id, text)
+            if media:
+                mtype, file_id = media
+
+                if mtype == "photo":
+                    await bot.send_photo(chat_id, file_id, caption=caption)
+                elif mtype == "video":
+                    await bot.send_video(chat_id, file_id, caption=caption)
+                elif mtype == "document":
+                    await bot.send_document(chat_id, file_id, caption=caption)
+                elif mtype == "animation":
+                    await bot.send_animation(chat_id, file_id, caption=caption)
+            else:
+                await bot.send_message(chat_id, caption)
+
             sent += 1
+
         except Exception as e:
-            logger.warning(f"Failed to send to {chat_id}: {e}")
+            logger.warning(f"Send failed {chat_id}: {e}")
 
-    logger.info(f"Broadcast sent to {sent}/{len(chat_ids)} chats")
-
-    await dialog_manager.switch_to(PanelSG.main)
-
-
-# =========================
-# GETTER (FIX KEYERROR)
-# =========================
-
-def get_preview_data(dialog_manager: DialogManager, **kwargs):
-    data = dialog_manager.dialog_data
-
-    return {
-        "title": data.get("title", ""),
-        "content": data.get("content", ""),
-        "tag": data.get("tag", "unknown"),
-    }
+    await dm.switch_to(PanelSG.main)
 
 
 # =========================
@@ -124,7 +148,7 @@ def get_preview_data(dialog_manager: DialogManager, **kwargs):
 # =========================
 
 main_window = Window(
-    Const("🛠 <b>Moderator Panel</b>\n\nChoose an action:"),
+    Const("🛠 <b>Moderator Panel</b>\n\nChoose action:"),
     Row(
         Button(Const("📣 Broadcast"), id="broadcast", on_click=to_broadcast_menu),
     ),
@@ -133,7 +157,7 @@ main_window = Window(
 
 
 broadcast_menu_window = Window(
-    Const("📣 <b>Select Broadcast Tag</b>"),
+    Const("📣 Choose a broadcast tag:"),
     Row(
         Button(Const("Tag1"), id="tag1", on_click=select_tag),
         Button(Const("Tag2"), id="tag2", on_click=select_tag),
@@ -149,32 +173,34 @@ broadcast_menu_window = Window(
 )
 
 
+# --- UX TITLE STEP ---
 title_window = Window(
-    Const("📝 Send broadcast title:"),
+    Const("📣 What should be the title of this broadcast?"),
     MessageInput(save_title),
     state=PanelSG.broadcast_title,
 )
 
 
+# --- UX CONTENT STEP ---
 content_window = Window(
-    Const("✍️ Send broadcast content:"),
+    Const("✍️ Now send the message content (you can also attach media)"),
     MessageInput(save_content),
     state=PanelSG.broadcast_content,
 )
 
 
+# --- PREVIEW (REALISTIC TELEGRAM STYLE) ---
 preview_window = Window(
     Format(
         "📣 <b>{title}</b>\n\n"
         "{content}\n\n"
         "────────────\n"
         "🏷 Tag: {tag}\n"
-        "👤 Sent by: system"
+        "👤 Sent by moderator"
     ),
     Row(
-        Button(Const("🚀 Send"), id="send", on_click=send_broadcast),
+        Button(Const("🚀 Send broadcast"), id="send", on_click=send_broadcast),
     ),
-    getter=get_preview_data,   # 👈 KLUCZ FIXA
     state=PanelSG.broadcast_preview,
 )
 
