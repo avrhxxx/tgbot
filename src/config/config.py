@@ -1,9 +1,7 @@
-# =========================================
-# GROUP: config
-# FILE: config.py
+# src/config/config.py
 # DESCRIPTION:
 # Clean MVP config for moderator broadcast bot.
-# =========================================
+# Maps environment variables into structured dataclasses.
 
 from dataclasses import dataclass
 import json
@@ -75,7 +73,7 @@ def _parse_id_list(value: str | None) -> list[int]:
     return [int(x.strip()) for x in value.split(",") if x.strip()]
 
 
-def _parse_google_service_account(value: str) -> str:
+def _parse_google_service_account(value: str | None) -> str:
     if not value:
         return ""
 
