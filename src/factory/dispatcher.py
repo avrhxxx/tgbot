@@ -2,7 +2,7 @@
 # GROUP: factory
 # FILE: dispatcher.py
 # DESCRIPTION:
-# Minimal clean dispatcher for moderator panel (MVP).
+# Aiogram dispatcher setup (MVP clean version).
 # =========================================
 
 import logging
@@ -10,8 +10,7 @@ import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from src.handlers.start import router as start_router
-from src.handlers.broadcast import router as broadcast_router
+from src.handlers import register_handlers
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +20,7 @@ def create_dispatcher() -> Dispatcher:
 
     dp = Dispatcher(storage=MemoryStorage())
 
-    # =========================
-    # ROUTERS
-    # =========================
-    dp.include_router(start_router)
-    dp.include_router(broadcast_router)
+    register_handlers(dp)
 
     logger.info("Dispatcher ready")
     return dp
