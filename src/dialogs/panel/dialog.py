@@ -106,6 +106,20 @@ async def send_broadcast(callback, button, dialog_manager: DialogManager):
 
 
 # =========================
+# GETTER (FIX KEYERROR)
+# =========================
+
+def get_preview_data(dialog_manager: DialogManager, **kwargs):
+    data = dialog_manager.dialog_data
+
+    return {
+        "title": data.get("title", ""),
+        "content": data.get("content", ""),
+        "tag": data.get("tag", "unknown"),
+    }
+
+
+# =========================
 # WINDOWS
 # =========================
 
@@ -160,6 +174,7 @@ preview_window = Window(
     Row(
         Button(Const("🚀 Send"), id="send", on_click=send_broadcast),
     ),
+    getter=get_preview_data,   # 👈 KLUCZ FIXA
     state=PanelSG.broadcast_preview,
 )
 
