@@ -1,14 +1,11 @@
-# =========================================
-# GROUP: utils
-# FILE: access.py
+# src/utils/access.py
 # DESCRIPTION:
 # Simple role-based access control (MVP).
-# =========================================
 
-from src.config.config import load_config
+from src.config.config import load_config, Config
 
 
-def get_config():
+def get_config() -> Config:
     return load_config()
 
 
@@ -28,4 +25,4 @@ def can_use_panel(user_id: int) -> bool:
 
 def get_chat_ids() -> list[int]:
     config = get_config()
-    return config.access.chat_ids
+    return list(config.access.chat_ids)
