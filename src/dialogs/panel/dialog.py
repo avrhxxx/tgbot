@@ -1,20 +1,21 @@
 # src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel dialog (main window only).
+# Moderator panel dialog with navigation.
 
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const
 from aiogram_dialog.widgets.kbd import Button, Row
+from aiogram.types import Message
 
 from src.dialogs.panel.states import PanelSG
 
 
 # =========================
-# HANDLERS (na razie puste)
+# HANDLERS
 # =========================
 
 async def on_broadcast_click(callback, button, dialog_manager: DialogManager):
-    await callback.answer("🚧 Broadcast flow coming soon")
+    await dialog_manager.switch_to(PanelSG.broadcast_input)
 
 
 async def on_settings_click(callback, button, dialog_manager: DialogManager):
@@ -22,7 +23,15 @@ async def on_settings_click(callback, button, dialog_manager: DialogManager):
 
 
 # =========================
-# WINDOW
+# INPUT HANDLER
+# =========================
+
+async def on_message(message: Message, dialog_manager: DialogManager):
+    await message.answer("📩 Got your message (next step soon)")
+
+
+# =========================
+# WINDOWS
 # =========================
 
 main_window = Window(
@@ -36,9 +45,18 @@ main_window = Window(
     state=PanelSG.main,
 )
 
+broadcast_input_window = Window(
+    Const("📣 <b>Send broadcast message:</b>\n\nJust type your message."),
+    state=PanelSG.broadcast_input,
+)
+
 
 # =========================
 # DIALOG
 # =========================
 
-panel_dialog = Dialog(main_window)
+panel_dialog = Dialog(
+    main_window,
+    broadcast_input_window,
+    on_message=on_message,
+)
