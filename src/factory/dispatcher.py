@@ -2,7 +2,7 @@
 # GROUP: factory
 # FILE: dispatcher.py
 # DESCRIPTION:
-# Aiogram dispatcher (clean UI engine injection)
+# Minimal clean dispatcher for moderator panel (MVP).
 # =========================================
 
 import logging
@@ -10,26 +10,22 @@ import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from src.telegram.routing.core.registry import register_all_routes
-from src.ui.controller.ui_controller import UIController
+from src.handlers.start import router as start_router
+from src.handlers.broadcast import router as broadcast_router
 
 logger = logging.getLogger(__name__)
 
 
-def setup_dispatcher() -> Dispatcher:
-    logger.info("Starting Dispatcher (CLEAN UI MODE)")
+def create_dispatcher() -> Dispatcher:
+    logger.info("Starting Dispatcher (MVP MODE)")
 
     dp = Dispatcher(storage=MemoryStorage())
 
-    ui_controller = UIController()
-
-    # FIX: proper middleware signature (aiogram v3 safe)
-    @dp.update.middleware()
-    async def ui_middleware(handler, event, data):
-        data["ui"] = ui_controller
-        return await handler(event, data)
-
-    register_all_routes()
+    # =========================
+    # ROUTERS
+    # =========================
+    dp.include_router(start_router)
+    dp.include_router(broadcast_router)
 
     logger.info("Dispatcher ready")
     return dp
