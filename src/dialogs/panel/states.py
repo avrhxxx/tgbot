@@ -7,3 +7,4 @@ from aiogram.fsm.state import StatesGroup, State
 
 class PanelSG(StatesGroup):
     main = State()
+    broadcast_input = State()
