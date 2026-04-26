@@ -1,10 +1,6 @@
-# src/factory/bot.py
 # =========================================
 # GROUP: factory
 # FILE: bot.py
-# DESCRIPTION:
-# Creates and configures Aiogram Bot instance.
-# Production-ready setup with config integration.
 # =========================================
 
 from aiogram import Bot
@@ -15,9 +11,6 @@ from src.config.config import load_config
 
 
 def create_bot() -> Bot:
-    """
-    Creates configured Telegram Bot instance.
-    """
     config = load_config()
 
     return Bot(
