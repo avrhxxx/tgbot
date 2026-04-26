@@ -1,10 +1,8 @@
-# src/config/config.py
 # =========================================
 # GROUP: config
 # FILE: config.py
 # DESCRIPTION:
-# Central configuration loader for Shadow Bot.
-# Maps environment variables into structured dataclasses.
+# Clean MVP config for moderator broadcast bot.
 # =========================================
 
 from dataclasses import dataclass
@@ -26,7 +24,7 @@ class TelegramBotConfig:
 
 
 # =========================
-# GOOGLE CONFIG
+# GOOGLE CONFIG (OPTIONAL)
 # =========================
 
 @dataclass
@@ -36,14 +34,14 @@ class GoogleConfig:
 
 
 # =========================
-# ACCESS CONTROL
+# ACCESS CONTROL (MVP)
 # =========================
 
 @dataclass
 class AccessConfig:
-    r5_ids: list[int]
     admin_ids: list[int]
-    group_ids: list[int]
+    mod_ids: list[int]
+    chat_ids: list[int]
 
 
 # =========================
@@ -79,7 +77,7 @@ def _parse_id_list(value: str | None) -> list[int]:
 
 def _parse_google_service_account(value: str) -> str:
     if not value:
-        raise ValueError("GOOGLE_SERVICE_ACCOUNT is missing")
+        return ""
 
     try:
         json.loads(value)
@@ -95,12 +93,7 @@ def _parse_bool(value: str | None, default: bool = False) -> bool:
 
     value = str(value).strip().lower()
 
-    if value in ("true", "1", "yes", "y", "on"):
-        return True
-    if value in ("false", "0", "no", "n", "off"):
-        return False
-
-    return default
+    return value in ("true", "1", "yes", "y", "on")
 
 
 # =========================
@@ -122,9 +115,9 @@ def load_config() -> Config:
             sheet_id=getenv("GOOGLE_SHEET_ID"),
         ),
         access=AccessConfig(
-            r5_ids=_parse_id_list(getenv("R5_IDS")),
             admin_ids=_parse_id_list(getenv("ADMIN_IDS")),
-            group_ids=_parse_id_list(getenv("GROUP_IDS")),
+            mod_ids=_parse_id_list(getenv("MODS_IDS")),
+            chat_ids=_parse_id_list(getenv("CHAT_IDS")),
         ),
         features=FeatureConfig(
             demo_mode=_parse_bool(getenv("DEMO_MODE"))
