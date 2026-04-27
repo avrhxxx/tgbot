@@ -2,11 +2,12 @@
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
 # Moderator panel + announcement wizard v7.7
-# (clean clickable sender + unified renderer + preview/send parity)
+# (clean clickable sender + unified renderer + timestamp + strict format)
 # =========================================
 
 import logging
 from typing import Optional, Tuple
+from datetime import datetime
 
 from aiogram import types
 from aiogram.types import Message, CallbackQuery, User
@@ -66,19 +67,23 @@ def trace(dm: DialogManager, label: str):
 # =========================
 
 def build_block(data: dict, user: User | None) -> str:
-    title = data.get("title") or "Untitled announcement"
+    title_raw = data.get("title") or "UNTITLED ANNOUNCEMENT"
+    title = title_raw.upper()  # 🔥 FORCE CAPSLOCK
+
     content = data.get("content") or ""
+    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
     if user:
         sender = f'<a href="tg://user?id={user.id}">{user.full_name or "user"}</a>'
     else:
-        sender = "unknown"
+        sender = "UNKNOWN"
 
     return (
-        f"{title}\n"
+        f"ANNOUNCEMENT: {title}\n"
         "━━━━━━━━━━━━━━\n"
         f"{sender}: {content}\n"
-        "━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━\n"
+        f"{timestamp}"
     )
 
 
@@ -155,12 +160,10 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
     if not bot:
         await callback.answer("Bot missing in middleware", show_alert=True)
-        logger.error("[ANNOUNCEMENT] bot missing in middleware_data")
         return
 
     if not config:
         await callback.answer("Config missing in middleware", show_alert=True)
-        logger.error("[ANNOUNCEMENT] config missing in middleware_data")
         return
 
     user = resolve_sender(dm)
