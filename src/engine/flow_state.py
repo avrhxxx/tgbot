@@ -25,14 +25,12 @@ def set_flow(user_id: int, flow: str) -> None:
     state["flow"] = flow
     state["step"] = "start"
     state["data"] = {}
-
     logger.info(f"[FLOW] start flow={flow} user={user_id}")
 
 
 def set_step(user_id: int, step: str) -> None:
     state = get_state(user_id)
     state["step"] = step
-
     logger.info(f"[FLOW] step={step} user={user_id}")
 
 
@@ -41,11 +39,6 @@ def set_data(user_id: int, key: str, value: Any) -> None:
     state["data"][key] = value
 
 
-# 🔥 FIX: explicit typing to satisfy mypy
 def get_data(user_id: int) -> Dict[str, Any]:
     state = get_state(user_id)
-    data = state["data"]
-
-    logger.debug(f"[FLOW] get_data user={user_id} data_keys={list(data.keys())}")
-
-    return data
+    return state.get("data", {})  # <- FIX mypy safe access
