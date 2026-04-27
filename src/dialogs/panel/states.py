@@ -1,8 +1,7 @@
-# src/dialogs/panel/states.py
 # =========================================
 # FILE: src/dialogs/panel/states.py
 # DESCRIPTION:
-# States for moderator panel broadcast wizard (MVP)
+# States for moderator panel announcement wizard
 # =========================================
 
 from aiogram.fsm.state import StatesGroup, State
@@ -15,9 +14,9 @@ class PanelSG(StatesGroup):
     main = State()
 
     # =========================
-    # BROADCAST FLOW
+    # ANNOUNCEMENT FLOW
     # =========================
-    broadcast_menu = State()      # tag selection
-    broadcast_title = State()     # title input
-    broadcast_content = State()   # message input
-    broadcast_preview = State()   # final preview
+    announcement_menu = State()
+    announcement_title = State()
+    announcement_content = State()
+    announcement_preview = State()
