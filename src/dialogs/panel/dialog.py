@@ -92,7 +92,7 @@ def build_block(data: dict, sender: str) -> str:
 
         f"<pre><b>Title:</b> {title}\n\n
         
-        f{content}</pre>\n\n"
+        {content}</pre>\n\n"
 
         "────────────────────\n"
         f"👤 <b>Sent by:</b> {sender}\n"
