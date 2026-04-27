@@ -1,29 +1,30 @@
-# src/handlers/start.py
+# =========================================
+# FILE: src/handlers/start.py
 # DESCRIPTION:
-# Starts moderator panel dialog.
+# Bot entry point → shows reply keyboard only
+# =========================================
 
 from aiogram import Router, types
-from aiogram_dialog import DialogManager, StartMode
+from aiogram.filters import CommandStart
 
-from src.dialogs.panel.states import PanelSG
+from src.dialogs.panel.dialog import panel_kb
 from src.utils.access import can_use_panel
 
 router = Router()
 
 
-@router.message(lambda m: m.text == "/start")
-async def start_handler(message: types.Message, dialog_manager: DialogManager):
+@router.message(CommandStart())
+async def start_handler(message: types.Message):
     user = message.from_user
 
     if user is None:
-        await message.answer("❌ Unable to identify user.")
         return
 
     if not can_use_panel(user.id):
-        await message.answer("❌ No access.")
         return
 
-    await dialog_manager.start(
-        PanelSG.main,
-        mode=StartMode.RESET_STACK,
+    # ONLY UI LAYER (no text, no dialog)
+    await message.answer(
+        " ",
+        reply_markup=panel_kb
     )
