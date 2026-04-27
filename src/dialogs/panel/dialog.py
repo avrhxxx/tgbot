@@ -1,22 +1,30 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v6.7 (conversational UX + aiogram-dialog stable + fixed preview + production logging)
+# Moderator panel + announcement wizard v7.0
+# (single-message UX + dynamic tags + create tag + clean dialog flow)
 # =========================================
 
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from aiogram import types
 from aiogram.types import Message, CallbackQuery
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
-from aiogram_dialog.widgets.kbd import Button, Row
+from aiogram_dialog.widgets.kbd import Button, Row, Select
 from aiogram_dialog.widgets.input import MessageInput
 
 from src.dialogs.panel.states import PanelSG
 
 logger = logging.getLogger(__name__)
+
+
+# =========================
+# SIMPLE IN-MEMORY TAG STORAGE
+# =========================
+
+TAGS: List[str] = ["Tag1", "Tag2"]
 
 
 # =========================
@@ -60,46 +68,85 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
     return None
 
 
-# =========================
-# DEBUG TRACE
-# =========================
-
 def trace(dm: DialogManager, label: str):
     try:
-        ctx = dm.current_context()
-        state = ctx.state
+        state = dm.current_context().state
         state_repr = getattr(state, "state", str(state))
-    except Exception as e:
-        state_repr = f"UNKNOWN:{type(e).__name__}"
+    except Exception:
+        state_repr = "UNKNOWN"
 
     logger.info(f"[ANNOUNCEMENT] {label} | state={state_repr} | data={dm.dialog_data}")
 
 
 # =========================
-# NAVIGATION (CONVERSATIONAL)
+# GETTERS
+# =========================
+
+async def tags_getter(**_):
+    return {
+        "tags": TAGS
+    }
+
+
+async def preview_getter(dm: DialogManager, **_):
+    return {
+        "title": d(dm).get("title") or "Announcement",
+        "content": d(dm).get("content") or "",
+        "tag": d(dm).get("tag") or "unknown",
+        "sender": resolve_sender(dm),
+    }
+
+
+# =========================
+# NAVIGATION
 # =========================
 
 async def to_announcement_menu(callback, button, dm: DialogManager):
-    trace(dm, "START FLOW")
-    await callback.message.answer("📣 Alright, let’s create a new announcement.")
+    trace(dm, "START")
     await dm.switch_to(PanelSG.announcement_menu)
 
 
 async def back_to_main(callback, button, dm: DialogManager):
-    trace(dm, "EXIT FLOW")
-    await callback.message.answer("↩️ Back to main panel.")
+    trace(dm, "EXIT")
     await dm.switch_to(PanelSG.main)
 
 
 async def next_to_content(callback, button, dm: DialogManager):
-    trace(dm, "ASK CONTENT")
-    await callback.message.answer("✍️ Now tell me what you want to send.")
     await dm.switch_to(PanelSG.announcement_content)
 
 
 async def back_to_title(callback, button, dm: DialogManager):
-    trace(dm, "BACK TO TITLE")
-    await callback.message.answer("📝 Let’s adjust the title.")
+    await dm.switch_to(PanelSG.announcement_title)
+
+
+async def to_create_tag(callback, button, dm: DialogManager):
+    trace(dm, "CREATE TAG")
+    await dm.switch_to(PanelSG.create_tag)
+
+
+# =========================
+# TAG HANDLING
+# =========================
+
+async def select_tag(callback: CallbackQuery, widget, dm: DialogManager, item_id: str):
+    dm.dialog_data["tag"] = item_id
+    trace(dm, f"TAG={item_id}")
+    await dm.switch_to(PanelSG.announcement_title)
+
+
+async def create_tag_input(message: Message, widget, dm: DialogManager):
+    tag = (message.text or "").strip()
+
+    if not tag:
+        await dm.show()
+        return
+
+    if tag not in TAGS:
+        TAGS.append(tag)
+
+    dm.dialog_data["tag"] = tag
+    trace(dm, f"TAG CREATED={tag}")
+
     await dm.switch_to(PanelSG.announcement_title)
 
 
@@ -107,45 +154,27 @@ async def back_to_title(callback, button, dm: DialogManager):
 # FLOW INPUT
 # =========================
 
-async def select_tag(callback, button, dm: DialogManager):
-    dm.dialog_data["tag"] = button.widget_id
-    trace(dm, f"TAG SET: {button.widget_id}")
-
-    await callback.message.answer("✔ Got it. Now give your announcement a title (or skip it).")
-    await dm.switch_to(PanelSG.announcement_title)
-
-
-# ---------- TITLE ----------
-async def on_title_success(message: types.Message, widget, dm: DialogManager):
+async def on_title_success(message: Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = (message.text or "").strip()
-
-    logger.info("[ANNOUNCEMENT] title saved")
-
-    await message.answer("✔ Title saved. Next step — write the message.")
     await dm.next()
 
 
-# ---------- CONTENT ----------
-async def on_content_success(message: types.Message, widget, dm: DialogManager):
+async def on_content_success(message: Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     if not text:
-        await message.answer("❌ Please write something for the announcement.")
+        await dm.show()
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    logger.info("[ANNOUNCEMENT] content saved")
-
-    await message.answer("✔ Perfect. Let me show you a preview...")
-    trace(dm, "GO PREVIEW")
-
+    trace(dm, "TO PREVIEW")
     await dm.next()
 
 
 # =========================
-# SEND ANNOUNCEMENT
+# SEND
 # =========================
 
 async def send_announcement(callback, button, dm: DialogManager):
@@ -155,8 +184,7 @@ async def send_announcement(callback, button, dm: DialogManager):
     config = dm.middleware_data.get("config")
 
     if not bot or not config:
-        await callback.message.answer("❌ Bot configuration missing.")
-        return
+        return await dm.switch_to(PanelSG.main)
 
     title = data.get("title") or "Announcement"
     content = data.get("content") or ""
@@ -172,8 +200,6 @@ async def send_announcement(callback, button, dm: DialogManager):
         f"🏷 Tag: {tag}\n"
         f"👤 Sent by: {sender}"
     )
-
-    sent = 0
 
     for chat_id in config.access.chat_ids:
         try:
@@ -191,23 +217,19 @@ async def send_announcement(callback, button, dm: DialogManager):
             else:
                 await bot.send_message(chat_id, caption)
 
-            sent += 1
-
         except Exception as e:
             logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
-    logger.info(f"[ANNOUNCEMENT] SENT SUCCESSFULLY -> {sent} chats")
-
-    await callback.message.answer("🚀 Announcement sent successfully!")
+    trace(dm, "SENT")
     await dm.switch_to(PanelSG.main)
 
 
 # =========================
-# WINDOWS (CONVERSATIONAL UX)
+# WINDOWS (SINGLE MESSAGE UX)
 # =========================
 
 main_window = Window(
-    Const("🛠 Welcome back, Moderator."),
+    Const("🛠 Moderator Panel"),
     Row(
         Button(Const("📣 Create announcement"), id="announcement", on_click=to_announcement_menu)
     ),
@@ -216,25 +238,44 @@ main_window = Window(
 
 
 announcement_menu_window = Window(
-    Const("📣 What kind of announcement is this?"),
-    Row(
-        Button(Const("Tag1"), id="tag1", on_click=select_tag),
-        Button(Const("Tag2"), id="tag2", on_click=select_tag),
+    Const("📣 choose or create a tag"),
+    Select(
+        Format("• {item}"),
+        id="tag_select",
+        items="tags",
+        item_id_getter=lambda x: x,
+        on_click=select_tag,
     ),
+    Row(
+        Button(Const("➕ Create tag"), id="create_tag", on_click=to_create_tag),
+    ),
+    getter=tags_getter,
     state=PanelSG.announcement_menu,
 )
 
 
+create_tag_window = Window(
+    Const("✍️ type new tag name"),
+    MessageInput(create_tag_input),
+    state=PanelSG.create_tag,
+)
+
+
 title_window = Window(
-    Const("📝 Give your announcement a title (optional)"),
+    Format(
+        "📝 tag: {tag}\n\n"
+        "give your announcement a title\n"
+        "(or skip)"
+    ),
     MessageInput(on_title_success),
-    Row(Button(Const("➡ Continue"), id="next_title", on_click=next_to_content)),
+    Row(Button(Const("➡ Skip"), id="skip_title", on_click=next_to_content)),
+    getter=lambda dm, **_: {"tag": d(dm).get("tag", "unknown")},
     state=PanelSG.announcement_title,
 )
 
 
 content_window = Window(
-    Const("✍️ Write your announcement message"),
+    Const("✍️ now write your message"),
     MessageInput(on_content_success),
     Row(Button(Const("⬅ Back"), id="back_content", on_click=back_to_title)),
     state=PanelSG.announcement_content,
@@ -246,19 +287,14 @@ preview_window = Window(
         "📣 <b>{title}</b>\n\n"
         "{content}\n\n"
         "────────────\n"
-        "🏷 Tag: {tag}\n"
-        "👤 Sent by: {sender}"
+        "🏷 {tag}\n"
+        "👤 {sender}"
     ),
     Row(
         Button(Const("⬅ Edit"), id="back_preview", on_click=back_to_title),
-        Button(Const("🚀 Send now"), id="send", on_click=send_announcement),
+        Button(Const("🚀 Send"), id="send", on_click=send_announcement),
     ),
-    getter=lambda dm, **_: {
-        "title": d(dm).get("title") or "Announcement",
-        "content": d(dm).get("content") or "",
-        "tag": d(dm).get("tag") or "unknown",
-        "sender": resolve_sender(dm),
-    },
+    getter=preview_getter,
     state=PanelSG.announcement_preview,
 )
 
@@ -266,6 +302,7 @@ preview_window = Window(
 panel_dialog = Dialog(
     main_window,
     announcement_menu_window,
+    create_tag_window,
     title_window,
     content_window,
     preview_window,
