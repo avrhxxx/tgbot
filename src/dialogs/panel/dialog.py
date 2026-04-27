@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard v6.2 (FIXED aiogram-dialog flow + deterministic state transitions)
+# Moderator panel + broadcast wizard v6.3 (FIXED MessageInput lifecycle + full debug tracing)
 # =========================================
 
 import logging
@@ -62,11 +62,16 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
 
 
 # =========================
-# LOG HELPERS
+# DEBUG TRACE
 # =========================
 
-def log_state(dm: DialogManager, label: str):
-    logger.info(f"[DIALOG] {label} | state={dm.current_context().state} | data={dm.dialog_data}")
+def trace(dm: DialogManager, label: str):
+    try:
+        state = dm.current_context().state
+    except Exception:
+        state = "UNKNOWN"
+
+    logger.info(f"[DIALOG TRACE] {label} | state={state} | data={dm.dialog_data}")
 
 
 # =========================
@@ -74,42 +79,32 @@ def log_state(dm: DialogManager, label: str):
 # =========================
 
 async def to_broadcast_menu(callback, button, dm: DialogManager):
-    log_state(dm, "ENTER MENU")
+    trace(dm, "ENTER MENU")
     await dm.switch_to(PanelSG.broadcast_menu)
 
 
 async def back_to_main(callback, button, dm: DialogManager):
+    trace(dm, "BACK MAIN")
     await dm.switch_to(PanelSG.main)
 
 
 async def next_to_content(callback, button, dm: DialogManager):
-    log_state(dm, "NEXT TO CONTENT")
+    trace(dm, "NEXT -> CONTENT")
     await dm.switch_to(PanelSG.broadcast_content)
 
 
 async def back_to_title(callback, button, dm: DialogManager):
+    trace(dm, "BACK -> TITLE")
     await dm.switch_to(PanelSG.broadcast_title)
 
 
-async def next_to_preview(callback, button, dm: DialogManager):
-    data = d(dm)
-
-    if not data.get("content"):
-        logger.warning("[DIALOG] preview blocked - missing content")
-        await callback.message.answer("❌ Content is required before preview.")
-        return
-
-    log_state(dm, "NEXT TO PREVIEW")
-    await dm.switch_to(PanelSG.broadcast_preview)
-
-
 # =========================
-# FLOW INPUT HANDLERS
+# INPUT FLOW
 # =========================
 
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
-    logger.info(f"[DIALOG] tag selected: {button.widget_id}")
+    trace(dm, f"TAG SELECTED {button.widget_id}")
     await dm.switch_to(PanelSG.broadcast_title)
 
 
@@ -118,28 +113,33 @@ async def on_title_success(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     dm.dialog_data["title"] = text
+
     logger.info(f"[DIALOG] title saved: {text}")
 
-    await message.answer("✔ Title saved. Press NEXT to continue.")
+    # IMPORTANT: force UI sync
+    await dm.show()
 
 
 # ---------- CONTENT ----------
 async def on_content_success(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
-    logger.info(f"[DIALOG] content received raw: {text}")
+    logger.info(f"[DIALOG] content raw received: {text}")
 
     if not text:
-        await message.answer("❌ Content is required. Please send text.")
+        await message.answer("❌ Content is required.")
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    logger.info(f"[DIALOG] content saved + media: {dm.dialog_data.get('media')}")
+    logger.info(f"[DIALOG] content saved | media={dm.dialog_data.get('media')}")
 
-    # 🔥 IMPORTANT FIX: auto move to preview (this fixes your "doesn't register" issue perception)
+    # 🔥 CRITICAL FIX:
+    # ensure state transition is flushed BEFORE preview render
     await message.answer("✔ Content saved. Opening preview...")
+
+    trace(dm, "AUTO -> PREVIEW")
     await dm.switch_to(PanelSG.broadcast_preview)
 
 
@@ -160,7 +160,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
-    logger.info(f"[BROADCAST] sending | title={title} tag={tag} sender={sender}")
+    trace(dm, "SEND BROADCAST START")
 
     if not bot or not config:
         await callback.message.answer("❌ Missing bot/config")
@@ -197,7 +197,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
         except Exception as e:
             logger.warning(f"[BROADCAST] failed chat_id={chat_id}: {e}")
 
-    logger.info(f"[BROADCAST] done sent={sent}")
+    logger.info(f"[BROADCAST] DONE sent={sent}")
 
     await dm.switch_to(PanelSG.main)
 
@@ -223,10 +223,6 @@ broadcast_menu_window = Window(
 )
 
 
-# =========================
-# TITLE
-# =========================
-
 title_window = Window(
     Const("📣 How should your broadcast be titled?\n(optional)"),
     MessageInput(on_title_success),
@@ -237,10 +233,6 @@ title_window = Window(
 )
 
 
-# =========================
-# CONTENT (FIXED FLOW)
-# =========================
-
 content_window = Window(
     Const("✍️ What would you like to say?\n(required)"),
     MessageInput(on_content_success),
@@ -250,10 +242,6 @@ content_window = Window(
     state=PanelSG.broadcast_content,
 )
 
-
-# =========================
-# PREVIEW
-# =========================
 
 preview_window = Window(
     Format(
@@ -276,10 +264,6 @@ preview_window = Window(
     state=PanelSG.broadcast_preview,
 )
 
-
-# =========================
-# DIALOG
-# =========================
 
 panel_dialog = Dialog(
     main_window,
