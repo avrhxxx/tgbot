@@ -1,7 +1,5 @@
 # =========================================
 # FILE: src/n8n/client.py
-# DESCRIPTION:
-# Stable HTTP client for n8n bridge (retry + timeout + safe fallback)
 # =========================================
 
 import logging
@@ -17,7 +15,6 @@ class N8NClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.retries = retries
-
         self._client = httpx.AsyncClient(timeout=httpx.Timeout(timeout))
 
     async def close(self):
@@ -29,21 +26,18 @@ class N8NClient:
 
         for attempt in range(self.retries + 1):
             try:
-                logger.info(f"[N8N] POST {url} attempt={attempt} payload={payload}")
-
                 response = await self._client.post(url, json=payload)
                 response.raise_for_status()
 
-                data = response.json()
-                logger.info(f"[N8N] response ok: {data}")
+                data: Dict[str, Any] = response.json()
 
-                return data
+                # FIX mypy: no Any return
+                return dict(data)
 
             except Exception as e:
                 last_error = e
                 logger.warning(f"[N8N] attempt {attempt} failed: {e}")
-
                 await asyncio.sleep(0.3 * (attempt + 1))
 
-        logger.error(f"[N8N] ALL RETRIES FAILED: {last_error}")
+        logger.error(f"[N8N] FAILED: {last_error}")
         return None
