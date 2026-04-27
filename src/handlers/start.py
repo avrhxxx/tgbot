@@ -48,6 +48,6 @@ async def start_handler(message: types.Message):
     logger.info(f"START: menu shown user_id={user.id}")
 
     await message.answer(
-        " ",
+        "\u200b",
         reply_markup=main_menu_kb
     )
