@@ -1,12 +1,12 @@
 # =========================================
 # FILE: src/handlers/n8n_router.py
 # DESCRIPTION:
-# Callback bridge -> n8n webhook (single flow MVP)
+# Thin shell -> n8n webhook bridge (safe version)
 # =========================================
 
 import logging
-import httpx
 
+import httpx
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
@@ -21,10 +21,16 @@ N8N_WEBHOOK_URL = "http://localhost:5678/webhook/telegram-router"
 async def n8n_callback_router(callback: CallbackQuery):
     user = callback.from_user
 
+    message = callback.message
+
+    if not user or not message:
+        logger.warning("⚠️ Invalid callback payload (missing user/message)")
+        return await callback.answer("Error")
+
     payload = {
         "user_id": user.id,
-        "chat_id": callback.message.chat.id,
-        "message_id": callback.message.message_id,
+        "chat_id": message.chat.id,
+        "message_id": message.message_id,
         "callback_data": callback.data,
         "user_name": user.full_name,
     }
