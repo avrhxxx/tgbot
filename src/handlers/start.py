@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/handlers/start.py
 # DESCRIPTION:
-# Entry → main menu only
+# Entry point → shows main menu (no logic)
 # =========================================
 
 import logging
@@ -23,7 +23,9 @@ async def start_handler(message: Message):
 
     logger.info(f"🚀 START | user_id={user.id if user else None}")
 
+    text = format_main_menu(user)
+
     await message.answer(
-        format_main_menu(user),
+        text,
         reply_markup=main_menu_kb()
     )
