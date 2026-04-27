@@ -17,6 +17,8 @@ class PanelSG(StatesGroup):
     # ANNOUNCEMENT FLOW
     # =========================
     announcement_menu = State()
+    create_tag = State()  # 🔥 dodany brakujący state
+
     announcement_title = State()
     announcement_content = State()
     announcement_preview = State()
