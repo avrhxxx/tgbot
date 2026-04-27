@@ -1,33 +1,35 @@
 # =========================================
 # FILE: src/ui/main_menu.py
 # DESCRIPTION:
-# Main menu UI (dynamic centering + compact separators)
+# Main menu UI (dynamic header + fixed footer line)
 # =========================================
 
 from datetime import datetime
 from aiogram.types import User
 
 
-WIDTH = 20  # szerokość UI (kontener)
-
-def line(char: str = "─") -> str:
-    return char * WIDTH
+WIDTH = 20  # dolna linia (stała)
 
 
-def center(text: str, width: int = WIDTH) -> str:
+def bottom_line() -> str:
+    return "─" * WIDTH
+
+
+def build_header(title: str) -> str:
     """
-    Prawdziwe centrowanie tekstu w ramach WIDTH.
-    Jeśli tekst jest dłuższy → przycina.
+    Tworzy linię: ───── MAIN MENU ─────
+    z wycentrowanym tytułem.
     """
-    text = str(text)
+    title = f" {title} "
 
-    if len(text) >= width:
-        return text[:width]
+    if len(title) >= WIDTH:
+        return title[:WIDTH]
 
-    padding_left = (width - len(text)) // 2
-    padding_right = width - len(text) - padding_left
+    total_space = WIDTH - len(title)
+    left = total_space // 2
+    right = total_space - left
 
-    return " " * padding_left + text + " " * padding_right
+    return "─" * left + title + "─" * right
 
 
 def format_main_menu(user: User | None) -> str:
@@ -35,11 +37,9 @@ def format_main_menu(user: User | None) -> str:
     date = datetime.utcnow().strftime("%Y-%m-%d")
 
     return (
-        f"╭{line()}╮\n"
-        f"│{center('MAIN MENU')}│\n"
-        f"╰{line()}╯\n\n"
+        f"{build_header('MAIN MENU')}\n\n"
         f"Welcome, {name}\n"
         f"Date: {date}\n\n"
         "Have a nice day!\n\n"
-        f"{line()}"
+        f"{bottom_line()}"
     )
