@@ -2,7 +2,7 @@
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
 # Moderator panel + announcement wizard v7.7
-# (hybrid UI formatting + unified renderer + preview/send parity)
+# (clean soft-card renderer + unified preview/send)
 # =========================================
 
 import logging
@@ -70,15 +70,13 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# UI RENDERER (HYBRID CODE MODE)
+# UI RENDERER (CLEAN CARD MODE)
 # =========================
 
 def build_block(data: dict, sender: str) -> str:
     """
-    Hybrid code-style announcement:
-    - full structure inside <pre>
-    - safe HTML escaping avoided (no raw user HTML injection risk here yet)
-    - consistent preview/send output
+    Clean Telegram post-style announcement.
+    No <pre>, no terminal look — just structured message.
     """
 
     title = data.get("title") or "Untitled announcement"
@@ -89,16 +87,12 @@ def build_block(data: dict, sender: str) -> str:
         "📣 ANNOUNCEMENT\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        "<pre>\n"
-        f"TITLE:\n{title}\n\n"
-        "--------------------\n\n"
-        f"MESSAGE:\n{content}\n\n"
-        "--------------------\n\n"
-        f"SENT BY:\n{sender}\n"
-        "</pre>\n\n"
+        f"🧾 {title}\n\n"
 
-        "────────────────────\n"
-        "━━━━━━━━━━━━━━━━━━━━"
+        f"{content}\n\n"
+
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 Sent by: {sender}"
     )
 
 
@@ -188,7 +182,7 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
     for chat_id in config.access.chat_ids:
         try:
-            await bot.send_message(chat_id, message_text, parse_mode="HTML")
+            await bot.send_message(chat_id, message_text)
         except Exception as e:
             logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
