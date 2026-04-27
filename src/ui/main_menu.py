@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/ui/main_menu.py
 # DESCRIPTION:
-# Main menu UI (plain text version)
+# Clean main menu text (no unstable UI separators)
 # =========================================
 
 from datetime import datetime
