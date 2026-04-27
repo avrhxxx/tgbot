@@ -3,8 +3,10 @@
 # =========================================
 
 import logging
+import os
 
 from aiogram.types import Message, CallbackQuery
+from aiogram import Bot
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -14,6 +16,15 @@ from src.dialogs.group_message.states import GroupMessageSG
 from src.dialogs.main_menu.states import MainMenuSG
 
 logger = logging.getLogger(__name__)
+
+
+# =========================
+# ENV PARSER
+# =========================
+
+def parse_chat_ids() -> list[int]:
+    raw = os.getenv("CHAT_IDS", "")
+    return [int(x.strip()) for x in raw.split(",") if x.strip().isdigit()]
 
 
 # =========================
@@ -33,7 +44,24 @@ def render_group_message(title: str, text: str, sender: str) -> str:
 
 
 # =========================
-# INPUT HANDLER
+# TITLE INPUT
+# =========================
+
+async def on_title_input(message: Message, widget, dialog_manager: DialogManager):
+    title = (message.text or "").strip()
+
+    if not title:
+        title = "Announcement"
+
+    dialog_manager.dialog_data["title"] = title
+
+    logger.info("[GROUP MESSAGE] title saved")
+
+    await dialog_manager.switch_to(GroupMessageSG.input)
+
+
+# =========================
+# CONTENT INPUT
 # =========================
 
 async def on_message_input(message: Message, widget, dialog_manager: DialogManager):
@@ -43,6 +71,7 @@ async def on_message_input(message: Message, widget, dialog_manager: DialogManag
         return
 
     dialog_manager.dialog_data["text"] = text
+
     logger.info("[GROUP MESSAGE] text saved")
 
     await dialog_manager.switch_to(GroupMessageSG.preview)
@@ -53,9 +82,32 @@ async def on_message_input(message: Message, widget, dialog_manager: DialogManag
 # =========================
 
 async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager):
+    bot: Bot | None = dialog_manager.middleware_data.get("bot")
+
+    if not bot:
+        await callback.answer("Bot not available", show_alert=True)
+        return
+
+    title = dialog_manager.dialog_data.get("title", "Announcement")
     text = dialog_manager.dialog_data.get("text", "")
 
-    logger.info(f"[GROUP MESSAGE] SEND -> {text}")
+    event = dialog_manager.event
+    user = getattr(event, "from_user", None)
+    sender = user.full_name if user else "unknown"
+
+    message = render_group_message(title, text, sender)
+
+    chat_ids = parse_chat_ids()
+
+    for chat_id in chat_ids:
+        try:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=message,
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.error(f"[GROUP MESSAGE] failed chat_id={chat_id}: {e}")
 
     await callback.answer("Sent ✔")
 
@@ -75,8 +127,8 @@ async def preview_getter(dialog_manager: DialogManager, **kwargs):
     user = getattr(event, "from_user", None)
     sender = user.full_name if user else "unknown"
 
+    title = dialog_manager.dialog_data.get("title", "Announcement")
     text = dialog_manager.dialog_data.get("text", "")
-    title = "Announcement"
 
     return {
         "preview": render_group_message(title, text, sender)
@@ -86,6 +138,15 @@ async def preview_getter(dialog_manager: DialogManager, **kwargs):
 # =========================
 # WINDOWS
 # =========================
+
+title_window = Window(
+    Const(
+        "Group Message\n"
+        "Enter title (or send empty for default):"
+    ),
+    MessageInput(on_title_input),
+    state=GroupMessageSG.title,
+)
 
 input_window = Window(
     Const(
@@ -114,6 +175,7 @@ preview_window = Window(
 
 
 group_message_dialog = Dialog(
+    title_window,
     input_window,
     preview_window,
 )
