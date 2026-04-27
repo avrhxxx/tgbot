@@ -60,14 +60,6 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
     return None
 
 
-async def safe_show(dm: DialogManager):
-    """
-    IMPORTANT FIX:
-    forces dialog refresh after MessageInput updates
-    """
-    await dm.show()
-
-
 # =========================
 # NAVIGATION
 # =========================
@@ -110,11 +102,10 @@ async def select_tag(callback, button, dm: DialogManager):
 # ---------- TITLE (OPTIONAL) ----------
 async def save_title(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = (message.text or "").strip()
-    await message.answer("✔ Title saved (optional). Click NEXT to continue.")
-    await safe_show(dm)
+    await message.answer("✔ Title saved (optional). Press NEXT to continue.")
 
 
-# ---------- CONTENT (REQUIRED) ----------
+# ---------- CONTENT (REQUIRED - AUTO FLOW) ----------
 async def save_content(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
@@ -125,8 +116,8 @@ async def save_content(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    await message.answer("✔ Content saved. Click NEXT to preview.")
-    await safe_show(dm)
+    # 🔥 IMPORTANT FIX: auto-move to preview (NO NEXT BUTTON NEEDED HERE)
+    await dm.switch_to(PanelSG.broadcast_preview)
 
 
 # =========================
@@ -211,7 +202,7 @@ broadcast_menu_window = Window(
 
 
 # =========================
-# STEP 1 - TITLE (OPTIONAL)
+# STEP 1 - TITLE (OPTIONAL + SKIP)
 # =========================
 
 title_window = Window(
@@ -227,24 +218,23 @@ title_window = Window(
 
 
 # =========================
-# STEP 2 - CONTENT (REQUIRED)
+# STEP 2 - CONTENT (REQUIRED - NO NEXT BUTTON)
 # =========================
 
 content_window = Window(
     Const(
         "✍️ What would you like to say?\n"
-        "(required — send a message below)"
+        "(required — just send your message)"
     ),
     Row(
         Button(Const("⬅ Back"), id="back_content", on_click=back_to_title),
-        Button(Const("➡ Next"), id="next_content", on_click=next_to_preview),
     ),
     state=PanelSG.broadcast_content,
 )
 
 
 # =========================
-# PREVIEW (SAFE + NO CRASH)
+# PREVIEW (SAFE)
 # =========================
 
 preview_window = Window(
