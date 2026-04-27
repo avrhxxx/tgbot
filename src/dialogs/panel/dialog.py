@@ -2,7 +2,7 @@
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
 # Moderator panel + announcement wizard v7.8
-# (persistent reply keyboard + dialog windows flow fixed)
+# (reply keyboard entry + dialog windows flow fixed)
 # =========================================
 
 import logging
@@ -22,15 +22,14 @@ router = Router()
 
 
 # =========================
-# REPLY KEYBOARD (PERSISTENT UI)
+# REPLY KEYBOARD
 # =========================
 
 panel_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📣 Create announcement")],
     ],
-    resize_keyboard=True,
-    is_persistent=True
+    resize_keyboard=True
 )
 
 
@@ -99,32 +98,18 @@ def build_block(data: dict, user: User | None) -> str:
 
 
 # =========================
-# ENTRY POINT (REPLY KEYBOARD)
+# ENTRY POINT
 # =========================
 
 @router.message(F.text == "📣 Create announcement")
 async def open_announcement(message: Message, dialog_manager: DialogManager):
+    # 🔥 JEDYNE MIEJSCE gdzie keyboard się pokazuje
     await message.answer("Opening announcement wizard...", reply_markup=panel_kb)
 
     await dialog_manager.start(
         PanelSG.announcement_title,
         mode=StartMode.RESET_STACK
     )
-
-
-# =========================
-# RE-Attach KEYBOARD (IMPORTANT)
-# =========================
-
-@router.message()
-async def attach_keyboard(message: Message):
-    """
-    Ensures keyboard ALWAYS stays visible after any user interaction.
-    (lightweight UX persistence layer)
-    """
-    if message.text:
-        # only re-attach for panel users
-        await message.answer_reply_markup(reply_markup=panel_kb)
 
 
 # =========================
@@ -172,11 +157,11 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     config = dm.middleware_data.get("config")
 
     if not bot:
-        await callback.answer("Bot missing in middleware", show_alert=True)
+        await callback.answer("Bot missing", show_alert=True)
         return
 
     if not config:
-        await callback.answer("Config missing in middleware", show_alert=True)
+        await callback.answer("Config missing", show_alert=True)
         return
 
     user = resolve_sender(dm)
@@ -212,14 +197,14 @@ main_window = Window(
 
 
 title_window = Window(
-    Const("📣 <b>Announcement Creator</b>\n\n📝 Enter title"),
+    Const("📝 Enter title"),
     MessageInput(on_title_success),
     state=PanelSG.announcement_title,
 )
 
 
 content_window = Window(
-    Const("📣 <b>Announcement Creator</b>\n\n✍️ Write message"),
+    Const("✍️ Write message"),
     MessageInput(on_content_success),
     state=PanelSG.announcement_content,
 )
