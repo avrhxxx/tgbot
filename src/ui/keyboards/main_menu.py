@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/ui/keyboards/main_menu.py
 # DESCRIPTION:
-# Main Menu inline keyboard (routing layer)
+# Main Menu inline keyboard (flow router hub)
 # =========================================
 
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -12,8 +12,20 @@ def main_menu_kb() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="📣 Announcements",
-                    callback_data="flow:announcement"
+                    text="📨 Group Message",
+                    callback_data="flow:group_message"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⚙️ Event Manager",
+                    callback_data="flow:event_manager"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🌐 Language",
+                    callback_data="flow:language"
                 )
             ]
         ]
