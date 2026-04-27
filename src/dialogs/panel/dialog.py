@@ -2,7 +2,7 @@
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
 # Moderator panel + announcement wizard v7.5
-# (aiogram-dialog safe + edit flow + debug-ready + no tags)
+# (aiogram-dialog safe + unified UI renderer + clean UX)
 # =========================================
 
 import logging
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# HELPERS (SAFE + DEBUG)
+# HELPERS
 # =========================
 
 def get_event_user(dm: DialogManager) -> User | None:
@@ -69,9 +69,31 @@ def trace(dm: DialogManager, label: str):
     logger.info(f"[ANNOUNCEMENT] {label} | state={state_repr} | data={dm.dialog_data}")
 
 
-def debug_middleware(dm: DialogManager, label: str):
-    # 🔥 ultra useful for your CONFIG bug
-    logger.info(f"[DEBUG:{label}] middleware_data = {dm.middleware_data}")
+# =========================
+# UI RENDERER (🔥 IMPORTANT)
+# =========================
+
+def build_preview(data: dict, sender: str) -> str:
+    return (
+        "📣 <b>ANNOUNCEMENT PREVIEW</b>\n\n"
+        "<blockquote>\n"
+        f"📝 <b>{data.get('title') or 'Announcement'}</b>\n\n"
+        f"💬 {data.get('content') or ''}\n"
+        "</blockquote>\n\n"
+        f"👤 <b>Author:</b> {sender}"
+    )
+
+
+def build_send(data: dict, sender: str) -> str:
+    # 🔥 MUST MATCH preview exactly (rule you requested)
+    return (
+        "📣 ANNOUNCEMENT\n\n"
+        "<blockquote>\n"
+        f"📝 <b>{data.get('title') or 'Announcement'}</b>\n\n"
+        f"💬 {data.get('content') or ''}\n"
+        "</blockquote>\n\n"
+        f"👤 {sender}"
+    )
 
 
 # =========================
@@ -80,11 +102,8 @@ def debug_middleware(dm: DialogManager, label: str):
 
 async def preview_getter(dialog_manager: DialogManager, **_):
     data = dialog_manager.dialog_data or {}
-
     return {
-        "title": data.get("title") or "Announcement",
-        "content": data.get("content") or "",
-        "sender": resolve_sender(dialog_manager),
+        "render": build_preview(data, resolve_sender(dialog_manager))
     }
 
 
@@ -100,19 +119,7 @@ async def start_announcement(callback: CallbackQuery, button, dm: DialogManager)
 
 async def back_to_main(callback: CallbackQuery, button, dm: DialogManager):
     await callback.answer()
-    trace(dm, "BACK TO MAIN")
     await dm.switch_to(PanelSG.main)
-
-
-async def to_content(callback: CallbackQuery, button, dm: DialogManager):
-    await callback.answer()
-    await dm.switch_to(PanelSG.announcement_content)
-
-
-async def to_preview(callback: CallbackQuery, button, dm: DialogManager):
-    await callback.answer()
-    trace(dm, "TO PREVIEW")
-    await dm.switch_to(PanelSG.announcement_preview)
 
 
 async def edit_title(callback: CallbackQuery, button, dm: DialogManager):
@@ -155,28 +162,16 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
 async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     data = dm.dialog_data or {}
 
-    debug_middleware(dm, "SEND")
-
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
-    # 🔥 FIXED: real debug instead of silent fail
-    if not bot:
-        await callback.answer("Bot missing in middleware", show_alert=True)
-        logger.error("[ANNOUNCEMENT] bot missing in middleware_data")
+    if not bot or not config:
+        await callback.answer("Config error", show_alert=True)
         return
 
-    if not config:
-        await callback.answer("Config missing in middleware", show_alert=True)
-        logger.error("[ANNOUNCEMENT] config missing in middleware_data")
-        return
+    sender = resolve_sender(dm)
 
-    caption = (
-        f"📣 <b>{data.get('title') or 'Announcement'}</b>\n\n"
-        f"{data.get('content')}\n\n"
-        f"────────────\n"
-        f"👤 {resolve_sender(dm)}"
-    )
+    caption = build_send(data, sender)
 
     for chat_id in config.access.chat_ids:
         try:
@@ -217,19 +212,14 @@ content_window = Window(
     Const("📣 <b>Announcement Creator</b>\n\n✍️ Write message"),
     MessageInput(on_content_success),
     Row(
-        Button(Const("⬅ Edit title"), id="edit_title", on_click=edit_title),
+        Button(Const("✏ Edit title"), id="edit_title", on_click=edit_title),
     ),
     state=PanelSG.announcement_content,
 )
 
 
 preview_window = Window(
-    Format(
-        "📣 <b>{title}</b>\n\n"
-        "{content}\n\n"
-        "────────────\n"
-        "👤 {sender}"
-    ),
+    Format("{render}"),
     Row(
         Button(Const("✏ Edit title"), id="edit_title", on_click=edit_title),
         Button(Const("✏ Edit content"), id="edit_content", on_click=edit_content),
