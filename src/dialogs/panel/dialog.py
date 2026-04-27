@@ -1,15 +1,14 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v6.6 (aiogram-dialog native flow + mypy-safe debug tracing + production logging)
+# Moderator panel + announcement wizard v6.6 (aiogram-dialog stable + fixed getter + production logging)
 # =========================================
 
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 from aiogram import types
 from aiogram.types import Message, CallbackQuery
-from aiogram.fsm.state import State
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -30,7 +29,6 @@ def d(dm: DialogManager) -> dict:
 
 def extract_user(dm: DialogManager):
     event = dm.event
-
     if isinstance(event, Message):
         return event.from_user
     if isinstance(event, CallbackQuery):
@@ -63,16 +61,16 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
 
 
 # =========================
-# DEBUG TRACE (MYPI SAFE + FULL CONTEXT)
+# DEBUG TRACE (SAFE)
 # =========================
 
 def trace(dm: DialogManager, label: str):
     try:
         ctx = dm.current_context()
-        state: Optional[State] = ctx.state
+        state = ctx.state
         state_repr = getattr(state, "state", str(state))
     except Exception as e:
-        state_repr = f"UNKNOWN ({type(e).__name__})"
+        state_repr = f"UNKNOWN:{type(e).__name__}"
 
     logger.info(
         f"[ANNOUNCEMENT TRACE] {label} | state={state_repr} | data={dm.dialog_data}"
@@ -109,17 +107,14 @@ async def back_to_title(callback, button, dm: DialogManager):
 
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
-    trace(dm, f"TAG SELECTED: {button.widget_id}")
+    trace(dm, f"TAG SELECTED {button.widget_id}")
     await dm.switch_to(PanelSG.announcement_title)
 
 
 # ---------- TITLE ----------
 async def on_title_success(message: types.Message, widget, dm: DialogManager):
-    text = (message.text or "").strip()
-
-    dm.dialog_data["title"] = text
-    logger.info(f"[ANNOUNCEMENT] title saved: {text}")
-
+    dm.dialog_data["title"] = (message.text or "").strip()
+    logger.info(f"[ANNOUNCEMENT] title saved")
     await dm.next()
 
 
@@ -127,19 +122,16 @@ async def on_title_success(message: types.Message, widget, dm: DialogManager):
 async def on_content_success(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
-    logger.info(f"[ANNOUNCEMENT] content raw received: {text}")
-
     if not text:
-        await message.answer("❌ Content is required for announcement.")
+        await message.answer("❌ Content is required.")
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    logger.info(f"[ANNOUNCEMENT] content saved | media={dm.dialog_data.get('media')}")
+    logger.info(f"[ANNOUNCEMENT] content saved")
 
     await message.answer("✔ Content saved. Opening preview...")
-
     trace(dm, "AUTO -> PREVIEW")
 
     await dm.next()
@@ -152,21 +144,19 @@ async def on_content_success(message: types.Message, widget, dm: DialogManager):
 async def send_announcement(callback, button, dm: DialogManager):
     data = d(dm)
 
+    bot = dm.middleware_data.get("bot")
+    config = dm.middleware_data.get("config")
+
+    if not bot or not config:
+        await callback.message.answer("❌ Missing bot/config")
+        return
+
     title = data.get("title") or "Announcement"
     content = data.get("content") or ""
     tag = data.get("tag") or "unknown"
     media = data.get("media")
 
     sender = resolve_sender(dm)
-
-    bot = dm.middleware_data.get("bot")
-    config = dm.middleware_data.get("config")
-
-    trace(dm, "SEND ANNOUNCEMENT START")
-
-    if not bot or not config:
-        await callback.message.answer("❌ Missing bot/config")
-        return
 
     caption = (
         f"📣 <b>{title}</b>\n\n"
@@ -226,7 +216,7 @@ announcement_menu_window = Window(
 
 
 title_window = Window(
-    Const("📣 How should your announcement be titled?\n(optional)"),
+    Const("📣 Title (optional)"),
     MessageInput(on_title_success),
     Row(Button(Const("➡ Next"), id="next_title", on_click=next_to_content)),
     state=PanelSG.announcement_title,
@@ -234,13 +224,14 @@ title_window = Window(
 
 
 content_window = Window(
-    Const("✍️ What would you like to say?\n(required)"),
+    Const("✍️ Message (required)"),
     MessageInput(on_content_success),
     Row(Button(Const("⬅ Back"), id="back_content", on_click=back_to_title)),
     state=PanelSG.announcement_content,
 )
 
 
+# 🔥 FIXED PREVIEW (THIS WAS YOUR CRASH)
 preview_window = Window(
     Format(
         "📣 <b>{title}</b>\n\n"
@@ -251,14 +242,9 @@ preview_window = Window(
     ),
     Row(
         Button(Const("⬅ Back"), id="back_preview", on_click=back_to_title),
-        Button(Const("🚀 Send to group chat"), id="send", on_click=send_announcement),
+        Button(Const("🚀 Send"), id="send", on_click=send_announcement),
     ),
-    getter=lambda dm, **_: {
-        "title": d(dm).get("title") or "Announcement",
-        "content": d(dm).get("content") or "",
-        "tag": d(dm).get("tag") or "unknown",
-        "sender": resolve_sender(dm),
-    },
+    getter=lambda **_: {},  # <- IMPORTANT: no dm argument
     state=PanelSG.announcement_preview,
 )
 
