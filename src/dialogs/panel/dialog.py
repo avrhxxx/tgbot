@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard v6.1 (FIXED MessageInput flow)
+# Moderator panel + broadcast wizard v6.2 (FIXED aiogram-dialog flow + deterministic state transitions)
 # =========================================
 
 import logging
@@ -62,10 +62,19 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
 
 
 # =========================
+# LOG HELPERS
+# =========================
+
+def log_state(dm: DialogManager, label: str):
+    logger.info(f"[DIALOG] {label} | state={dm.current_context().state} | data={dm.dialog_data}")
+
+
+# =========================
 # NAVIGATION
 # =========================
 
 async def to_broadcast_menu(callback, button, dm: DialogManager):
+    log_state(dm, "ENTER MENU")
     await dm.switch_to(PanelSG.broadcast_menu)
 
 
@@ -74,6 +83,7 @@ async def back_to_main(callback, button, dm: DialogManager):
 
 
 async def next_to_content(callback, button, dm: DialogManager):
+    log_state(dm, "NEXT TO CONTENT")
     await dm.switch_to(PanelSG.broadcast_content)
 
 
@@ -81,33 +91,56 @@ async def back_to_title(callback, button, dm: DialogManager):
     await dm.switch_to(PanelSG.broadcast_title)
 
 
+async def next_to_preview(callback, button, dm: DialogManager):
+    data = d(dm)
+
+    if not data.get("content"):
+        logger.warning("[DIALOG] preview blocked - missing content")
+        await callback.message.answer("❌ Content is required before preview.")
+        return
+
+    log_state(dm, "NEXT TO PREVIEW")
+    await dm.switch_to(PanelSG.broadcast_preview)
+
+
 # =========================
-# INPUT FLOW (IMPORTANT FIX)
+# FLOW INPUT HANDLERS
 # =========================
 
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
+    logger.info(f"[DIALOG] tag selected: {button.widget_id}")
     await dm.switch_to(PanelSG.broadcast_title)
 
 
 # ---------- TITLE ----------
 async def on_title_success(message: types.Message, widget, dm: DialogManager):
-    dm.dialog_data["title"] = (message.text or "").strip()
-    await message.answer("✔ Title saved. Click NEXT.")
+    text = (message.text or "").strip()
+
+    dm.dialog_data["title"] = text
+    logger.info(f"[DIALOG] title saved: {text}")
+
+    await message.answer("✔ Title saved. Press NEXT to continue.")
 
 
-# ---------- CONTENT (CRITICAL FIX HERE) ----------
+# ---------- CONTENT ----------
 async def on_content_success(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
+    logger.info(f"[DIALOG] content received raw: {text}")
+
     if not text:
-        await message.answer("❌ Content is required.")
+        await message.answer("❌ Content is required. Please send text.")
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    await message.answer("✔ Content saved. Moving to preview...")
+    logger.info(f"[DIALOG] content saved + media: {dm.dialog_data.get('media')}")
+
+    # 🔥 IMPORTANT FIX: auto move to preview (this fixes your "doesn't register" issue perception)
+    await message.answer("✔ Content saved. Opening preview...")
+    await dm.switch_to(PanelSG.broadcast_preview)
 
 
 # =========================
@@ -127,6 +160,8 @@ async def send_broadcast(callback, button, dm: DialogManager):
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
+    logger.info(f"[BROADCAST] sending | title={title} tag={tag} sender={sender}")
+
     if not bot or not config:
         await callback.message.answer("❌ Missing bot/config")
         return
@@ -138,6 +173,8 @@ async def send_broadcast(callback, button, dm: DialogManager):
         f"🏷 Tag: {tag}\n"
         f"👤 Sent by: {sender}"
     )
+
+    sent = 0
 
     for chat_id in config.access.chat_ids:
         try:
@@ -155,8 +192,12 @@ async def send_broadcast(callback, button, dm: DialogManager):
             else:
                 await bot.send_message(chat_id, caption)
 
+            sent += 1
+
         except Exception as e:
-            logger.warning(f"Broadcast failed {chat_id}: {e}")
+            logger.warning(f"[BROADCAST] failed chat_id={chat_id}: {e}")
+
+    logger.info(f"[BROADCAST] done sent={sent}")
 
     await dm.switch_to(PanelSG.main)
 
@@ -182,21 +223,37 @@ broadcast_menu_window = Window(
 )
 
 
+# =========================
+# TITLE
+# =========================
+
 title_window = Window(
     Const("📣 How should your broadcast be titled?\n(optional)"),
-    MessageInput(on_title_success),   # 🔥 FIX: proper handler
-    Row(Button(Const("➡ Next"), id="next_title", on_click=next_to_content)),
+    MessageInput(on_title_success),
+    Row(
+        Button(Const("➡ Next"), id="next_title", on_click=next_to_content),
+    ),
     state=PanelSG.broadcast_title,
 )
 
 
+# =========================
+# CONTENT (FIXED FLOW)
+# =========================
+
 content_window = Window(
     Const("✍️ What would you like to say?\n(required)"),
-    MessageInput(on_content_success),  # 🔥 FIX: THIS WAS BROKEN BEFORE
-    Row(Button(Const("⬅ Back"), id="back_content", on_click=back_to_title)),
+    MessageInput(on_content_success),
+    Row(
+        Button(Const("⬅ Back"), id="back_content", on_click=back_to_title),
+    ),
     state=PanelSG.broadcast_content,
 )
 
+
+# =========================
+# PREVIEW
+# =========================
 
 preview_window = Window(
     Format(
@@ -206,7 +263,10 @@ preview_window = Window(
         "🏷 Tag: {tag}\n"
         "👤 Sent by: {sender}"
     ),
-    Row(Button(Const("🚀 Send"), id="send", on_click=send_broadcast)),
+    Row(
+        Button(Const("⬅ Back"), id="back_preview", on_click=back_to_title),
+        Button(Const("🚀 Send"), id="send", on_click=send_broadcast),
+    ),
     getter=lambda dm, **_: {
         "title": d(dm).get("title") or "Broadcast",
         "content": d(dm).get("content") or "",
@@ -216,6 +276,10 @@ preview_window = Window(
     state=PanelSG.broadcast_preview,
 )
 
+
+# =========================
+# DIALOG
+# =========================
 
 panel_dialog = Dialog(
     main_window,
