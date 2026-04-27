@@ -1,8 +1,8 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v7.4
-# (true aiogram-dialog flow + no manual messages + no continue buttons)
+# Moderator panel + announcement wizard v7.5
+# (aiogram-dialog safe + edit flow + debug-ready + no tags)
 # =========================================
 
 import logging
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# HELPERS (SAFE)
+# HELPERS (SAFE + DEBUG)
 # =========================
 
 def get_event_user(dm: DialogManager) -> User | None:
@@ -66,7 +66,12 @@ def trace(dm: DialogManager, label: str):
     except Exception:
         state_repr = "UNKNOWN"
 
-    logger.info(f"[ANNOUNCEMENT] {label} | state={state_repr}")
+    logger.info(f"[ANNOUNCEMENT] {label} | state={state_repr} | data={dm.dialog_data}")
+
+
+def debug_middleware(dm: DialogManager, label: str):
+    # 🔥 ultra useful for your CONFIG bug
+    logger.info(f"[DEBUG:{label}] middleware_data = {dm.middleware_data}")
 
 
 # =========================
@@ -89,25 +94,44 @@ async def preview_getter(dialog_manager: DialogManager, **_):
 
 async def start_announcement(callback: CallbackQuery, button, dm: DialogManager):
     await callback.answer()
+    trace(dm, "START")
     await dm.switch_to(PanelSG.announcement_title)
 
 
 async def back_to_main(callback: CallbackQuery, button, dm: DialogManager):
     await callback.answer()
+    trace(dm, "BACK TO MAIN")
     await dm.switch_to(PanelSG.main)
 
 
-async def back_to_title(callback: CallbackQuery, button, dm: DialogManager):
+async def to_content(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer()
+    await dm.switch_to(PanelSG.announcement_content)
+
+
+async def to_preview(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer()
+    trace(dm, "TO PREVIEW")
+    await dm.switch_to(PanelSG.announcement_preview)
+
+
+async def edit_title(callback: CallbackQuery, button, dm: DialogManager):
     await callback.answer()
     await dm.switch_to(PanelSG.announcement_title)
 
 
+async def edit_content(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer()
+    await dm.switch_to(PanelSG.announcement_content)
+
+
 # =========================
-# FLOW INPUT (AUTO TRANSITION)
+# FLOW INPUT
 # =========================
 
 async def on_title_success(message: Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = (message.text or "").strip()
+    trace(dm, "TITLE SAVED")
     await dm.switch_to(PanelSG.announcement_content)
 
 
@@ -120,7 +144,7 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    trace(dm, "TO PREVIEW")
+    trace(dm, "CONTENT SAVED")
     await dm.switch_to(PanelSG.announcement_preview)
 
 
@@ -131,11 +155,20 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
 async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     data = dm.dialog_data or {}
 
+    debug_middleware(dm, "SEND")
+
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
-    if not bot or not config:
-        await callback.answer("Config error", show_alert=True)
+    # 🔥 FIXED: real debug instead of silent fail
+    if not bot:
+        await callback.answer("Bot missing in middleware", show_alert=True)
+        logger.error("[ANNOUNCEMENT] bot missing in middleware_data")
+        return
+
+    if not config:
+        await callback.answer("Config missing in middleware", show_alert=True)
+        logger.error("[ANNOUNCEMENT] config missing in middleware_data")
         return
 
     caption = (
@@ -173,6 +206,9 @@ main_window = Window(
 title_window = Window(
     Const("📣 <b>Announcement Creator</b>\n\n📝 Enter title"),
     MessageInput(on_title_success),
+    Row(
+        Button(Const("⬅ Back"), id="back_main", on_click=back_to_main),
+    ),
     state=PanelSG.announcement_title,
 )
 
@@ -181,7 +217,7 @@ content_window = Window(
     Const("📣 <b>Announcement Creator</b>\n\n✍️ Write message"),
     MessageInput(on_content_success),
     Row(
-        Button(Const("⬅ Back"), id="back", on_click=back_to_title),
+        Button(Const("⬅ Edit title"), id="edit_title", on_click=edit_title),
     ),
     state=PanelSG.announcement_content,
 )
@@ -195,7 +231,10 @@ preview_window = Window(
         "👤 {sender}"
     ),
     Row(
-        Button(Const("⬅ Edit"), id="edit", on_click=back_to_title),
+        Button(Const("✏ Edit title"), id="edit_title", on_click=edit_title),
+        Button(Const("✏ Edit content"), id="edit_content", on_click=edit_content),
+    ),
+    Row(
         Button(Const("🚀 Send"), id="send", on_click=send_announcement),
     ),
     getter=preview_getter,
