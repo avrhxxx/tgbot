@@ -5,7 +5,7 @@
 # =========================================
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def get_state(user_id: int) -> Dict[str, Any]:
     })
 
 
-def set_flow(user_id: int, flow: str):
+def set_flow(user_id: int, flow: str) -> None:
     state = get_state(user_id)
     state["flow"] = flow
     state["step"] = "start"
@@ -29,13 +29,13 @@ def set_flow(user_id: int, flow: str):
     logger.info(f"[FLOW] start flow={flow} user={user_id}")
 
 
-def set_step(user_id: int, step: str):
+def set_step(user_id: int, step: str) -> None:
     state = get_state(user_id)
     state["step"] = step
     logger.info(f"[FLOW] step={step} user={user_id}")
 
 
-def set_data(user_id: int, key: str, value: Any):
+def set_data(user_id: int, key: str, value: Any) -> None:
     state = get_state(user_id)
     state["data"][key] = value
 
