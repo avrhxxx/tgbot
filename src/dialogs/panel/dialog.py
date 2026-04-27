@@ -1,16 +1,16 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v7.7
-# (clean clickable sender + unified renderer + timestamp + strict format)
+# Moderator panel + announcement wizard v7.8
+# (reply keyboard navigation + dialog windows flow)
 # =========================================
 
 import logging
 from typing import Optional, Tuple
 from datetime import datetime
 
-from aiogram import types
-from aiogram.types import Message, CallbackQuery, User
+from aiogram import types, Router, F
+from aiogram.types import Message, CallbackQuery, User, ReplyKeyboardMarkup, KeyboardButton
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -19,6 +19,19 @@ from aiogram_dialog.widgets.input import MessageInput
 from src.dialogs.panel.states import PanelSG
 
 logger = logging.getLogger(__name__)
+router = Router()
+
+
+# =========================
+# REPLY KEYBOARD (GLOBAL MENU)
+# =========================
+
+panel_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="📣 Create announcement")]
+    ],
+    resize_keyboard=True
+)
 
 
 # =========================
@@ -63,66 +76,46 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# UI RENDERER (FINAL FORMAT)
+# UI RENDERER
 # =========================
 
 def build_block(data: dict, user: User | None) -> str:
     title_raw = data.get("title") or "UNTITLED ANNOUNCEMENT"
-    title = title_raw.upper()  # 🔥 FORCE CAPSLOCK
+    title = title_raw.upper()
 
     content = data.get("content") or ""
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 
-    if user:
-        sender = f'<a href="tg://user?id={user.id}">{user.full_name or "user"}</a>'
-    else:
-        sender = "UNKNOWN"
+    sender = (
+        f'<a href="tg://user?id={user.id}">{user.full_name or "user"}</a>'
+        if user else "UNKNOWN"
+    )
 
     return (
         f"ANNOUNCEMENT: {title}\n"
         "━━━━━━━━━━━━━━\n"
         f"{sender}: {content}\n"
-        "━━━━━━━━━━━━━━\n"
-        f"{timestamp}"
+        "━━━━━━━━━━━━━━"
     )
 
 
 # =========================
-# GETTERS
+# REPLY KEYBOARD HANDLER (ENTRY POINT)
+# =========================
+
+@router.message(F.text == "📣 Create announcement")
+async def open_announcement(message: Message, dialog_manager: DialogManager):
+    await dialog_manager.start(PanelSG.announcement_title)
+
+
+# =========================
+# GETTER
 # =========================
 
 async def preview_getter(dialog_manager: DialogManager, **_):
     data = dialog_manager.dialog_data or {}
     user = resolve_sender(dialog_manager)
 
-    return {
-        "render": build_block(data, user)
-    }
-
-
-# =========================
-# NAVIGATION
-# =========================
-
-async def start_announcement(callback: CallbackQuery, button, dm: DialogManager):
-    await callback.answer()
-    trace(dm, "START")
-    await dm.switch_to(PanelSG.announcement_title)
-
-
-async def back_to_main(callback: CallbackQuery, button, dm: DialogManager):
-    await callback.answer()
-    await dm.switch_to(PanelSG.main)
-
-
-async def edit_title(callback: CallbackQuery, button, dm: DialogManager):
-    await callback.answer()
-    await dm.switch_to(PanelSG.announcement_title)
-
-
-async def edit_content(callback: CallbackQuery, button, dm: DialogManager):
-    await callback.answer()
-    await dm.switch_to(PanelSG.announcement_content)
+    return {"render": build_block(data, user)}
 
 
 # =========================
@@ -186,24 +179,12 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
 
 # =========================
-# WINDOWS
+# WINDOWS (NO MAIN MENU BUTTONS ANYMORE)
 # =========================
-
-main_window = Window(
-    Const("🛠 Moderator Panel"),
-    Row(
-        Button(Const("📣 Create announcement"), id="start", on_click=start_announcement)
-    ),
-    state=PanelSG.main,
-)
-
 
 title_window = Window(
     Const("📣 <b>Announcement Creator</b>\n\n📝 Enter title"),
     MessageInput(on_title_success),
-    Row(
-        Button(Const("⬅ Back"), id="back_main", on_click=back_to_main),
-    ),
     state=PanelSG.announcement_title,
 )
 
@@ -211,9 +192,6 @@ title_window = Window(
 content_window = Window(
     Const("📣 <b>Announcement Creator</b>\n\n✍️ Write message"),
     MessageInput(on_content_success),
-    Row(
-        Button(Const("✏ Edit title"), id="edit_title", on_click=edit_title),
-    ),
     state=PanelSG.announcement_content,
 )
 
@@ -221,8 +199,8 @@ content_window = Window(
 preview_window = Window(
     Format("{render}"),
     Row(
-        Button(Const("✏ Edit title"), id="edit_title", on_click=edit_title),
-        Button(Const("✏ Edit content"), id="edit_content", on_click=edit_content),
+        Button(Const("✏ Edit title"), id="edit_title"),
+        Button(Const("✏ Edit content"), id="edit_content"),
     ),
     Row(
         Button(Const("🚀 Send"), id="send", on_click=send_announcement),
@@ -233,7 +211,6 @@ preview_window = Window(
 
 
 panel_dialog = Dialog(
-    main_window,
     title_window,
     content_window,
     preview_window,
