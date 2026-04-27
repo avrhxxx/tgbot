@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/handlers/flows/group_message.py
 # DESCRIPTION:
-# Announcement / Group Message flow (placeholder UI)
+# Group message flow (safe Telegram access)
 # =========================================
 
 import logging
@@ -16,18 +16,26 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
+def safe_message(callback: CallbackQuery):
+    msg = callback.message
+    if msg is None or getattr(msg, "edit_text", None) is None:
+        return None
+    return msg
+
+
 @router.callback_query(F.data == "flow:group_message")
 async def open_group_message(callback: CallbackQuery):
     logger.info(f"GROUP_MESSAGE | open | user={callback.from_user.id}")
 
-    text = (
+    msg = safe_message(callback)
+    if not msg:
+        await callback.answer("Cannot open view")
+        return
+
+    await msg.edit_text(
         "GROUP MESSAGE\n\n"
         "This is a placeholder flow.\n"
-        "Next: n8n integration or dialog wizard."
-    )
-
-    await callback.message.edit_text(
-        text,
+        "Next: n8n integration or wizard.",
         reply_markup=group_message_kb()
     )
 
@@ -38,7 +46,12 @@ async def open_group_message(callback: CallbackQuery):
 async def back_to_menu(callback: CallbackQuery):
     logger.info(f"BACK | user={callback.from_user.id}")
 
-    await callback.message.edit_text(
+    msg = safe_message(callback)
+    if not msg:
+        await callback.answer("Cannot go back")
+        return
+
+    await msg.edit_text(
         format_main_menu(callback.from_user),
         reply_markup=main_menu_kb()
     )
