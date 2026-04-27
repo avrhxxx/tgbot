@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v6.5 (aiogram-dialog native flow fix + stable lifecycle)
+# Moderator panel + announcement wizard v6.6 (aiogram-dialog native flow + mypy-safe debug tracing + production logging)
 # =========================================
 
 import logging
@@ -9,6 +9,7 @@ from typing import Optional, Tuple
 
 from aiogram import types
 from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.state import State
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -62,16 +63,20 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
 
 
 # =========================
-# DEBUG TRACE
+# DEBUG TRACE (MYPI SAFE + FULL CONTEXT)
 # =========================
 
 def trace(dm: DialogManager, label: str):
     try:
-        state = dm.current_context().state
-    except Exception:
-        state = "UNKNOWN"
+        ctx = dm.current_context()
+        state: Optional[State] = ctx.state
+        state_repr = getattr(state, "state", str(state))
+    except Exception as e:
+        state_repr = f"UNKNOWN ({type(e).__name__})"
 
-    logger.info(f"[ANNOUNCEMENT TRACE] {label} | state={state} | data={dm.dialog_data}")
+    logger.info(
+        f"[ANNOUNCEMENT TRACE] {label} | state={state_repr} | data={dm.dialog_data}"
+    )
 
 
 # =========================
@@ -115,7 +120,6 @@ async def on_title_success(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = text
     logger.info(f"[ANNOUNCEMENT] title saved: {text}")
 
-    # 🔥 IMPORTANT: native dialog progression
     await dm.next()
 
 
@@ -138,7 +142,6 @@ async def on_content_success(message: types.Message, widget, dm: DialogManager):
 
     trace(dm, "AUTO -> PREVIEW")
 
-    # 🔥 IMPORTANT FIX: aiogram-dialog safe transition
     await dm.next()
 
 
