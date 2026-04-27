@@ -2,7 +2,7 @@
 # FILE: src/dialogs/group_message/states.py
 # =========================================
 
-from aiogram_dialog import StatesGroup, State
+from aiogram.fsm.state import StatesGroup, State
 
 
 class GroupMessageSG(StatesGroup):
