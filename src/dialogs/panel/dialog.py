@@ -2,7 +2,7 @@
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
 # Moderator panel + announcement wizard v7.8
-# (reply keyboard entry + dialog windows flow fixed)
+# (persistent reply keyboard + dialog windows flow fixed)
 # =========================================
 
 import logging
@@ -22,14 +22,15 @@ router = Router()
 
 
 # =========================
-# REPLY KEYBOARD (ENTRY MENU)
+# REPLY KEYBOARD (PERSISTENT UI)
 # =========================
 
 panel_kb = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="📣 Create announcement")]
+        [KeyboardButton(text="📣 Create announcement")],
     ],
-    resize_keyboard=True
+    resize_keyboard=True,
+    is_persistent=True
 )
 
 
@@ -103,10 +104,27 @@ def build_block(data: dict, user: User | None) -> str:
 
 @router.message(F.text == "📣 Create announcement")
 async def open_announcement(message: Message, dialog_manager: DialogManager):
+    await message.answer("Opening announcement wizard...", reply_markup=panel_kb)
+
     await dialog_manager.start(
         PanelSG.announcement_title,
         mode=StartMode.RESET_STACK
     )
+
+
+# =========================
+# RE-Attach KEYBOARD (IMPORTANT)
+# =========================
+
+@router.message()
+async def attach_keyboard(message: Message):
+    """
+    Ensures keyboard ALWAYS stays visible after any user interaction.
+    (lightweight UX persistence layer)
+    """
+    if message.text:
+        # only re-attach for panel users
+        await message.answer_reply_markup(reply_markup=panel_kb)
 
 
 # =========================
