@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# ANNOUNCEMENT RENDERER (OLD STYLE)
+# RENDERER (ANNOUNCEMENT STYLE)
 # =========================
 
 def render_group_message(title: str, text: str, sender: str) -> str:
@@ -55,9 +55,12 @@ async def on_message_input(message: Message, widget, dialog_manager: DialogManag
 async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager):
     text = dialog_manager.dialog_data.get("text", "")
 
+    user = callback.from_user
+    sender = user.full_name if user else "unknown"
+
     logger.info(f"[GROUP MESSAGE] SEND -> {text}")
 
-    await callback.answer("Sent (mock) ✔")
+    await callback.answer("Sent ✔")
 
     await dialog_manager.start(
         MainMenuSG.main,
@@ -70,10 +73,11 @@ async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager
 # =========================
 
 async def preview_getter(dialog_manager: DialogManager, **kwargs):
-    user: User | None = dialog_manager.event.from_user if dialog_manager.event else None
-
+    user = dialog_manager.event.from_user if dialog_manager.event else None
     text = dialog_manager.dialog_data.get("text", "")
+
     title = "Announcement"
+
     sender = user.full_name if user else "unknown"
 
     return {
@@ -87,7 +91,7 @@ async def preview_getter(dialog_manager: DialogManager, **kwargs):
 
 input_window = Window(
     Const(
-        "Group Message\n\n"
+        "Group Message\n"
         "Write your message:"
     ),
     MessageInput(on_message_input),
@@ -97,11 +101,11 @@ input_window = Window(
 preview_window = Window(
     Format("{preview}"),
     Row(
-        Button(Const("🚀 Send"), id="send", on_click=on_send),
+        Button(Const("Send"), id="send", on_click=on_send),
     ),
     Row(
         Button(
-            Const("🔙 Back"),
+            Const("Back"),
             id="back",
             on_click=lambda c, b, m: m.switch_to(GroupMessageSG.input),
         )
