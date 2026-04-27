@@ -6,5 +6,6 @@ from aiogram.fsm.state import StatesGroup, State
 
 
 class GroupMessageSG(StatesGroup):
+    title = State()
     input = State()
     preview = State()
