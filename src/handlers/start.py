@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/handlers/start.py
 # DESCRIPTION:
-# Main menu (single entry button -> n8n flow)
+# Main menu (n8n MVP safe version)
 # =========================================
 
 import logging
@@ -29,7 +29,12 @@ def main_menu_kb() -> InlineKeyboardMarkup:
 
 @router.message(CommandStart())
 async def start_handler(message: Message):
-    logger.info(f"🚀 START | user_id={message.from_user.id}")
+    user = message.from_user
+
+    user_id = user.id if user else -1
+    user_name = user.full_name if user else "unknown"
+
+    logger.info(f"🚀 START | user_id={user_id} | user={user_name}")
 
     await message.answer(
         "🤖 Main Menu\n\nChoose an option:",
