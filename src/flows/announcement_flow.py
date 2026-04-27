@@ -16,38 +16,35 @@ from src.engine.flow_state import (
 
 logger = logging.getLogger(__name__)
 
-
 FLOW_NAME = "announcement"
 
 
-# =========================
-# START FLOW
-# =========================
 async def start_flow(message: types.Message):
-    user_id = message.from_user.id
+    user = message.from_user
+    if user is None:
+        return
 
-    set_flow(user_id, FLOW_NAME)
-    set_step(user_id, "title")
+    set_flow(user.id, FLOW_NAME)
+    set_step(user.id, "title")
 
     await message.answer("📝 Enter title")
 
 
-# =========================
-# HANDLE MESSAGE
-# =========================
 async def handle_message(message: types.Message):
-    user_id = message.from_user.id
+    user = message.from_user
+    if user is None:
+        return False
+
+    user_id = user.id
     state = get_state(user_id)
 
     if state["flow"] != FLOW_NAME:
-        return False  # not our flow
+        return False
 
     step = state["step"]
     text = (message.text or "").strip()
 
-    # -------------------------
-    # STEP 1: TITLE
-    # -------------------------
+    # TITLE
     if step == "title":
         set_data(user_id, "title", text)
         set_step(user_id, "content")
@@ -55,9 +52,7 @@ async def handle_message(message: types.Message):
         await message.answer("✍️ Write message")
         return True
 
-    # -------------------------
-    # STEP 2: CONTENT
-    # -------------------------
+    # CONTENT
     if step == "content":
         set_data(user_id, "content", text)
         set_step(user_id, "preview")
