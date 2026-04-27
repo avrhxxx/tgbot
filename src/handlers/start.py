@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/handlers/start.py
 # DESCRIPTION:
-# Bot entry point → shows reply keyboard only
+# Bot entry point → shows reply keyboard only (silent)
 # =========================================
 
 from aiogram import Router, types
@@ -23,8 +23,8 @@ async def start_handler(message: types.Message):
     if not can_use_panel(user.id):
         return
 
-    # ONLY UI LAYER (no text, no dialog)
+    # 🔥 Silent message (invisible char required by Telegram)
     await message.answer(
-        " ",
+        "‎",  # ZERO WIDTH SPACE
         reply_markup=panel_kb
     )
