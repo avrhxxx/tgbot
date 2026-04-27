@@ -5,7 +5,7 @@
 import logging
 
 from aiogram.types import Message, CallbackQuery
-from aiogram_dialog import Dialog, Window, DialogManager
+from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
 from aiogram_dialog.widgets.input import MessageInput
@@ -27,7 +27,7 @@ async def on_message_input(message: Message, widget, dialog_manager: DialogManag
         return
 
     dialog_manager.dialog_data["text"] = text
-    logger.info(f"[GROUP MESSAGE] text saved")
+    logger.info("[GROUP MESSAGE] text saved")
 
     await dialog_manager.switch_to(GroupMessageSG.preview)
 
@@ -46,7 +46,7 @@ async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager
     # wracamy do main menu
     await dialog_manager.start(
         MainMenuSG.main,
-        mode=dialog_manager.start_mode.RESET_STACK,
+        mode=StartMode.RESET_STACK,
     )
 
 
