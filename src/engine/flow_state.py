@@ -41,4 +41,12 @@ def set_data(user_id: int, key: str, value: Any) -> None:
 
 def get_data(user_id: int) -> Dict[str, Any]:
     state = get_state(user_id)
-    return state.get("data", {})  # <- FIX mypy safe access
+
+    # 🔥 FIX: avoid Any inference from .get()
+    data = state.get("data")
+
+    if data is None:
+        data = {}
+        state["data"] = data
+
+    return data
