@@ -2,7 +2,7 @@
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
 # Moderator panel + announcement wizard v7.7
-# (clean soft-card renderer + unified preview/send)
+# (clean clickable sender + unified renderer + preview/send parity)
 # =========================================
 
 import logging
@@ -35,16 +35,8 @@ def get_event_user(dm: DialogManager) -> User | None:
     return None
 
 
-def resolve_sender(dm: DialogManager) -> str:
-    user = get_event_user(dm)
-
-    if not user:
-        return "unknown"
-
-    if user.username:
-        return f"@{user.username}"
-
-    return user.full_name or "unknown"
+def resolve_sender(dm: DialogManager) -> User | None:
+    return get_event_user(dm)
 
 
 def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
@@ -70,28 +62,23 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# UI RENDERER (CLEAN CARD MODE)
+# UI RENDERER (FINAL FORMAT)
 # =========================
 
-def build_block(data: dict, sender: str) -> str:
-    """
-    Clean Telegram post-style announcement.
-    No <pre>, no terminal look — just structured message.
-    """
-
+def build_block(data: dict, user: User | None) -> str:
     title = data.get("title") or "Untitled announcement"
     content = data.get("content") or ""
 
+    if user:
+        sender = f'<a href="tg://user?id={user.id}">{user.full_name or "user"}</a>'
+    else:
+        sender = "unknown"
+
     return (
-        "ANNOUNCEMENT\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-
-        f"{title}\n\n"
-
-        f"{content}\n\n"
-
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 Sent by: {sender}"
+        f"{title}\n"
+        "━━━━━━━━━━━━━━\n"
+        f"{sender}: {content}\n"
+        "━━━━━━━━━━━━━━"
     )
 
 
@@ -101,10 +88,10 @@ def build_block(data: dict, sender: str) -> str:
 
 async def preview_getter(dialog_manager: DialogManager, **_):
     data = dialog_manager.dialog_data or {}
-    sender = resolve_sender(dialog_manager)
+    user = resolve_sender(dialog_manager)
 
     return {
-        "render": build_block(data, sender)
+        "render": build_block(data, user)
     }
 
 
@@ -176,12 +163,16 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
         logger.error("[ANNOUNCEMENT] config missing in middleware_data")
         return
 
-    sender = resolve_sender(dm)
-    message_text = build_block(data, sender)
+    user = resolve_sender(dm)
+    message_text = build_block(data, user)
 
     for chat_id in config.access.chat_ids:
         try:
-            await bot.send_message(chat_id, message_text)
+            await bot.send_message(
+                chat_id,
+                message_text,
+                parse_mode="HTML"
+            )
         except Exception as e:
             logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
