@@ -42,7 +42,8 @@ async def main():
     bot = create_bot()
 
     logger.info("📡 Initializing dispatcher...")
-    dp = create_dispatcher()
+    # 🔥 FIX: pass config into dispatcher
+    dp = create_dispatcher(config)
 
     logger.info("✅ Core initialized (bot + dispatcher)")
 
