@@ -7,7 +7,6 @@
 
 import logging
 from typing import Optional, Tuple
-from datetime import datetime
 
 from aiogram import types, Router, F
 from aiogram.types import Message, CallbackQuery, User, ReplyKeyboardMarkup, KeyboardButton
