@@ -1,8 +1,8 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v7.3
-# (pure dialog UX + clean wizard flow + no tags + aiogram-dialog safe)
+# Moderator panel + announcement wizard v7.4
+# (true aiogram-dialog flow + no manual messages + no continue buttons)
 # =========================================
 
 import logging
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# HELPERS (AIogram-dialog SAFE)
+# HELPERS (SAFE)
 # =========================
 
 def get_event_user(dm: DialogManager) -> User | None:
@@ -29,16 +29,10 @@ def get_event_user(dm: DialogManager) -> User | None:
 
     if isinstance(event, Message):
         return event.from_user
-
     if isinstance(event, CallbackQuery):
         return event.from_user
 
     return None
-
-
-def get_user_id(dm: DialogManager) -> int:
-    user = get_event_user(dm)
-    return user.id if user else 0
 
 
 def resolve_sender(dm: DialogManager) -> str:
@@ -72,7 +66,7 @@ def trace(dm: DialogManager, label: str):
     except Exception:
         state_repr = "UNKNOWN"
 
-    logger.info(f"[ANNOUNCEMENT] {label} | state={state_repr} | data={dm.dialog_data}")
+    logger.info(f"[ANNOUNCEMENT] {label} | state={state_repr}")
 
 
 # =========================
@@ -89,17 +83,11 @@ async def preview_getter(dialog_manager: DialogManager, **_):
     }
 
 
-async def title_getter(dialog_manager: DialogManager, **_):
-    return {
-        "title": dialog_manager.dialog_data.get("title", "")
-    }
-
-
 # =========================
 # NAVIGATION
 # =========================
 
-async def to_announcement(callback: CallbackQuery, button, dm: DialogManager):
+async def start_announcement(callback: CallbackQuery, button, dm: DialogManager):
     await callback.answer()
     await dm.switch_to(PanelSG.announcement_title)
 
@@ -109,23 +97,18 @@ async def back_to_main(callback: CallbackQuery, button, dm: DialogManager):
     await dm.switch_to(PanelSG.main)
 
 
-async def next_to_content(callback: CallbackQuery, button, dm: DialogManager):
-    await callback.answer()
-    await dm.switch_to(PanelSG.announcement_content)
-
-
 async def back_to_title(callback: CallbackQuery, button, dm: DialogManager):
     await callback.answer()
     await dm.switch_to(PanelSG.announcement_title)
 
 
 # =========================
-# FLOW INPUT
+# FLOW INPUT (AUTO TRANSITION)
 # =========================
 
 async def on_title_success(message: Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = (message.text or "").strip()
-    await dm.next()
+    await dm.switch_to(PanelSG.announcement_content)
 
 
 async def on_content_success(message: Message, widget, dm: DialogManager):
@@ -138,7 +121,7 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
     dm.dialog_data["media"] = save_media(message)
 
     trace(dm, "TO PREVIEW")
-    await dm.next()
+    await dm.switch_to(PanelSG.announcement_preview)
 
 
 # =========================
@@ -175,13 +158,13 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
 
 # =========================
-# WINDOWS (CLEAN UX FLOW)
+# WINDOWS
 # =========================
 
 main_window = Window(
     Const("🛠 Moderator Panel"),
     Row(
-        Button(Const("📣 Create announcement"), id="start", on_click=to_announcement)
+        Button(Const("📣 Create announcement"), id="start", on_click=start_announcement)
     ),
     state=PanelSG.main,
 )
@@ -190,10 +173,6 @@ main_window = Window(
 title_window = Window(
     Const("📣 <b>Announcement Creator</b>\n\n📝 Enter title"),
     MessageInput(on_title_success),
-    Row(
-        Button(Const("➡ Continue"), id="next", on_click=next_to_content),
-    ),
-    getter=title_getter,
     state=PanelSG.announcement_title,
 )
 
