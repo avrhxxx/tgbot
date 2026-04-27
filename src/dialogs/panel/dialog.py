@@ -1,14 +1,15 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Announcement wizard (reply keyboard entry + dialog flow)
+# Announcement wizard v7.9
+# (reply keyboard entry + dialog flow only, no panel state)
 # =========================================
 
 import logging
 from typing import Optional, Tuple
 
 from aiogram import types, Router, F
-from aiogram.types import Message, CallbackQuery, User, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, CallbackQuery, User
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -21,8 +22,10 @@ router = Router()
 
 
 # =========================
-# REPLY KEYBOARD (ONLY MENU)
+# REPLY KEYBOARD ENTRY
 # =========================
+
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 panel_kb = ReplyKeyboardMarkup(
     keyboard=[
@@ -33,35 +36,17 @@ panel_kb = ReplyKeyboardMarkup(
 
 
 # =========================
-# ENTRY POINT
-# =========================
-
-@router.message(F.text == "/start")
-async def start_handler(message: Message, dialog_manager: DialogManager):
-    await message.answer(
-        "Menu ready 👇",
-        reply_markup=panel_kb
-    )
-
-
-@router.message(F.text == "📣 Create announcement")
-async def open_announcement(message: Message, dialog_manager: DialogManager):
-    await dialog_manager.start(
-        PanelSG.announcement_title,
-        mode=StartMode.RESET_STACK
-    )
-
-
-# =========================
 # HELPERS
 # =========================
 
 def get_event_user(dm: DialogManager) -> User | None:
     event = dm.event
+
     if isinstance(event, Message):
         return event.from_user
     if isinstance(event, CallbackQuery):
         return event.from_user
+
     return None
 
 
@@ -96,7 +81,9 @@ def trace(dm: DialogManager, label: str):
 # =========================
 
 def build_block(data: dict, user: User | None) -> str:
-    title = (data.get("title") or "UNTITLED ANNOUNCEMENT").upper()
+    title_raw = data.get("title") or "UNTITLED ANNOUNCEMENT"
+    title = title_raw.upper()
+
     content = data.get("content") or ""
 
     sender = (
@@ -113,17 +100,30 @@ def build_block(data: dict, user: User | None) -> str:
 
 
 # =========================
+# ENTRY POINT
+# =========================
+
+@router.message(F.text == "📣 Create announcement")
+async def open_announcement(message: Message, dialog_manager: DialogManager):
+    await dialog_manager.start(
+        PanelSG.announcement_title,
+        mode=StartMode.RESET_STACK
+    )
+
+
+# =========================
 # GETTER
 # =========================
 
 async def preview_getter(dialog_manager: DialogManager, **_):
     data = dialog_manager.dialog_data or {}
     user = resolve_sender(dialog_manager)
+
     return {"render": build_block(data, user)}
 
 
 # =========================
-# FLOW
+# FLOW INPUT
 # =========================
 
 async def on_title_success(message: Message, widget, dm: DialogManager):
@@ -175,7 +175,7 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
 
 # =========================
-# WINDOWS (NO MAIN PANEL)
+# WINDOWS
 # =========================
 
 title_window = Window(
