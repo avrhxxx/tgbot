@@ -1,15 +1,15 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Announcement wizard v7.9
-# (reply keyboard entry + dialog flow only, no panel state)
+# Announcement wizard v7.10
+# (reply keyboard entry + pure dialog flow)
 # =========================================
 
 import logging
 from typing import Optional, Tuple
 
 from aiogram import types, Router, F
-from aiogram.types import Message, CallbackQuery, User
+from aiogram.types import Message, CallbackQuery, User, ReplyKeyboardMarkup, KeyboardButton
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -22,16 +22,15 @@ router = Router()
 
 
 # =========================
-# REPLY KEYBOARD ENTRY
+# REPLY KEYBOARD (GLOBAL MENU)
 # =========================
-
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 panel_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="📣 Create announcement")],
     ],
-    resize_keyboard=True
+    resize_keyboard=True,
+    one_time_keyboard=False
 )
 
 
@@ -100,7 +99,7 @@ def build_block(data: dict, user: User | None) -> str:
 
 
 # =========================
-# ENTRY POINT
+# ENTRY POINT (keyboard trigger)
 # =========================
 
 @router.message(F.text == "📣 Create announcement")
