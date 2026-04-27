@@ -1,20 +1,20 @@
 # =========================================
 # FILE: src/handlers/start.py
 # DESCRIPTION:
-# Bot entry point → shows reply keyboard only (silent)
+# Starts dialog properly (stable version)
 # =========================================
 
 from aiogram import Router, types
-from aiogram.filters import CommandStart
+from aiogram_dialog import DialogManager, StartMode
 
-from src.dialogs.panel.dialog import panel_kb
+from src.dialogs.panel.states import PanelSG
 from src.utils.access import can_use_panel
 
 router = Router()
 
 
-@router.message(CommandStart())
-async def start_handler(message: types.Message):
+@router.message()
+async def start_handler(message: types.Message, dialog_manager: DialogManager):
     user = message.from_user
 
     if user is None:
@@ -23,8 +23,8 @@ async def start_handler(message: types.Message):
     if not can_use_panel(user.id):
         return
 
-    # 🔥 Silent message (invisible char required by Telegram)
-    await message.answer(
-        "‎",  # ZERO WIDTH SPACE
-        reply_markup=panel_kb
+    # 🔥 ALWAYS RESET → no broken contexts
+    await dialog_manager.start(
+        PanelSG.main,
+        mode=StartMode.RESET_STACK,
     )
