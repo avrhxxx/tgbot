@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.callback_query(F.data == "announce_send")
-async def send_announcement(callback: CallbackQuery, bot):
+async def send_announcement(callback: CallbackQuery):
     user_id = callback.from_user.id
     state = get_state(user_id)
 
@@ -27,8 +27,8 @@ async def send_announcement(callback: CallbackQuery, bot):
         f"{data.get('content')}"
     )
 
-    # send to channels (placeholder)
-    await callback.message.answer(text)
+    if callback.message:
+        await callback.message.answer(text)
 
     await callback.answer("Sent ✔")
 
@@ -38,7 +38,9 @@ async def edit_title(callback: CallbackQuery):
     user_id = callback.from_user.id
     set_step(user_id, "title")
 
-    await callback.message.answer("📝 Enter title again")
+    if callback.message:
+        await callback.message.answer("📝 Enter title again")
+
     await callback.answer()
 
 
@@ -47,5 +49,7 @@ async def edit_content(callback: CallbackQuery):
     user_id = callback.from_user.id
     set_step(user_id, "content")
 
-    await callback.message.answer("✍️ Write message again")
+    if callback.message:
+        await callback.message.answer("✍️ Write message again")
+
     await callback.answer()
