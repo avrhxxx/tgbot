@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard v2 (UX chat-style + media + preview)
+# Moderator panel + broadcast wizard v2 (clean aiogram-dialog UX + media + preview)
 # =========================================
 
 import logging
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # HELPERS
 # =========================
 
-def get_dialog_data(dm: DialogManager) -> dict:
+def get_data(dm: DialogManager) -> dict:
     return dm.dialog_data or {}
 
 
@@ -30,10 +30,12 @@ def get_dialog_data(dm: DialogManager) -> dict:
 # =========================
 
 async def to_broadcast_menu(callback, button, dm: DialogManager):
+    logger.info("Navigating to broadcast menu")
     await dm.switch_to(PanelSG.broadcast_menu)
 
 
 async def back_to_main(callback, button, dm: DialogManager):
+    logger.info("Back to main panel")
     await dm.switch_to(PanelSG.main)
 
 
@@ -41,31 +43,34 @@ async def back_to_main(callback, button, dm: DialogManager):
 # FLOW
 # =========================
 
+# --- TAG SELECT ---
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
+    logger.info(f"Tag selected: {button.widget_id}")
+
     await dm.switch_to(PanelSG.broadcast_title)
 
 
+# --- TITLE ---
 async def save_title(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     if not text:
-        await message.answer("❌ Please send a valid title")
-        return
+        logger.warning("Empty title received")
+        return  # stay in same state
 
     dm.dialog_data["title"] = text
+    logger.info(f"Title saved: {text}")
 
-    logger.info("Title saved")
-
-    await message.answer("✍️ Nice. Now send me the broadcast content (text or media).")
     await dm.switch_to(PanelSG.broadcast_content)
 
 
+# --- CONTENT + MEDIA ---
 async def save_content(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     if not text:
-        await message.answer("❌ Please send valid content")
+        logger.warning("Empty content received")
         return
 
     media = None
@@ -88,7 +93,7 @@ async def save_content(message: types.Message, widget, dm: DialogManager):
 
 
 # =========================
-# PREVIEW GETTER (🔥 FIX FOR KEYERROR)
+# PREVIEW GETTER (IMPORTANT FIX)
 # =========================
 
 async def preview_getter(dialog_manager: DialogManager, **kwargs):
@@ -106,7 +111,7 @@ async def preview_getter(dialog_manager: DialogManager, **kwargs):
 # =========================
 
 async def send_broadcast(callback, button, dm: DialogManager):
-    d = get_dialog_data(dm)
+    d = get_data(dm)
 
     title = d.get("title", "No title")
     content = d.get("content", "No content")
@@ -117,7 +122,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
     config = dm.middleware_data.get("config")
 
     if not bot or not config:
-        await callback.message.answer("❌ Missing bot/config")
+        logger.error("Missing bot/config")
         return
 
     caption = (
@@ -151,6 +156,8 @@ async def send_broadcast(callback, button, dm: DialogManager):
         except Exception as e:
             logger.warning(f"Send failed {chat_id}: {e}")
 
+    logger.info(f"Broadcast sent: {sent}/{len(config.access.chat_ids)}")
+
     await dm.switch_to(PanelSG.main)
 
 
@@ -168,7 +175,7 @@ main_window = Window(
 
 
 broadcast_menu_window = Window(
-    Const("📣 Choose a broadcast tag:"),
+    Const("📣 Choose broadcast tag:"),
     Row(
         Button(Const("Tag1"), id="tag1", on_click=select_tag),
         Button(Const("Tag2"), id="tag2", on_click=select_tag),
@@ -184,20 +191,23 @@ broadcast_menu_window = Window(
 )
 
 
+# --- TITLE STEP ---
 title_window = Window(
-    Const("📣 What should be the title of this broadcast?"),
+    Const("📣 Send broadcast title:"),
     MessageInput(save_title),
     state=PanelSG.broadcast_title,
 )
 
 
+# --- CONTENT STEP ---
 content_window = Window(
-    Const("✍️ Send message content (text or media supported)"),
+    Const("✍️ Send message content (text or media supported):"),
     MessageInput(save_content),
     state=PanelSG.broadcast_content,
 )
 
 
+# --- PREVIEW (SAFE + GETTER) ---
 preview_window = Window(
     Format(
         "📣 <b>{title}</b>\n\n"
@@ -210,9 +220,13 @@ preview_window = Window(
         Button(Const("🚀 Send broadcast"), id="send", on_click=send_broadcast),
     ),
     state=PanelSG.broadcast_preview,
-    getter=preview_getter,   # 🔥 KLUCZOWA NAPRAWA
+    getter=preview_getter,
 )
 
+
+# =========================
+# DIALOG
+# =========================
 
 panel_dialog = Dialog(
     main_window,
