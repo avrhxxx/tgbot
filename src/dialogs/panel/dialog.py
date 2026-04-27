@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard v6.3 (FIXED MessageInput lifecycle + full debug tracing)
+# Moderator panel + announcement wizard v6.4 (UX improved + mypy-safe + debug-heavy + stable aiogram-dialog flow)
 # =========================================
 
 import logging
@@ -62,7 +62,7 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
 
 
 # =========================
-# DEBUG TRACE
+# DEBUG SYSTEM (HEAVY)
 # =========================
 
 def trace(dm: DialogManager, label: str):
@@ -71,14 +71,14 @@ def trace(dm: DialogManager, label: str):
     except Exception:
         state = "UNKNOWN"
 
-    logger.info(f"[DIALOG TRACE] {label} | state={state} | data={dm.dialog_data}")
+    logger.info(f"[ANNOUNCEMENT TRACE] {label} | state={state} | data={dm.dialog_data}")
 
 
 # =========================
 # NAVIGATION
 # =========================
 
-async def to_broadcast_menu(callback, button, dm: DialogManager):
+async def to_announcement_menu(callback, button, dm: DialogManager):
     trace(dm, "ENTER MENU")
     await dm.switch_to(PanelSG.broadcast_menu)
 
@@ -99,12 +99,12 @@ async def back_to_title(callback, button, dm: DialogManager):
 
 
 # =========================
-# INPUT FLOW
+# FLOW INPUT
 # =========================
 
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
-    trace(dm, f"TAG SELECTED {button.widget_id}")
+    trace(dm, f"TAG SELECTED: {button.widget_id}")
     await dm.switch_to(PanelSG.broadcast_title)
 
 
@@ -114,9 +114,9 @@ async def on_title_success(message: types.Message, widget, dm: DialogManager):
 
     dm.dialog_data["title"] = text
 
-    logger.info(f"[DIALOG] title saved: {text}")
+    logger.info(f"[ANNOUNCEMENT] title saved: {text}")
 
-    # IMPORTANT: force UI sync
+    # force sync (IMPORTANT for aiogram-dialog stability)
     await dm.show()
 
 
@@ -124,19 +124,17 @@ async def on_title_success(message: types.Message, widget, dm: DialogManager):
 async def on_content_success(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
-    logger.info(f"[DIALOG] content raw received: {text}")
+    logger.info(f"[ANNOUNCEMENT] content received raw: {text}")
 
     if not text:
-        await message.answer("❌ Content is required.")
+        await message.answer("❌ Content is required for announcement.")
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    logger.info(f"[DIALOG] content saved | media={dm.dialog_data.get('media')}")
+    logger.info(f"[ANNOUNCEMENT] content saved | media={dm.dialog_data.get('media')}")
 
-    # 🔥 CRITICAL FIX:
-    # ensure state transition is flushed BEFORE preview render
     await message.answer("✔ Content saved. Opening preview...")
 
     trace(dm, "AUTO -> PREVIEW")
@@ -144,13 +142,13 @@ async def on_content_success(message: types.Message, widget, dm: DialogManager):
 
 
 # =========================
-# SEND
+# SEND ANNOUNCEMENT
 # =========================
 
-async def send_broadcast(callback, button, dm: DialogManager):
+async def send_announcement(callback, button, dm: DialogManager):
     data = d(dm)
 
-    title = data.get("title") or "Broadcast"
+    title = data.get("title") or "Announcement"
     content = data.get("content") or ""
     tag = data.get("tag") or "unknown"
     media = data.get("media")
@@ -160,7 +158,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
-    trace(dm, "SEND BROADCAST START")
+    trace(dm, "SEND ANNOUNCEMENT START")
 
     if not bot or not config:
         await callback.message.answer("❌ Missing bot/config")
@@ -195,9 +193,9 @@ async def send_broadcast(callback, button, dm: DialogManager):
             sent += 1
 
         except Exception as e:
-            logger.warning(f"[BROADCAST] failed chat_id={chat_id}: {e}")
+            logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
-    logger.info(f"[BROADCAST] DONE sent={sent}")
+    logger.info(f"[ANNOUNCEMENT] DONE sent={sent}")
 
     await dm.switch_to(PanelSG.main)
 
@@ -208,12 +206,12 @@ async def send_broadcast(callback, button, dm: DialogManager):
 
 main_window = Window(
     Const("🛠 <b>Moderator Panel</b>"),
-    Row(Button(Const("📣 Create broadcast"), id="broadcast", on_click=to_broadcast_menu)),
+    Row(Button(Const("📣 Create announcement"), id="announcement", on_click=to_announcement_menu)),
     state=PanelSG.main,
 )
 
 
-broadcast_menu_window = Window(
+announcement_menu_window = Window(
     Const("📣 Select tag:"),
     Row(
         Button(Const("Tag1"), id="tag1", on_click=select_tag),
@@ -223,8 +221,12 @@ broadcast_menu_window = Window(
 )
 
 
+# =========================
+# TITLE STEP
+# =========================
+
 title_window = Window(
-    Const("📣 How should your broadcast be titled?\n(optional)"),
+    Const("📣 How should your announcement be titled?\n(optional)"),
     MessageInput(on_title_success),
     Row(
         Button(Const("➡ Next"), id="next_title", on_click=next_to_content),
@@ -232,6 +234,10 @@ title_window = Window(
     state=PanelSG.broadcast_title,
 )
 
+
+# =========================
+# CONTENT STEP
+# =========================
 
 content_window = Window(
     Const("✍️ What would you like to say?\n(required)"),
@@ -243,6 +249,10 @@ content_window = Window(
 )
 
 
+# =========================
+# PREVIEW
+# =========================
+
 preview_window = Window(
     Format(
         "📣 <b>{title}</b>\n\n"
@@ -253,10 +263,10 @@ preview_window = Window(
     ),
     Row(
         Button(Const("⬅ Back"), id="back_preview", on_click=back_to_title),
-        Button(Const("🚀 Send"), id="send", on_click=send_broadcast),
+        Button(Const("🚀 Send"), id="send", on_click=send_announcement),
     ),
     getter=lambda dm, **_: {
-        "title": d(dm).get("title") or "Broadcast",
+        "title": d(dm).get("title") or "Announcement",
         "content": d(dm).get("content") or "",
         "tag": d(dm).get("tag") or "unknown",
         "sender": resolve_sender(dm),
@@ -267,7 +277,7 @@ preview_window = Window(
 
 panel_dialog = Dialog(
     main_window,
-    broadcast_menu_window,
+    announcement_menu_window,
     title_window,
     content_window,
     preview_window,
