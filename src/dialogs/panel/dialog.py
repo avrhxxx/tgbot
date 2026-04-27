@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # HELPERS
 # =========================
 
-def data(dm: DialogManager) -> dict:
+def get_dialog_data(dm: DialogManager) -> dict:
     return dm.dialog_data or {}
 
 
@@ -41,13 +41,11 @@ async def back_to_main(callback, button, dm: DialogManager):
 # FLOW
 # =========================
 
-# --- TAG ---
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
     await dm.switch_to(PanelSG.broadcast_title)
 
 
-# --- TITLE (UX MODE) ---
 async def save_title(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
@@ -56,13 +54,13 @@ async def save_title(message: types.Message, widget, dm: DialogManager):
         return
 
     dm.dialog_data["title"] = text
+
     logger.info("Title saved")
 
-    await message.answer("✍️ Nice. Now send me the broadcast content.")
+    await message.answer("✍️ Nice. Now send me the broadcast content (text or media).")
     await dm.switch_to(PanelSG.broadcast_content)
 
 
-# --- CONTENT + MEDIA SUPPORT ---
 async def save_content(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
@@ -72,7 +70,6 @@ async def save_content(message: types.Message, widget, dm: DialogManager):
 
     media = None
 
-    # support photo/video/document/gif
     if message.photo:
         media = ("photo", message.photo[-1].file_id)
     elif message.video:
@@ -91,11 +88,25 @@ async def save_content(message: types.Message, widget, dm: DialogManager):
 
 
 # =========================
+# PREVIEW GETTER (🔥 FIX FOR KEYERROR)
+# =========================
+
+async def preview_getter(dialog_manager: DialogManager, **kwargs):
+    d = dialog_manager.dialog_data or {}
+
+    return {
+        "title": d.get("title", ""),
+        "content": d.get("content", ""),
+        "tag": d.get("tag", "unknown"),
+    }
+
+
+# =========================
 # SEND BROADCAST
 # =========================
 
 async def send_broadcast(callback, button, dm: DialogManager):
-    d = data(dm)
+    d = get_dialog_data(dm)
 
     title = d.get("title", "No title")
     content = d.get("content", "No content")
@@ -173,7 +184,6 @@ broadcast_menu_window = Window(
 )
 
 
-# --- UX TITLE STEP ---
 title_window = Window(
     Const("📣 What should be the title of this broadcast?"),
     MessageInput(save_title),
@@ -181,15 +191,13 @@ title_window = Window(
 )
 
 
-# --- UX CONTENT STEP ---
 content_window = Window(
-    Const("✍️ Now send the message content (you can also attach media)"),
+    Const("✍️ Send message content (text or media supported)"),
     MessageInput(save_content),
     state=PanelSG.broadcast_content,
 )
 
 
-# --- PREVIEW (REALISTIC TELEGRAM STYLE) ---
 preview_window = Window(
     Format(
         "📣 <b>{title}</b>\n\n"
@@ -202,6 +210,7 @@ preview_window = Window(
         Button(Const("🚀 Send broadcast"), id="send", on_click=send_broadcast),
     ),
     state=PanelSG.broadcast_preview,
+    getter=preview_getter,   # 🔥 KLUCZOWA NAPRAWA
 )
 
 
