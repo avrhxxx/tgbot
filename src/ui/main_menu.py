@@ -8,7 +8,7 @@ from datetime import datetime
 from aiogram.types import User
 
 
-WIDTH = 26  # kontrola długości UI (krótsze = bardziej compact)
+WIDTH = 20  # kontrola długości UI (krótsze = bardziej compact)
 
 
 def center(text: str, width: int = WIDTH) -> str:
