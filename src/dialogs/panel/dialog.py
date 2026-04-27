@@ -1,11 +1,11 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v6.6 (aiogram-dialog stable + fixed getter + production logging)
+# Moderator panel + announcement wizard v6.7 (conversational UX + aiogram-dialog stable + fixed preview + production logging)
 # =========================================
 
 import logging
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple
 
 from aiogram import types
 from aiogram.types import Message, CallbackQuery
@@ -61,7 +61,7 @@ def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
 
 
 # =========================
-# DEBUG TRACE (SAFE)
+# DEBUG TRACE
 # =========================
 
 def trace(dm: DialogManager, label: str):
@@ -72,32 +72,34 @@ def trace(dm: DialogManager, label: str):
     except Exception as e:
         state_repr = f"UNKNOWN:{type(e).__name__}"
 
-    logger.info(
-        f"[ANNOUNCEMENT TRACE] {label} | state={state_repr} | data={dm.dialog_data}"
-    )
+    logger.info(f"[ANNOUNCEMENT] {label} | state={state_repr} | data={dm.dialog_data}")
 
 
 # =========================
-# NAVIGATION
+# NAVIGATION (CONVERSATIONAL)
 # =========================
 
 async def to_announcement_menu(callback, button, dm: DialogManager):
-    trace(dm, "ENTER MENU")
+    trace(dm, "START FLOW")
+    await callback.message.answer("📣 Alright, let’s create a new announcement.")
     await dm.switch_to(PanelSG.announcement_menu)
 
 
 async def back_to_main(callback, button, dm: DialogManager):
-    trace(dm, "BACK MAIN")
+    trace(dm, "EXIT FLOW")
+    await callback.message.answer("↩️ Back to main panel.")
     await dm.switch_to(PanelSG.main)
 
 
 async def next_to_content(callback, button, dm: DialogManager):
-    trace(dm, "NEXT -> CONTENT")
+    trace(dm, "ASK CONTENT")
+    await callback.message.answer("✍️ Now tell me what you want to send.")
     await dm.switch_to(PanelSG.announcement_content)
 
 
 async def back_to_title(callback, button, dm: DialogManager):
-    trace(dm, "BACK -> TITLE")
+    trace(dm, "BACK TO TITLE")
+    await callback.message.answer("📝 Let’s adjust the title.")
     await dm.switch_to(PanelSG.announcement_title)
 
 
@@ -107,14 +109,19 @@ async def back_to_title(callback, button, dm: DialogManager):
 
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
-    trace(dm, f"TAG SELECTED {button.widget_id}")
+    trace(dm, f"TAG SET: {button.widget_id}")
+
+    await callback.message.answer("✔ Got it. Now give your announcement a title (or skip it).")
     await dm.switch_to(PanelSG.announcement_title)
 
 
 # ---------- TITLE ----------
 async def on_title_success(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = (message.text or "").strip()
-    logger.info(f"[ANNOUNCEMENT] title saved")
+
+    logger.info("[ANNOUNCEMENT] title saved")
+
+    await message.answer("✔ Title saved. Next step — write the message.")
     await dm.next()
 
 
@@ -123,16 +130,16 @@ async def on_content_success(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     if not text:
-        await message.answer("❌ Content is required.")
+        await message.answer("❌ Please write something for the announcement.")
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    logger.info(f"[ANNOUNCEMENT] content saved")
+    logger.info("[ANNOUNCEMENT] content saved")
 
-    await message.answer("✔ Content saved. Opening preview...")
-    trace(dm, "AUTO -> PREVIEW")
+    await message.answer("✔ Perfect. Let me show you a preview...")
+    trace(dm, "GO PREVIEW")
 
     await dm.next()
 
@@ -148,7 +155,7 @@ async def send_announcement(callback, button, dm: DialogManager):
     config = dm.middleware_data.get("config")
 
     if not bot or not config:
-        await callback.message.answer("❌ Missing bot/config")
+        await callback.message.answer("❌ Bot configuration missing.")
         return
 
     title = data.get("title") or "Announcement"
@@ -189,24 +196,27 @@ async def send_announcement(callback, button, dm: DialogManager):
         except Exception as e:
             logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
-    logger.info(f"[ANNOUNCEMENT] DONE sent={sent}")
+    logger.info(f"[ANNOUNCEMENT] SENT SUCCESSFULLY -> {sent} chats")
 
+    await callback.message.answer("🚀 Announcement sent successfully!")
     await dm.switch_to(PanelSG.main)
 
 
 # =========================
-# WINDOWS
+# WINDOWS (CONVERSATIONAL UX)
 # =========================
 
 main_window = Window(
-    Const("🛠 <b>Moderator Panel</b>"),
-    Row(Button(Const("📣 Create announcement"), id="announcement", on_click=to_announcement_menu)),
+    Const("🛠 Welcome back, Moderator."),
+    Row(
+        Button(Const("📣 Create announcement"), id="announcement", on_click=to_announcement_menu)
+    ),
     state=PanelSG.main,
 )
 
 
 announcement_menu_window = Window(
-    Const("📣 Select tag:"),
+    Const("📣 What kind of announcement is this?"),
     Row(
         Button(Const("Tag1"), id="tag1", on_click=select_tag),
         Button(Const("Tag2"), id="tag2", on_click=select_tag),
@@ -216,22 +226,21 @@ announcement_menu_window = Window(
 
 
 title_window = Window(
-    Const("📣 Title (optional)"),
+    Const("📝 Give your announcement a title (optional)"),
     MessageInput(on_title_success),
-    Row(Button(Const("➡ Next"), id="next_title", on_click=next_to_content)),
+    Row(Button(Const("➡ Continue"), id="next_title", on_click=next_to_content)),
     state=PanelSG.announcement_title,
 )
 
 
 content_window = Window(
-    Const("✍️ Message (required)"),
+    Const("✍️ Write your announcement message"),
     MessageInput(on_content_success),
     Row(Button(Const("⬅ Back"), id="back_content", on_click=back_to_title)),
     state=PanelSG.announcement_content,
 )
 
 
-# 🔥 FIXED PREVIEW (THIS WAS YOUR CRASH)
 preview_window = Window(
     Format(
         "📣 <b>{title}</b>\n\n"
@@ -241,10 +250,15 @@ preview_window = Window(
         "👤 Sent by: {sender}"
     ),
     Row(
-        Button(Const("⬅ Back"), id="back_preview", on_click=back_to_title),
-        Button(Const("🚀 Send"), id="send", on_click=send_announcement),
+        Button(Const("⬅ Edit"), id="back_preview", on_click=back_to_title),
+        Button(Const("🚀 Send now"), id="send", on_click=send_announcement),
     ),
-    getter=lambda **_: {},  # <- IMPORTANT: no dm argument
+    getter=lambda dm, **_: {
+        "title": d(dm).get("title") or "Announcement",
+        "content": d(dm).get("content") or "",
+        "tag": d(dm).get("tag") or "unknown",
+        "sender": resolve_sender(dm),
+    },
     state=PanelSG.announcement_preview,
 )
 
