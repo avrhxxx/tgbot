@@ -1,8 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Announcement wizard v7.10
-# (reply keyboard entry + pure dialog flow)
+# Reply keyboard → announcement dialog flow
 # =========================================
 
 import logging
@@ -22,7 +21,7 @@ router = Router()
 
 
 # =========================
-# REPLY KEYBOARD (GLOBAL MENU)
+# REPLY KEYBOARD
 # =========================
 
 panel_kb = ReplyKeyboardMarkup(
@@ -30,7 +29,7 @@ panel_kb = ReplyKeyboardMarkup(
         [KeyboardButton(text="📣 Create announcement")],
     ],
     resize_keyboard=True,
-    one_time_keyboard=False
+    persistent=True,  # 🔥 ważne
 )
 
 
@@ -76,30 +75,7 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# UI RENDERER
-# =========================
-
-def build_block(data: dict, user: User | None) -> str:
-    title_raw = data.get("title") or "UNTITLED ANNOUNCEMENT"
-    title = title_raw.upper()
-
-    content = data.get("content") or ""
-
-    sender = (
-        f'<a href="tg://user?id={user.id}">{user.full_name or "user"}</a>'
-        if user else "UNKNOWN"
-    )
-
-    return (
-        f"ANNOUNCEMENT: {title}\n"
-        "━━━━━━━━━━━━━━\n"
-        f"{sender}: {content}\n"
-        "━━━━━━━━━━━━━━"
-    )
-
-
-# =========================
-# ENTRY POINT (keyboard trigger)
+# ENTRY POINT (KEYBOARD)
 # =========================
 
 @router.message(F.text == "📣 Create announcement")
@@ -122,7 +98,30 @@ async def preview_getter(dialog_manager: DialogManager, **_):
 
 
 # =========================
-# FLOW INPUT
+# RENDER
+# =========================
+
+def build_block(data: dict, user: User | None) -> str:
+    title_raw = data.get("title") or "UNTITLED ANNOUNCEMENT"
+    title = title_raw.upper()
+
+    content = data.get("content") or ""
+
+    sender = (
+        f'<a href="tg://user?id={user.id}">{user.full_name or "user"}</a>'
+        if user else "UNKNOWN"
+    )
+
+    return (
+        f"ANNOUNCEMENT: {title}\n"
+        "━━━━━━━━━━━━━━\n"
+        f"{sender}: {content}\n"
+        "━━━━━━━━━━━━━━"
+    )
+
+
+# =========================
+# FLOW
 # =========================
 
 async def on_title_success(message: Message, widget, dm: DialogManager):
@@ -144,10 +143,6 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
     await dm.switch_to(PanelSG.announcement_preview)
 
 
-# =========================
-# SEND
-# =========================
-
 async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     data = dm.dialog_data or {}
 
@@ -155,7 +150,7 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     config = dm.middleware_data.get("config")
 
     if not bot or not config:
-        await callback.answer("Missing bot/config", show_alert=True)
+        await callback.answer("Error", show_alert=True)
         return
 
     user = resolve_sender(dm)
@@ -169,8 +164,6 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
     await callback.answer("Sent ✔")
     trace(dm, "SENT")
-
-    await dm.switch_to(PanelSG.announcement_title)
 
 
 # =========================
@@ -191,10 +184,6 @@ content_window = Window(
 
 preview_window = Window(
     Format("{render}"),
-    Row(
-        Button(Const("✏ Edit title"), id="edit_title"),
-        Button(Const("✏ Edit content"), id="edit_content"),
-    ),
     Row(
         Button(Const("🚀 Send"), id="send", on_click=send_announcement),
     ),
