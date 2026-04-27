@@ -55,9 +55,6 @@ async def on_message_input(message: Message, widget, dialog_manager: DialogManag
 async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager):
     text = dialog_manager.dialog_data.get("text", "")
 
-    user = callback.from_user
-    sender = user.full_name if user else "unknown"
-
     logger.info(f"[GROUP MESSAGE] SEND -> {text}")
 
     await callback.answer("Sent ✔")
@@ -75,12 +72,8 @@ async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager
 async def preview_getter(dialog_manager: DialogManager, **kwargs):
     event = dialog_manager.event
 
-    # SAFE extraction (avoid union issues)
     user = getattr(event, "from_user", None)
-    if user is None:
-        sender = "unknown"
-    else:
-        sender = user.full_name
+    sender = user.full_name if user else "unknown"
 
     text = dialog_manager.dialog_data.get("text", "")
     title = "Announcement"
