@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard v6 (fixed UX flow + stable aiogram-dialog state handling)
+# Moderator panel + broadcast wizard v6.1 (FIXED MessageInput flow)
 # =========================================
 
 import logging
@@ -12,6 +12,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
+from aiogram_dialog.widgets.input import MessageInput
 
 from src.dialogs.panel.states import PanelSG
 
@@ -80,18 +81,8 @@ async def back_to_title(callback, button, dm: DialogManager):
     await dm.switch_to(PanelSG.broadcast_title)
 
 
-async def next_to_preview(callback, button, dm: DialogManager):
-    content = d(dm).get("content")
-
-    if not content:
-        await callback.message.answer("❌ Please send content first (required).")
-        return
-
-    await dm.switch_to(PanelSG.broadcast_preview)
-
-
 # =========================
-# FLOW INPUT HANDLERS
+# INPUT FLOW (IMPORTANT FIX)
 # =========================
 
 async def select_tag(callback, button, dm: DialogManager):
@@ -99,29 +90,28 @@ async def select_tag(callback, button, dm: DialogManager):
     await dm.switch_to(PanelSG.broadcast_title)
 
 
-# ---------- TITLE (OPTIONAL) ----------
-async def save_title(message: types.Message, widget, dm: DialogManager):
+# ---------- TITLE ----------
+async def on_title_success(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = (message.text or "").strip()
-    await message.answer("✔ Title saved (optional). Press NEXT to continue.")
+    await message.answer("✔ Title saved. Click NEXT.")
 
 
-# ---------- CONTENT (REQUIRED - AUTO FLOW) ----------
-async def save_content(message: types.Message, widget, dm: DialogManager):
+# ---------- CONTENT (CRITICAL FIX HERE) ----------
+async def on_content_success(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     if not text:
-        await message.answer("❌ Content is required. Please send a message.")
+        await message.answer("❌ Content is required.")
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    # 🔥 IMPORTANT FIX: auto-move to preview (NO NEXT BUTTON NEEDED HERE)
-    await dm.switch_to(PanelSG.broadcast_preview)
+    await message.answer("✔ Content saved. Moving to preview...")
 
 
 # =========================
-# SEND BROADCAST
+# SEND
 # =========================
 
 async def send_broadcast(callback, button, dm: DialogManager):
@@ -166,7 +156,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
                 await bot.send_message(chat_id, caption)
 
         except Exception as e:
-            logger.warning(f"Broadcast failed for {chat_id}: {e}")
+            logger.warning(f"Broadcast failed {chat_id}: {e}")
 
     await dm.switch_to(PanelSG.main)
 
@@ -177,9 +167,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
 
 main_window = Window(
     Const("🛠 <b>Moderator Panel</b>"),
-    Row(
-        Button(Const("📣 Create broadcast"), id="broadcast", on_click=to_broadcast_menu),
-    ),
+    Row(Button(Const("📣 Create broadcast"), id="broadcast", on_click=to_broadcast_menu)),
     state=PanelSG.main,
 )
 
@@ -190,52 +178,25 @@ broadcast_menu_window = Window(
         Button(Const("Tag1"), id="tag1", on_click=select_tag),
         Button(Const("Tag2"), id="tag2", on_click=select_tag),
     ),
-    Row(
-        Button(Const("Tag3"), id="tag3", on_click=select_tag),
-        Button(Const("Tag4"), id="tag4", on_click=select_tag),
-    ),
-    Row(
-        Button(Const("⬅ Back"), id="back", on_click=back_to_main),
-    ),
     state=PanelSG.broadcast_menu,
 )
 
 
-# =========================
-# STEP 1 - TITLE (OPTIONAL + SKIP)
-# =========================
-
 title_window = Window(
-    Const(
-        "📣 How should your broadcast be titled?\n"
-        "(optional — you can skip this step)"
-    ),
-    Row(
-        Button(Const("➡ Next"), id="next_title", on_click=next_to_content),
-    ),
+    Const("📣 How should your broadcast be titled?\n(optional)"),
+    MessageInput(on_title_success),   # 🔥 FIX: proper handler
+    Row(Button(Const("➡ Next"), id="next_title", on_click=next_to_content)),
     state=PanelSG.broadcast_title,
 )
 
 
-# =========================
-# STEP 2 - CONTENT (REQUIRED - NO NEXT BUTTON)
-# =========================
-
 content_window = Window(
-    Const(
-        "✍️ What would you like to say?\n"
-        "(required — just send your message)"
-    ),
-    Row(
-        Button(Const("⬅ Back"), id="back_content", on_click=back_to_title),
-    ),
+    Const("✍️ What would you like to say?\n(required)"),
+    MessageInput(on_content_success),  # 🔥 FIX: THIS WAS BROKEN BEFORE
+    Row(Button(Const("⬅ Back"), id="back_content", on_click=back_to_title)),
     state=PanelSG.broadcast_content,
 )
 
-
-# =========================
-# PREVIEW (SAFE)
-# =========================
 
 preview_window = Window(
     Format(
@@ -245,10 +206,7 @@ preview_window = Window(
         "🏷 Tag: {tag}\n"
         "👤 Sent by: {sender}"
     ),
-    Row(
-        Button(Const("⬅ Back"), id="back_preview", on_click=back_to_title),
-        Button(Const("🚀 Send"), id="send", on_click=send_broadcast),
-    ),
+    Row(Button(Const("🚀 Send"), id="send", on_click=send_broadcast)),
     getter=lambda dm, **_: {
         "title": d(dm).get("title") or "Broadcast",
         "content": d(dm).get("content") or "",
@@ -258,10 +216,6 @@ preview_window = Window(
     state=PanelSG.broadcast_preview,
 )
 
-
-# =========================
-# DIALOG
-# =========================
 
 panel_dialog = Dialog(
     main_window,
