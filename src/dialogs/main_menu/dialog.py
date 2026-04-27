@@ -7,8 +7,7 @@
 import logging
 from datetime import datetime
 
-from aiogram import F
-from aiogram.types import CallbackQuery
+from aiogram.types import Message, CallbackQuery
 
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
@@ -20,11 +19,26 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# GETTER (dynamic UI data)
+# SAFE USER RESOLVE
+# =========================
+
+def get_user(dm: DialogManager):
+    event = dm.event
+
+    if isinstance(event, Message):
+        return event.from_user
+    if isinstance(event, CallbackQuery):
+        return event.from_user
+
+    return None
+
+
+# =========================
+# GETTER
 # =========================
 
 async def main_menu_getter(dialog_manager: DialogManager, **kwargs):
-    user = dialog_manager.event.from_user
+    user = get_user(dialog_manager)
 
     return {
         "username": user.first_name if user else "User",
