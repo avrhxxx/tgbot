@@ -1,58 +1,45 @@
 # =========================================
 # FILE: src/handlers/flows/group_message.py
-# DESCRIPTION:
-# Group message flow (safe Telegram access)
 # =========================================
 
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 
-from src.ui.keyboards.group_message import group_message_kb
-from src.ui.main_menu import format_main_menu
-from src.ui.keyboards.main_menu import main_menu_kb
-
-router = Router()
 logger = logging.getLogger(__name__)
 
-
-def safe_message(callback: CallbackQuery):
-    msg = callback.message
-    if msg is None or getattr(msg, "edit_text", None) is None:
-        return None
-    return msg
+router = Router()
 
 
-@router.callback_query(F.data == "flow:group_message")
+@router.callback_query(F.data == "menu:group_message")
 async def open_group_message(callback: CallbackQuery):
-    logger.info(f"GROUP_MESSAGE | open | user={callback.from_user.id}")
-
-    msg = safe_message(callback)
-    if not msg:
-        await callback.answer("Cannot open view")
+    if not callback.message:
         return
 
-    await msg.edit_text(
-        "GROUP MESSAGE\n\n"
-        "This is a placeholder flow.\n"
-        "Next: n8n integration or wizard.",
-        reply_markup=group_message_kb()
+    logger.info("📢 UI FLOW: group_message opened")
+
+    await callback.message.edit_text(
+        "📢 GROUP MESSAGE\n\n"
+        "This is UI placeholder flow.\n\n"
+        "Choose action:",
+        reply_markup=None  # na razie brak keyboarda
     )
 
     await callback.answer()
 
 
-@router.callback_query(F.data == "nav:back")
-async def back_to_menu(callback: CallbackQuery):
-    logger.info(f"BACK | user={callback.from_user.id}")
-
-    msg = safe_message(callback)
-    if not msg:
-        await callback.answer("Cannot go back")
+@router.callback_query(F.data == "menu:back")
+async def back(callback: CallbackQuery):
+    if not callback.message:
         return
 
-    await msg.edit_text(
-        format_main_menu(callback.from_user),
+    from src.ui.main_menu import format_main_menu
+    from src.ui.keyboards.main_menu import main_menu_kb
+
+    user = callback.from_user
+
+    await callback.message.edit_text(
+        format_main_menu(user),
         reply_markup=main_menu_kb()
     )
 
