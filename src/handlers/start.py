@@ -1,53 +1,37 @@
 # =========================================
 # FILE: src/handlers/start.py
 # DESCRIPTION:
-# Bot entry point → shows main menu only
+# Main menu (single entry button -> n8n flow)
 # =========================================
 
 import logging
-
-from aiogram import Router, types
+from aiogram import Router
 from aiogram.filters import CommandStart
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-
-from src.utils.access import can_use_panel
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
 logger = logging.getLogger(__name__)
 
 router = Router()
 
 
-# =========================
-# MENU KEYBOARD
-# =========================
+def main_menu_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📣 Announcements",
+                    callback_data="flow:announcement"
+                )
+            ]
+        ]
+    )
 
-main_menu_kb = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="📣 Create announcement")],
-    ],
-    resize_keyboard=True
-)
-
-
-# =========================
-# START HANDLER
-# =========================
 
 @router.message(CommandStart())
-async def start_handler(message: types.Message):
-    user = message.from_user
-
-    if user is None:
-        logger.warning("START: missing user")
-        return
-
-    if not can_use_panel(user.id):
-        logger.info(f"START: access denied user_id={user.id}")
-        return
-
-    logger.info(f"START: menu shown user_id={user.id}")
+async def start_handler(message: Message):
+    logger.info(f"🚀 START | user_id={message.from_user.id}")
 
     await message.answer(
-        "\u200b",
-        reply_markup=main_menu_kb
+        "🤖 Main Menu\n\nChoose an option:",
+        reply_markup=main_menu_kb()
     )
