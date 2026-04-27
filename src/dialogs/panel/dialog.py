@@ -1,10 +1,11 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard v5 (safe typing + UX BACK/NEXT + media + preview)
+# Moderator panel + broadcast wizard v6 (fixed UX flow + stable aiogram-dialog state handling)
 # =========================================
 
 import logging
+from typing import Optional, Tuple
 
 from aiogram import types
 from aiogram.types import Message, CallbackQuery
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# HELPERS (SAFE + MYPY FIX)
+# HELPERS
 # =========================
 
 def d(dm: DialogManager) -> dict:
@@ -26,18 +27,12 @@ def d(dm: DialogManager) -> dict:
 
 
 def extract_user(dm: DialogManager):
-    """
-    SAFE extraction for mypy:
-    dm.event is UNION type -> must be guarded
-    """
     event = dm.event
 
     if isinstance(event, Message):
         return event.from_user
-
     if isinstance(event, CallbackQuery):
         return event.from_user
-
     return None
 
 
@@ -45,15 +40,15 @@ def resolve_sender(dm: DialogManager) -> str:
     user = extract_user(dm)
 
     if not user:
-        return "Unknown user"
+        return "unknown"
 
     if user.username:
         return f"@{user.username}"
 
-    return user.full_name or "Unknown user"
+    return user.full_name or "unknown"
 
 
-def save_media(message: types.Message) -> tuple | None:
+def save_media(message: types.Message) -> Optional[Tuple[str, str]]:
     if message.photo:
         return ("photo", message.photo[-1].file_id)
     if message.video:
@@ -63,6 +58,14 @@ def save_media(message: types.Message) -> tuple | None:
     if message.animation:
         return ("animation", message.animation.file_id)
     return None
+
+
+async def safe_show(dm: DialogManager):
+    """
+    IMPORTANT FIX:
+    forces dialog refresh after MessageInput updates
+    """
+    await dm.show()
 
 
 # =========================
@@ -86,41 +89,44 @@ async def back_to_title(callback, button, dm: DialogManager):
 
 
 async def next_to_preview(callback, button, dm: DialogManager):
-    if not d(dm).get("content"):
-        await callback.message.answer("❌ Content is required")
+    content = d(dm).get("content")
+
+    if not content:
+        await callback.message.answer("❌ Please send content first (required).")
         return
 
     await dm.switch_to(PanelSG.broadcast_preview)
 
 
 # =========================
-# FLOW HANDLERS
+# FLOW INPUT HANDLERS
 # =========================
 
-# --- TAG ---
 async def select_tag(callback, button, dm: DialogManager):
     dm.dialog_data["tag"] = button.widget_id
     await dm.switch_to(PanelSG.broadcast_title)
 
 
-# --- TITLE (OPTIONAL) ---
+# ---------- TITLE (OPTIONAL) ----------
 async def save_title(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = (message.text or "").strip()
-    await message.answer("✔ Title saved. You can press NEXT.")
+    await message.answer("✔ Title saved (optional). Click NEXT to continue.")
+    await safe_show(dm)
 
 
-# --- CONTENT (REQUIRED + MEDIA) ---
+# ---------- CONTENT (REQUIRED) ----------
 async def save_content(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     if not text:
-        await message.answer("❌ Content is required")
+        await message.answer("❌ Content is required. Please send a message.")
         return
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    await message.answer("✔ Content saved. Go to preview.")
+    await message.answer("✔ Content saved. Click NEXT to preview.")
+    await safe_show(dm)
 
 
 # =========================
@@ -130,9 +136,9 @@ async def save_content(message: types.Message, widget, dm: DialogManager):
 async def send_broadcast(callback, button, dm: DialogManager):
     data = d(dm)
 
-    title = data.get("title", "")
-    content = data.get("content", "")
-    tag = data.get("tag", "unknown")
+    title = data.get("title") or "Broadcast"
+    content = data.get("content") or ""
+    tag = data.get("tag") or "unknown"
     media = data.get("media")
 
     sender = resolve_sender(dm)
@@ -145,7 +151,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
         return
 
     caption = (
-        f"📣 <b>{title or 'Broadcast'}</b>\n\n"
+        f"📣 <b>{title}</b>\n\n"
         f"{content}\n\n"
         f"────────────\n"
         f"🏷 Tag: {tag}\n"
@@ -169,7 +175,7 @@ async def send_broadcast(callback, button, dm: DialogManager):
                 await bot.send_message(chat_id, caption)
 
         except Exception as e:
-            logger.warning(f"Broadcast failed {chat_id}: {e}")
+            logger.warning(f"Broadcast failed for {chat_id}: {e}")
 
     await dm.switch_to(PanelSG.main)
 
@@ -211,7 +217,7 @@ broadcast_menu_window = Window(
 title_window = Window(
     Const(
         "📣 How should your broadcast be titled?\n"
-        "(optional — press NEXT if you want to skip)"
+        "(optional — you can skip this step)"
     ),
     Row(
         Button(Const("➡ Next"), id="next_title", on_click=next_to_content),
@@ -227,7 +233,7 @@ title_window = Window(
 content_window = Window(
     Const(
         "✍️ What would you like to say?\n"
-        "(required, media supported)"
+        "(required — send a message below)"
     ),
     Row(
         Button(Const("⬅ Back"), id="back_content", on_click=back_to_title),
@@ -238,7 +244,7 @@ content_window = Window(
 
 
 # =========================
-# PREVIEW
+# PREVIEW (SAFE + NO CRASH)
 # =========================
 
 preview_window = Window(
@@ -254,9 +260,9 @@ preview_window = Window(
         Button(Const("🚀 Send"), id="send", on_click=send_broadcast),
     ),
     getter=lambda dm, **_: {
-        "title": d(dm).get("title", ""),
-        "content": d(dm).get("content", ""),
-        "tag": d(dm).get("tag", "unknown"),
+        "title": d(dm).get("title") or "Broadcast",
+        "content": d(dm).get("content") or "",
+        "tag": d(dm).get("tag") or "unknown",
         "sender": resolve_sender(dm),
     },
     state=PanelSG.broadcast_preview,
