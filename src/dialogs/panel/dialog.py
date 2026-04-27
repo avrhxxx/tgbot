@@ -1,8 +1,8 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v7.5
-# (aiogram-dialog safe + unified UI renderer + clean UX)
+# Moderator panel + announcement wizard v7.6
+# (aiogram-dialog safe + unified renderer + fixed preview/send consistency)
 # =========================================
 
 import logging
@@ -70,29 +70,22 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# UI RENDERER (🔥 IMPORTANT)
+# UI RENDERER (SOURCE OF TRUTH)
 # =========================
 
-def build_preview(data: dict, sender: str) -> str:
+def build_block(data: dict, sender: str) -> str:
+    """
+    Single source of truth for BOTH preview and send.
+    IMPORTANT: Telegram supports only HTML formatting, not layout.
+    """
     return (
-        "📣 <b>ANNOUNCEMENT PREVIEW</b>\n\n"
-        "<blockquote>\n"
-        f"📝 <b>{data.get('title') or 'Announcement'}</b>\n\n"
-        f"💬 {data.get('content') or ''}\n"
-        "</blockquote>\n\n"
-        f"👤 <b>Author:</b> {sender}"
-    )
-
-
-def build_send(data: dict, sender: str) -> str:
-    # 🔥 MUST MATCH preview exactly (rule you requested)
-    return (
-        "📣 ANNOUNCEMENT\n\n"
-        "<blockquote>\n"
-        f"📝 <b>{data.get('title') or 'Announcement'}</b>\n\n"
-        f"💬 {data.get('content') or ''}\n"
-        "</blockquote>\n\n"
-        f"👤 {sender}"
+        "━━━━━━━━━━━━━━\n"
+        f"📣 <b>{data.get('title') or 'Announcement'}</b>\n"
+        "━━━━━━━━━━━━━━\n\n"
+        f"{data.get('content') or ''}\n\n"
+        "──────────────\n"
+        f"👤 {sender}\n"
+        "━━━━━━━━━━━━━━"
     )
 
 
@@ -102,8 +95,10 @@ def build_send(data: dict, sender: str) -> str:
 
 async def preview_getter(dialog_manager: DialogManager, **_):
     data = dialog_manager.dialog_data or {}
+    sender = resolve_sender(dialog_manager)
+
     return {
-        "render": build_preview(data, resolve_sender(dialog_manager))
+        "render": build_block(data, sender)
     }
 
 
@@ -165,17 +160,22 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
-    if not bot or not config:
-        await callback.answer("Config error", show_alert=True)
+    if not bot:
+        await callback.answer("Bot missing in middleware", show_alert=True)
+        logger.error("[ANNOUNCEMENT] bot missing in middleware_data")
+        return
+
+    if not config:
+        await callback.answer("Config missing in middleware", show_alert=True)
+        logger.error("[ANNOUNCEMENT] config missing in middleware_data")
         return
 
     sender = resolve_sender(dm)
-
-    caption = build_send(data, sender)
+    message_text = build_block(data, sender)
 
     for chat_id in config.access.chat_ids:
         try:
-            await bot.send_message(chat_id, caption)
+            await bot.send_message(chat_id, message_text, parse_mode="HTML")
         except Exception as e:
             logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
