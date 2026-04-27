@@ -1,15 +1,15 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Reply keyboard → announcement dialog flow
+# Moderator panel + announcement wizard (stable dialog version)
 # =========================================
 
 import logging
 from typing import Optional, Tuple
 
-from aiogram import types, Router, F
-from aiogram.types import Message, CallbackQuery, User, ReplyKeyboardMarkup, KeyboardButton
-from aiogram_dialog import Dialog, Window, DialogManager, StartMode
+from aiogram import types
+from aiogram.types import Message, CallbackQuery, User
+from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
 from aiogram_dialog.widgets.input import MessageInput
@@ -17,20 +17,6 @@ from aiogram_dialog.widgets.input import MessageInput
 from src.dialogs.panel.states import PanelSG
 
 logger = logging.getLogger(__name__)
-router = Router()
-
-
-# =========================
-# REPLY KEYBOARD
-# =========================
-
-panel_kb = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="📣 Create announcement")],
-    ],
-    resize_keyboard=True,
-    persistent=True,  # 🔥 ważne
-)
 
 
 # =========================
@@ -75,30 +61,7 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# ENTRY POINT (KEYBOARD)
-# =========================
-
-@router.message(F.text == "📣 Create announcement")
-async def open_announcement(message: Message, dialog_manager: DialogManager):
-    await dialog_manager.start(
-        PanelSG.announcement_title,
-        mode=StartMode.RESET_STACK
-    )
-
-
-# =========================
-# GETTER
-# =========================
-
-async def preview_getter(dialog_manager: DialogManager, **_):
-    data = dialog_manager.dialog_data or {}
-    user = resolve_sender(dialog_manager)
-
-    return {"render": build_block(data, user)}
-
-
-# =========================
-# RENDER
+# UI RENDERER
 # =========================
 
 def build_block(data: dict, user: User | None) -> str:
@@ -121,7 +84,18 @@ def build_block(data: dict, user: User | None) -> str:
 
 
 # =========================
-# FLOW
+# GETTER
+# =========================
+
+async def preview_getter(dialog_manager: DialogManager, **_):
+    data = dialog_manager.dialog_data or {}
+    user = resolve_sender(dialog_manager)
+
+    return {"render": build_block(data, user)}
+
+
+# =========================
+# FLOW INPUT
 # =========================
 
 async def on_title_success(message: Message, widget, dm: DialogManager):
@@ -143,6 +117,10 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
     await dm.switch_to(PanelSG.announcement_preview)
 
 
+# =========================
+# SEND
+# =========================
+
 async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     data = dm.dialog_data or {}
 
@@ -150,7 +128,6 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     config = dm.middleware_data.get("config")
 
     if not bot or not config:
-        await callback.answer("Error", show_alert=True)
         return
 
     user = resolve_sender(dm)
@@ -158,17 +135,32 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
     for chat_id in config.access.chat_ids:
         try:
-            await bot.send_message(chat_id, message_text, parse_mode="HTML")
+            await bot.send_message(
+                chat_id,
+                message_text,
+                parse_mode="HTML"
+            )
         except Exception as e:
             logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
     await callback.answer("Sent ✔")
     trace(dm, "SENT")
 
+    await dm.switch_to(PanelSG.main)
+
 
 # =========================
 # WINDOWS
 # =========================
+
+main_window = Window(
+    Const("🛠 Moderator Panel"),
+    Row(
+        Button(Const("📣 Create announcement"), id="start", on_click=lambda c, b, m: m.switch_to(PanelSG.announcement_title)),
+    ),
+    state=PanelSG.main,
+)
+
 
 title_window = Window(
     Const("📝 Enter title"),
@@ -176,14 +168,20 @@ title_window = Window(
     state=PanelSG.announcement_title,
 )
 
+
 content_window = Window(
     Const("✍️ Write message"),
     MessageInput(on_content_success),
     state=PanelSG.announcement_content,
 )
 
+
 preview_window = Window(
     Format("{render}"),
+    Row(
+        Button(Const("✏ Edit title"), id="edit_title", on_click=lambda c, b, m: m.switch_to(PanelSG.announcement_title)),
+        Button(Const("✏ Edit content"), id="edit_content", on_click=lambda c, b, m: m.switch_to(PanelSG.announcement_content)),
+    ),
     Row(
         Button(Const("🚀 Send"), id="send", on_click=send_announcement),
     ),
@@ -193,6 +191,7 @@ preview_window = Window(
 
 
 panel_dialog = Dialog(
+    main_window,
     title_window,
     content_window,
     preview_window,
