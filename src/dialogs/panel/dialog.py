@@ -1,12 +1,13 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + broadcast wizard v4 (step navigation BACK/NEXT + optional title + media + preview)
+# Moderator panel + broadcast wizard v5 (safe typing + UX BACK/NEXT + media + preview)
 # =========================================
 
 import logging
 
 from aiogram import types
+from aiogram.types import Message, CallbackQuery
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -17,20 +18,39 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# HELPERS
+# HELPERS (SAFE + MYPY FIX)
 # =========================
 
 def d(dm: DialogManager) -> dict:
     return dm.dialog_data or {}
 
 
+def extract_user(dm: DialogManager):
+    """
+    SAFE extraction for mypy:
+    dm.event is UNION type -> must be guarded
+    """
+    event = dm.event
+
+    if isinstance(event, Message):
+        return event.from_user
+
+    if isinstance(event, CallbackQuery):
+        return event.from_user
+
+    return None
+
+
 def resolve_sender(dm: DialogManager) -> str:
-    user = dm.event.from_user if dm.event else None
+    user = extract_user(dm)
 
     if not user:
         return "Unknown user"
 
-    return f"@{user.username}" if user.username else (user.full_name or "Unknown user")
+    if user.username:
+        return f"@{user.username}"
+
+    return user.full_name or "Unknown user"
 
 
 def save_media(message: types.Message) -> tuple | None:
@@ -66,16 +86,15 @@ async def back_to_title(callback, button, dm: DialogManager):
 
 
 async def next_to_preview(callback, button, dm: DialogManager):
-    # content MUST exist
     if not d(dm).get("content"):
-        await callback.message.answer("❌ You must write content first")
+        await callback.message.answer("❌ Content is required")
         return
 
     await dm.switch_to(PanelSG.broadcast_preview)
 
 
 # =========================
-# FLOW (INPUT HANDLERS)
+# FLOW HANDLERS
 # =========================
 
 # --- TAG ---
@@ -86,15 +105,11 @@ async def select_tag(callback, button, dm: DialogManager):
 
 # --- TITLE (OPTIONAL) ---
 async def save_title(message: types.Message, widget, dm: DialogManager):
-    text = (message.text or "").strip()
-
-    # optional → can be empty
-    dm.dialog_data["title"] = text
-
-    await message.answer("✔ Title saved (optional). Press NEXT to continue.")
+    dm.dialog_data["title"] = (message.text or "").strip()
+    await message.answer("✔ Title saved. You can press NEXT.")
 
 
-# --- CONTENT (REQUIRED) ---
+# --- CONTENT (REQUIRED + MEDIA) ---
 async def save_content(message: types.Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
@@ -105,11 +120,11 @@ async def save_content(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
 
-    await message.answer("✔ Content saved. You can go to preview.")
+    await message.answer("✔ Content saved. Go to preview.")
 
 
 # =========================
-# SEND
+# SEND BROADCAST
 # =========================
 
 async def send_broadcast(callback, button, dm: DialogManager):
@@ -196,7 +211,7 @@ broadcast_menu_window = Window(
 title_window = Window(
     Const(
         "📣 How should your broadcast be titled?\n"
-        "(optional — you can leave it empty)\n"
+        "(optional — press NEXT if you want to skip)"
     ),
     Row(
         Button(Const("➡ Next"), id="next_title", on_click=next_to_content),
@@ -212,7 +227,7 @@ title_window = Window(
 content_window = Window(
     Const(
         "✍️ What would you like to say?\n"
-        "(this field is required, you can also attach media)"
+        "(required, media supported)"
     ),
     Row(
         Button(Const("⬅ Back"), id="back_content", on_click=back_to_title),
