@@ -7,8 +7,6 @@ from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from src.handlers.start import router as start_router
-from src.handlers.flows.group_message import router as group_router
-from src.handlers.n8n_router import router as fallback_router
 from src.middlewares.config import ConfigMiddleware
 
 logger = logging.getLogger(__name__)
@@ -17,11 +15,11 @@ logger = logging.getLogger(__name__)
 def create_dispatcher(config) -> Dispatcher:
     dp = Dispatcher(storage=MemoryStorage())
 
+    # middleware
     dp.update.middleware(ConfigMiddleware(config))
 
+    # only thin handlers layer
     dp.include_router(start_router)
-    dp.include_router(group_router)
-    dp.include_router(fallback_router)
 
-    logger.info("Dispatcher ready (UI test mode)")
+    logger.info("Dispatcher ready (dialogs mode)")
     return dp
