@@ -1,8 +1,8 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v7.6
-# (aiogram-dialog safe + unified renderer + fixed preview/send consistency)
+# Moderator panel + announcement wizard v7.7
+# (hybrid UI formatting + unified renderer + preview/send parity)
 # =========================================
 
 import logging
@@ -70,22 +70,34 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# UI RENDERER (SOURCE OF TRUTH)
+# UI RENDERER (HYBRID CARD MODE)
 # =========================
 
 def build_block(data: dict, sender: str) -> str:
     """
-    Single source of truth for BOTH preview and send.
-    IMPORTANT: Telegram supports only HTML formatting, not layout.
+    Hybrid Telegram UI layout:
+    - structured header
+    - section labels
+    - boxed message via <pre>
+    - consistent preview/send output
     """
+
+    title = data.get("title") or "Untitled announcement"
+    content = data.get("content") or ""
+
     return (
-        "━━━━━━━━━━━━━━\n"
-        f"📣 <b>{data.get('title') or 'Announcement'}</b>\n"
-        "━━━━━━━━━━━━━━\n\n"
-        f"{data.get('content') or ''}\n\n"
-        "──────────────\n"
-        f"👤 {sender}\n"
-        "━━━━━━━━━━━━━━"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "📣 <b>ANNOUNCEMENT</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        f"🧾 <b>Title:</b> {title}\n\n"
+
+        "💬 <b>Message:</b>\n"
+        f"<pre>{content}</pre>\n\n"
+
+        "────────────────────\n"
+        f"👤 <b>Sent by:</b> {sender}\n"
+        "━━━━━━━━━━━━━━━━━━━━"
     )
 
 
