@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/factory/dispatcher.py
 # DESCRIPTION:
-# Dispatcher factory (thin shell architecture - n8n driven)
+# Dispatcher factory (minimal thin shell for n8n routing)
 # =========================================
 
 import logging
@@ -17,20 +17,16 @@ logger = logging.getLogger(__name__)
 
 
 def create_dispatcher(config) -> Dispatcher:
-    logger.info("🚀 Starting Dispatcher (thin shell mode)")
+    logger.info("🚀 Starting Dispatcher (MVP n8n mode)")
 
     dp = Dispatcher(storage=MemoryStorage())
 
-    # =========================
-    # MIDDLEWARES
-    # =========================
+    # Middleware
     dp.update.middleware(ConfigMiddleware(config))
 
-    # =========================
-    # ROUTERS
-    # =========================
+    # Routers
     dp.include_router(start_router)
     dp.include_router(n8n_router)
 
-    logger.info("✅ Dispatcher ready (n8n-first architecture)")
+    logger.info("✅ Dispatcher ready (MVP: 1 flow only)")
     return dp
