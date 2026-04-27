@@ -1,8 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v7.8
-# (reply keyboard entry + dialog windows flow fixed)
+# Announcement wizard (reply keyboard entry + dialog flow)
 # =========================================
 
 import logging
@@ -22,7 +21,7 @@ router = Router()
 
 
 # =========================
-# REPLY KEYBOARD
+# REPLY KEYBOARD (ONLY MENU)
 # =========================
 
 panel_kb = ReplyKeyboardMarkup(
@@ -34,17 +33,35 @@ panel_kb = ReplyKeyboardMarkup(
 
 
 # =========================
+# ENTRY POINT
+# =========================
+
+@router.message(F.text == "/start")
+async def start_handler(message: Message, dialog_manager: DialogManager):
+    await message.answer(
+        "Menu ready 👇",
+        reply_markup=panel_kb
+    )
+
+
+@router.message(F.text == "📣 Create announcement")
+async def open_announcement(message: Message, dialog_manager: DialogManager):
+    await dialog_manager.start(
+        PanelSG.announcement_title,
+        mode=StartMode.RESET_STACK
+    )
+
+
+# =========================
 # HELPERS
 # =========================
 
 def get_event_user(dm: DialogManager) -> User | None:
     event = dm.event
-
     if isinstance(event, Message):
         return event.from_user
     if isinstance(event, CallbackQuery):
         return event.from_user
-
     return None
 
 
@@ -79,9 +96,7 @@ def trace(dm: DialogManager, label: str):
 # =========================
 
 def build_block(data: dict, user: User | None) -> str:
-    title_raw = data.get("title") or "UNTITLED ANNOUNCEMENT"
-    title = title_raw.upper()
-
+    title = (data.get("title") or "UNTITLED ANNOUNCEMENT").upper()
     content = data.get("content") or ""
 
     sender = (
@@ -98,33 +113,17 @@ def build_block(data: dict, user: User | None) -> str:
 
 
 # =========================
-# ENTRY POINT
-# =========================
-
-@router.message(F.text == "📣 Create announcement")
-async def open_announcement(message: Message, dialog_manager: DialogManager):
-    # 🔥 JEDYNE MIEJSCE gdzie keyboard się pokazuje
-    await message.answer("Opening announcement wizard...", reply_markup=panel_kb)
-
-    await dialog_manager.start(
-        PanelSG.announcement_title,
-        mode=StartMode.RESET_STACK
-    )
-
-
-# =========================
 # GETTER
 # =========================
 
 async def preview_getter(dialog_manager: DialogManager, **_):
     data = dialog_manager.dialog_data or {}
     user = resolve_sender(dialog_manager)
-
     return {"render": build_block(data, user)}
 
 
 # =========================
-# FLOW INPUT
+# FLOW
 # =========================
 
 async def on_title_success(message: Message, widget, dm: DialogManager):
@@ -156,12 +155,8 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
-    if not bot:
-        await callback.answer("Bot missing", show_alert=True)
-        return
-
-    if not config:
-        await callback.answer("Config missing", show_alert=True)
+    if not bot or not config:
+        await callback.answer("Missing bot/config", show_alert=True)
         return
 
     user = resolve_sender(dm)
@@ -169,32 +164,19 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
     for chat_id in config.access.chat_ids:
         try:
-            await bot.send_message(
-                chat_id,
-                message_text,
-                parse_mode="HTML"
-            )
+            await bot.send_message(chat_id, message_text, parse_mode="HTML")
         except Exception as e:
             logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
 
     await callback.answer("Sent ✔")
     trace(dm, "SENT")
 
-    await dm.switch_to(PanelSG.main)
+    await dm.switch_to(PanelSG.announcement_title)
 
 
 # =========================
-# WINDOWS
+# WINDOWS (NO MAIN PANEL)
 # =========================
-
-main_window = Window(
-    Const("🛠 Moderator Panel"),
-    Row(
-        Button(Const("📣 Create announcement"), id="start")
-    ),
-    state=PanelSG.main,
-)
-
 
 title_window = Window(
     Const("📝 Enter title"),
@@ -202,13 +184,11 @@ title_window = Window(
     state=PanelSG.announcement_title,
 )
 
-
 content_window = Window(
     Const("✍️ Write message"),
     MessageInput(on_content_success),
     state=PanelSG.announcement_content,
 )
-
 
 preview_window = Window(
     Format("{render}"),
@@ -225,7 +205,6 @@ preview_window = Window(
 
 
 panel_dialog = Dialog(
-    main_window,
     title_window,
     content_window,
     preview_window,
