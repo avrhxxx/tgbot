@@ -4,7 +4,7 @@
 
 import logging
 
-from aiogram.types import Message, CallbackQuery, User
+from aiogram.types import Message, CallbackQuery
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# RENDERER (ANNOUNCEMENT STYLE)
+# RENDERER
 # =========================
 
 def render_group_message(title: str, text: str, sender: str) -> str:
@@ -73,12 +73,17 @@ async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager
 # =========================
 
 async def preview_getter(dialog_manager: DialogManager, **kwargs):
-    user = dialog_manager.event.from_user if dialog_manager.event else None
+    event = dialog_manager.event
+
+    # SAFE extraction (avoid union issues)
+    user = getattr(event, "from_user", None)
+    if user is None:
+        sender = "unknown"
+    else:
+        sender = user.full_name
+
     text = dialog_manager.dialog_data.get("text", "")
-
     title = "Announcement"
-
-    sender = user.full_name if user else "unknown"
 
     return {
         "preview": render_group_message(title, text, sender)
