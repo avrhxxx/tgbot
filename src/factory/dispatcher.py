@@ -6,6 +6,8 @@ import logging
 from aiogram import Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from aiogram_dialog import setup_dialogs
+
 from src.handlers.start import router as start_router
 from src.middlewares.config import ConfigMiddleware
 
@@ -18,8 +20,11 @@ def create_dispatcher(config) -> Dispatcher:
     # middleware
     dp.update.middleware(ConfigMiddleware(config))
 
-    # only thin handlers layer
+    # routers
     dp.include_router(start_router)
+
+    # 🔥 CRITICAL
+    setup_dialogs(dp)
 
     logger.info("Dispatcher ready (dialogs mode)")
     return dp
