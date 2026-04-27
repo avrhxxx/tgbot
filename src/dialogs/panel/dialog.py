@@ -2,7 +2,7 @@
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
 # Moderator panel + announcement wizard v7.8
-# (reply keyboard navigation + dialog windows flow)
+# (reply keyboard entry + dialog windows flow fixed)
 # =========================================
 
 import logging
@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 from aiogram import types, Router, F
 from aiogram.types import Message, CallbackQuery, User, ReplyKeyboardMarkup, KeyboardButton
-from aiogram_dialog import Dialog, Window, DialogManager
+from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
 from aiogram_dialog.widgets.input import MessageInput
@@ -22,7 +22,7 @@ router = Router()
 
 
 # =========================
-# REPLY KEYBOARD (GLOBAL MENU)
+# REPLY KEYBOARD (ENTRY MENU)
 # =========================
 
 panel_kb = ReplyKeyboardMarkup(
@@ -98,12 +98,15 @@ def build_block(data: dict, user: User | None) -> str:
 
 
 # =========================
-# REPLY KEYBOARD HANDLER (ENTRY POINT)
+# ENTRY POINT (REPLY KEYBOARD)
 # =========================
 
 @router.message(F.text == "📣 Create announcement")
 async def open_announcement(message: Message, dialog_manager: DialogManager):
-    await dialog_manager.start(PanelSG.announcement_title)
+    await dialog_manager.start(
+        PanelSG.announcement_title,
+        mode=StartMode.RESET_STACK
+    )
 
 
 # =========================
@@ -178,8 +181,17 @@ async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
 
 
 # =========================
-# WINDOWS (NO MAIN MENU BUTTONS ANYMORE)
+# WINDOWS
 # =========================
+
+main_window = Window(
+    Const("🛠 Moderator Panel"),
+    Row(
+        Button(Const("📣 Create announcement"), id="start")
+    ),
+    state=PanelSG.main,
+)
+
 
 title_window = Window(
     Const("📣 <b>Announcement Creator</b>\n\n📝 Enter title"),
@@ -210,6 +222,7 @@ preview_window = Window(
 
 
 panel_dialog = Dialog(
+    main_window,
     title_window,
     content_window,
     preview_window,
