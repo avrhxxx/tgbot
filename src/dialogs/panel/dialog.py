@@ -90,10 +90,9 @@ def build_block(data: dict, sender: str) -> str:
         "📣 <b>ANNOUNCEMENT</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        f"🧾 <b>Title:</b> {title}\n\n"
-
-        "💬 <b>Message:</b>\n"
-        f"<pre>{content}</pre>\n\n"
+        f"<pre><b>Title:</b> {title}\n\n
+        
+        f{content}</pre>\n\n"
 
         "────────────────────\n"
         f"👤 <b>Sent by:</b> {sender}\n"
