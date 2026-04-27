@@ -19,7 +19,9 @@ logger = logging.getLogger(__name__)
 
 @router.message(CommandStart())
 async def start_handler(message: Message, dialog_manager: DialogManager):
-    logger.info(f"🚀 START | user_id={message.from_user.id}")
+    user_id = message.from_user.id if message.from_user else "unknown"
+
+    logger.info(f"🚀 START | user_id={user_id}")
 
     await dialog_manager.start(
         MainMenuSG.main,
