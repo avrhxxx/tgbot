@@ -1,33 +1,33 @@
 # =========================================
 # FILE: src/ui/main_menu.py
 # DESCRIPTION:
-# Main menu UI (dynamic header + fixed footer line)
+# Main menu UI (single header line + fixed footer)
 # =========================================
 
 from datetime import datetime
 from aiogram.types import User
 
 
-WIDTH = 20  # dolna linia (stała)
+WIDTH = 20
 
 
-def bottom_line() -> str:
+def line() -> str:
     return "─" * WIDTH
 
 
-def build_header(title: str) -> str:
+def build_title_line(title: str) -> str:
     """
-    Tworzy linię: ───── MAIN MENU ─────
-    z wycentrowanym tytułem.
+    ─── MAIN MENU ───
+    (centered inside fixed WIDTH line)
     """
     title = f" {title} "
 
     if len(title) >= WIDTH:
         return title[:WIDTH]
 
-    total_space = WIDTH - len(title)
-    left = total_space // 2
-    right = total_space - left
+    total = WIDTH - len(title)
+    left = total // 2
+    right = total - left
 
     return "─" * left + title + "─" * right
 
@@ -37,9 +37,9 @@ def format_main_menu(user: User | None) -> str:
     date = datetime.utcnow().strftime("%Y-%m-%d")
 
     return (
-        f"{build_header('MAIN MENU')}\n\n"
+        f"{build_title_line('MAIN MENU')}\n\n"
         f"Welcome, {name}\n"
         f"Date: {date}\n\n"
         "Have a nice day!\n\n"
-        f"{bottom_line()}"
+        f"{line()}"
     )
