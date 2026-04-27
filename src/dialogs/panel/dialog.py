@@ -1,7 +1,7 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v6.4 (UX aligned + state-safe + debug-heavy + aiogram-dialog stable flow)
+# Moderator panel + announcement wizard v6.5 (aiogram-dialog native flow fix + stable lifecycle)
 # =========================================
 
 import logging
@@ -115,7 +115,8 @@ async def on_title_success(message: types.Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = text
     logger.info(f"[ANNOUNCEMENT] title saved: {text}")
 
-    await dm.show()  # keep dialog stable
+    # 🔥 IMPORTANT: native dialog progression
+    await dm.next()
 
 
 # ---------- CONTENT ----------
@@ -136,7 +137,9 @@ async def on_content_success(message: types.Message, widget, dm: DialogManager):
     await message.answer("✔ Content saved. Opening preview...")
 
     trace(dm, "AUTO -> PREVIEW")
-    await dm.switch_to(PanelSG.announcement_preview)
+
+    # 🔥 IMPORTANT FIX: aiogram-dialog safe transition
+    await dm.next()
 
 
 # =========================
@@ -204,9 +207,7 @@ async def send_announcement(callback, button, dm: DialogManager):
 
 main_window = Window(
     Const("🛠 <b>Moderator Panel</b>"),
-    Row(
-        Button(Const("📣 Create announcement"), id="announcement", on_click=to_announcement_menu)
-    ),
+    Row(Button(Const("📣 Create announcement"), id="announcement", on_click=to_announcement_menu)),
     state=PanelSG.main,
 )
 
@@ -221,37 +222,21 @@ announcement_menu_window = Window(
 )
 
 
-# =========================
-# TITLE STEP
-# =========================
-
 title_window = Window(
     Const("📣 How should your announcement be titled?\n(optional)"),
     MessageInput(on_title_success),
-    Row(
-        Button(Const("➡ Next"), id="next_title", on_click=next_to_content),
-    ),
+    Row(Button(Const("➡ Next"), id="next_title", on_click=next_to_content)),
     state=PanelSG.announcement_title,
 )
 
 
-# =========================
-# CONTENT STEP
-# =========================
-
 content_window = Window(
     Const("✍️ What would you like to say?\n(required)"),
     MessageInput(on_content_success),
-    Row(
-        Button(Const("⬅ Back"), id="back_content", on_click=back_to_title),
-    ),
+    Row(Button(Const("⬅ Back"), id="back_content", on_click=back_to_title)),
     state=PanelSG.announcement_content,
 )
 
-
-# =========================
-# PREVIEW
-# =========================
 
 preview_window = Window(
     Format(
