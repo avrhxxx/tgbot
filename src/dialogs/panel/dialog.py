@@ -1,8 +1,8 @@
 # =========================================
 # FILE: src/dialogs/panel/dialog.py
 # DESCRIPTION:
-# Moderator panel + announcement wizard v7.0
-# (single-message UX + dynamic tags + create tag + clean dialog flow)
+# Moderator panel + announcement wizard v7.1
+# (pure dialog UX + callback toasts + dynamic tags)
 # =========================================
 
 import logging
@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# SIMPLE IN-MEMORY TAG STORAGE
+# IN-MEMORY TAG STORAGE
 # =========================
 
-TAGS: List[str] = ["Tag1", "Tag2"]
+TAGS: List[str] = []
 
 
 # =========================
@@ -46,13 +46,10 @@ def extract_user(dm: DialogManager):
 
 def resolve_sender(dm: DialogManager) -> str:
     user = extract_user(dm)
-
     if not user:
         return "unknown"
-
     if user.username:
         return f"@{user.username}"
-
     return user.full_name or "unknown"
 
 
@@ -83,16 +80,15 @@ def trace(dm: DialogManager, label: str):
 # =========================
 
 async def tags_getter(**_):
-    return {
-        "tags": TAGS
-    }
+    return {"tags": TAGS}
 
 
 async def preview_getter(dm: DialogManager, **_):
+    data = d(dm)
     return {
-        "title": d(dm).get("title") or "Announcement",
-        "content": d(dm).get("content") or "",
-        "tag": d(dm).get("tag") or "unknown",
+        "title": data.get("title") or "Announcement",
+        "content": data.get("content") or "",
+        "tag": data.get("tag") or "unknown",
         "sender": resolve_sender(dm),
     }
 
@@ -101,25 +97,30 @@ async def preview_getter(dm: DialogManager, **_):
 # NAVIGATION
 # =========================
 
-async def to_announcement_menu(callback, button, dm: DialogManager):
+async def to_announcement_menu(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer()
     trace(dm, "START")
     await dm.switch_to(PanelSG.announcement_menu)
 
 
-async def back_to_main(callback, button, dm: DialogManager):
+async def back_to_main(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer()
     trace(dm, "EXIT")
     await dm.switch_to(PanelSG.main)
 
 
-async def next_to_content(callback, button, dm: DialogManager):
+async def next_to_content(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer()
     await dm.switch_to(PanelSG.announcement_content)
 
 
-async def back_to_title(callback, button, dm: DialogManager):
+async def back_to_title(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer()
     await dm.switch_to(PanelSG.announcement_title)
 
 
-async def to_create_tag(callback, button, dm: DialogManager):
+async def to_create_tag(callback: CallbackQuery, button, dm: DialogManager):
+    await callback.answer("Enter new tag name…")
     trace(dm, "CREATE TAG")
     await dm.switch_to(PanelSG.create_tag)
 
@@ -131,6 +132,8 @@ async def to_create_tag(callback, button, dm: DialogManager):
 async def select_tag(callback: CallbackQuery, widget, dm: DialogManager, item_id: str):
     dm.dialog_data["tag"] = item_id
     trace(dm, f"TAG={item_id}")
+
+    await callback.answer(f"Selected: {item_id}")
     await dm.switch_to(PanelSG.announcement_title)
 
 
@@ -138,8 +141,7 @@ async def create_tag_input(message: Message, widget, dm: DialogManager):
     tag = (message.text or "").strip()
 
     if not tag:
-        await dm.show()
-        return
+        return await dm.show()
 
     if tag not in TAGS:
         TAGS.append(tag)
@@ -147,6 +149,7 @@ async def create_tag_input(message: Message, widget, dm: DialogManager):
     dm.dialog_data["tag"] = tag
     trace(dm, f"TAG CREATED={tag}")
 
+    # toast via last callback (hack: fallback to show)
     await dm.switch_to(PanelSG.announcement_title)
 
 
@@ -163,8 +166,7 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     if not text:
-        await dm.show()
-        return
+        return await dm.show()
 
     dm.dialog_data["content"] = text
     dm.dialog_data["media"] = save_media(message)
@@ -177,61 +179,41 @@ async def on_content_success(message: Message, widget, dm: DialogManager):
 # SEND
 # =========================
 
-async def send_announcement(callback, button, dm: DialogManager):
+async def send_announcement(callback: CallbackQuery, button, dm: DialogManager):
     data = d(dm)
 
     bot = dm.middleware_data.get("bot")
     config = dm.middleware_data.get("config")
 
     if not bot or not config:
+        await callback.answer("Config error", show_alert=True)
         return await dm.switch_to(PanelSG.main)
 
-    title = data.get("title") or "Announcement"
-    content = data.get("content") or ""
-    tag = data.get("tag") or "unknown"
-    media = data.get("media")
-
-    sender = resolve_sender(dm)
-
     caption = (
-        f"📣 <b>{title}</b>\n\n"
-        f"{content}\n\n"
+        f"📣 <b>{data.get('title') or 'Announcement'}</b>\n\n"
+        f"{data.get('content')}\n\n"
         f"────────────\n"
-        f"🏷 Tag: {tag}\n"
-        f"👤 Sent by: {sender}"
+        f"🏷 {data.get('tag')}\n"
+        f"👤 {resolve_sender(dm)}"
     )
 
     for chat_id in config.access.chat_ids:
-        try:
-            if media:
-                mtype, file_id = media
+        await bot.send_message(chat_id, caption)
 
-                if mtype == "photo":
-                    await bot.send_photo(chat_id, file_id, caption=caption)
-                elif mtype == "video":
-                    await bot.send_video(chat_id, file_id, caption=caption)
-                elif mtype == "document":
-                    await bot.send_document(chat_id, file_id, caption=caption)
-                elif mtype == "animation":
-                    await bot.send_animation(chat_id, file_id, caption=caption)
-            else:
-                await bot.send_message(chat_id, caption)
-
-        except Exception as e:
-            logger.warning(f"[ANNOUNCEMENT] failed chat_id={chat_id}: {e}")
-
+    await callback.answer("Sent!", show_alert=False)
     trace(dm, "SENT")
+
     await dm.switch_to(PanelSG.main)
 
 
 # =========================
-# WINDOWS (SINGLE MESSAGE UX)
+# WINDOWS
 # =========================
 
 main_window = Window(
     Const("🛠 Moderator Panel"),
     Row(
-        Button(Const("📣 Create announcement"), id="announcement", on_click=to_announcement_menu)
+        Button(Const("📣 Create announcement"), id="start", on_click=to_announcement_menu)
     ),
     state=PanelSG.main,
 )
@@ -264,8 +246,7 @@ create_tag_window = Window(
 title_window = Window(
     Format(
         "📝 tag: {tag}\n\n"
-        "give your announcement a title\n"
-        "(or skip)"
+        "give title (or skip)"
     ),
     MessageInput(on_title_success),
     Row(Button(Const("➡ Skip"), id="skip_title", on_click=next_to_content)),
@@ -275,7 +256,7 @@ title_window = Window(
 
 
 content_window = Window(
-    Const("✍️ now write your message"),
+    Const("✍️ write message"),
     MessageInput(on_content_success),
     Row(Button(Const("⬅ Back"), id="back_content", on_click=back_to_title)),
     state=PanelSG.announcement_content,
