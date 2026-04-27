@@ -1,11 +1,23 @@
 # =========================================
 # FILE: src/ui/main_menu.py
 # DESCRIPTION:
-# Main menu text (balanced UI version)
+# Main menu UI (dynamic centering + compact separators)
 # =========================================
 
 from datetime import datetime
 from aiogram.types import User
+
+
+WIDTH = 26  # kontrola długości UI (krótsze = bardziej compact)
+
+
+def center(text: str, width: int = WIDTH) -> str:
+    padding = max(0, (width - len(text)) // 2)
+    return " " * padding + text
+
+
+def line(char: str = "─") -> str:
+    return char * WIDTH
 
 
 def format_main_menu(user: User | None) -> str:
@@ -13,9 +25,11 @@ def format_main_menu(user: User | None) -> str:
     date = datetime.utcnow().strftime("%Y-%m-%d")
 
     return (
-        "╭──────── MAIN MENU ───────╮\n\n"
+        f"╭{line()}╮\n"
+        f"{center('MAIN MENU')}\n"
+        f"╰{line()}╯\n\n"
         f"Welcome, {name}\n"
         f"Date: {date}\n\n"
         "Have a nice day!\n\n"
-        "╰──────────────────────────╯"
+        f"{line()}"
     )
