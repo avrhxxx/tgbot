@@ -70,15 +70,14 @@ def trace(dm: DialogManager, label: str):
 
 
 # =========================
-# UI RENDERER (HYBRID CARD MODE)
+# UI RENDERER (HYBRID CODE MODE)
 # =========================
 
 def build_block(data: dict, sender: str) -> str:
     """
-    Hybrid Telegram UI layout:
-    - structured header
-    - section labels
-    - boxed message via <pre>
+    Hybrid code-style announcement:
+    - full structure inside <pre>
+    - safe HTML escaping avoided (no raw user HTML injection risk here yet)
     - consistent preview/send output
     """
 
@@ -87,15 +86,18 @@ def build_block(data: dict, sender: str) -> str:
 
     return (
         "━━━━━━━━━━━━━━━━━━━━\n"
-        "📣 <b>ANNOUNCEMENT</b>\n"
+        "📣 ANNOUNCEMENT\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        f"<pre><b>Title:</b> {title}\n\n
-        
-        {content}</pre>\n\n"
+        "<pre>\n"
+        f"TITLE:\n{title}\n\n"
+        "--------------------\n\n"
+        f"MESSAGE:\n{content}\n\n"
+        "--------------------\n\n"
+        f"SENT BY:\n{sender}\n"
+        "</pre>\n\n"
 
         "────────────────────\n"
-        f"👤 <b>Sent by:</b> {sender}\n"
         "━━━━━━━━━━━━━━━━━━━━"
     )
 
