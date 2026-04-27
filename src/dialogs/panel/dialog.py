@@ -83,11 +83,10 @@ def build_block(data: dict, sender: str) -> str:
     content = data.get("content") or ""
 
     return (
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "📣 ANNOUNCEMENT\n"
+        "ANNOUNCEMENT\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-        f"🧾 {title}\n\n"
+        f"{title}\n\n"
 
         f"{content}\n\n"
 
