@@ -45,14 +45,24 @@ async def on_title(message: Message, widget, dm: DialogManager):
     dm.dialog_data["title"] = title
     logger.info("[GROUP MESSAGE] title set")
 
-    await dm.switch_to(GroupMessageSG.content)
+    # 🔥 FIX: tryb edycji
+    if dm.dialog_data.get("edit_mode") == "title":
+        dm.dialog_data.pop("edit_mode", None)
+        await dm.switch_to(GroupMessageSG.preview)
+    else:
+        await dm.switch_to(GroupMessageSG.content)
 
 
 async def on_skip(callback: CallbackQuery, button, dm: DialogManager):
     dm.dialog_data["title"] = "Announcement"
     logger.info("[GROUP MESSAGE] title skipped")
 
-    await dm.switch_to(GroupMessageSG.content)
+    # 🔥 FIX: tryb edycji
+    if dm.dialog_data.get("edit_mode") == "title":
+        dm.dialog_data.pop("edit_mode", None)
+        await dm.switch_to(GroupMessageSG.preview)
+    else:
+        await dm.switch_to(GroupMessageSG.content)
 
 
 # =========================
@@ -68,6 +78,10 @@ async def on_content(message: Message, widget, dm: DialogManager):
     dm.dialog_data["content"] = content
     logger.info("[GROUP MESSAGE] content set")
 
+    # 🔥 FIX: tryb edycji
+    if dm.dialog_data.get("edit_mode") == "content":
+        dm.dialog_data.pop("edit_mode", None)
+
     await dm.switch_to(GroupMessageSG.preview)
 
 
@@ -76,10 +90,12 @@ async def on_content(message: Message, widget, dm: DialogManager):
 # =========================
 
 async def edit_title(callback: CallbackQuery, button, dm: DialogManager):
+    dm.dialog_data["edit_mode"] = "title"
     await dm.switch_to(GroupMessageSG.title)
 
 
 async def edit_content(callback: CallbackQuery, button, dm: DialogManager):
+    dm.dialog_data["edit_mode"] = "content"
     await dm.switch_to(GroupMessageSG.content)
 
 
