@@ -44,7 +44,7 @@ def render_group_message(title: str, text: str, sender: str) -> str:
 
 
 # =========================
-# TITLE INPUT
+# TITLE HANDLERS
 # =========================
 
 async def on_title_input(message: Message, widget, dialog_manager: DialogManager):
@@ -60,8 +60,16 @@ async def on_title_input(message: Message, widget, dialog_manager: DialogManager
     await dialog_manager.switch_to(GroupMessageSG.input)
 
 
+async def on_skip_title(callback: CallbackQuery, button, dialog_manager: DialogManager):
+    dialog_manager.dialog_data["title"] = "Announcement"
+
+    logger.info("[GROUP MESSAGE] title skipped")
+
+    await dialog_manager.switch_to(GroupMessageSG.input)
+
+
 # =========================
-# CONTENT INPUT
+# CONTENT HANDLER
 # =========================
 
 async def on_message_input(message: Message, widget, dialog_manager: DialogManager):
@@ -141,17 +149,22 @@ async def preview_getter(dialog_manager: DialogManager, **kwargs):
 
 title_window = Window(
     Const(
-        "Group Message\n"
-        "Enter title (or send empty for default):"
+        "Step 1/2\nEnter title:"
     ),
     MessageInput(on_title_input),
+    Row(
+        Button(
+            Const("Skip"),
+            id="skip_title",
+            on_click=on_skip_title,
+        )
+    ),
     state=GroupMessageSG.title,
 )
 
 input_window = Window(
     Const(
-        "Group Message\n"
-        "Write your message:"
+        "Step 2/2\nWrite your message:"
     ),
     MessageInput(on_message_input),
     state=GroupMessageSG.input,
@@ -166,13 +179,17 @@ preview_window = Window(
         Button(
             Const("Back"),
             id="back",
-            on_click=lambda c, b, m: m.switch_to(GroupMessageSG.input),
+            on_click=lambda c, b, m: m.back(),
         )
     ),
     getter=preview_getter,
     state=GroupMessageSG.preview,
 )
 
+
+# =========================
+# DIALOG
+# =========================
 
 group_message_dialog = Dialog(
     title_window,
