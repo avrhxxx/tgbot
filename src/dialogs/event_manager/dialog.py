@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# EVENT TYPES (fixed set)
+# EVENT TYPES (safe ids)
 # =========================
 
-EVENT_TYPES = [
-    "Arcadian Conquest",
-    "Ghoulion Pursuit",
-    "Reservoir Raid",
-    "KvK",
-    "City Contest",
-]
+EVENT_TYPES = {
+    "arcadian": "Arcadian Conquest",
+    "ghoulion": "Ghoulion Pursuit",
+    "reservoir": "Reservoir Raid",
+    "kvk": "KvK",
+    "city": "City Contest",
+}
 
 
 # =========================
-# DATE GENERATOR (7 days)
+# DATE GENERATOR
 # =========================
 
 def generate_dates(days: int = 7):
@@ -40,8 +40,11 @@ def generate_dates(days: int = 7):
 # =========================
 
 async def on_type_select(callback: CallbackQuery, button, dm: DialogManager):
-    dm.dialog_data["type"] = button.widget_id
-    logger.info(f"[EVENT] type set -> {button.widget_id}")
+    event_key = button.widget_id
+    dm.dialog_data["type"] = EVENT_TYPES.get(event_key)
+
+    logger.info(f"[EVENT] type set -> {event_key}")
+
     await dm.switch_to(EventManagerSG.date)
 
 
@@ -51,7 +54,9 @@ async def on_type_select(callback: CallbackQuery, button, dm: DialogManager):
 
 async def on_date_select(callback: CallbackQuery, button, dm: DialogManager):
     dm.dialog_data["date"] = button.widget_id
+
     logger.info(f"[EVENT] date set -> {button.widget_id}")
+
     await dm.switch_to(EventManagerSG.time)
 
 
@@ -66,6 +71,7 @@ async def on_time_input(message: Message, widget, dm: DialogManager):
         return
 
     dm.dialog_data["time"] = time
+
     logger.info(f"[EVENT] time set -> {time}")
 
     await dm.switch_to(EventManagerSG.description)
@@ -79,6 +85,7 @@ async def on_description(message: Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     dm.dialog_data["description"] = text or None
+
     logger.info("[EVENT] description set")
 
     await dm.switch_to(EventManagerSG.preview)
@@ -86,6 +93,7 @@ async def on_description(message: Message, widget, dm: DialogManager):
 
 async def skip_description(callback: CallbackQuery, button, dm: DialogManager):
     dm.dialog_data["description"] = None
+
     logger.info("[EVENT] description skipped")
 
     await dm.switch_to(EventManagerSG.preview)
@@ -119,13 +127,14 @@ async def on_send(callback: CallbackQuery, button, dm: DialogManager):
         return
 
     text = (
-        f"EVENT\n"
-        f"━━━━━━━━━━━━━━\n"
+        "EVENT\n"
+        "━━━━━━━━━━━━━━\n"
         f"Type: {dm.dialog_data.get('type')}\n"
         f"Date: {dm.dialog_data.get('date')}\n"
         f"Time (UTC): {dm.dialog_data.get('time')}\n\n"
-        f"Description:\n{dm.dialog_data.get('description') or '-'}\n"
-        f"━━━━━━━━━━━━━━"
+        "Description:\n"
+        f"{dm.dialog_data.get('description') or '-'}\n"
+        "━━━━━━━━━━━━━━"
     )
 
     for chat_id in config.access.chat_ids:
@@ -147,8 +156,8 @@ async def on_send(callback: CallbackQuery, button, dm: DialogManager):
 type_window = Window(
     Const("Select event type:"),
     Row(*[
-        Button(Const(t), id=t, on_click=on_type_select)
-        for t in EVENT_TYPES
+        Button(Const(label), id=key, on_click=on_type_select)
+        for key, label in EVENT_TYPES.items()
     ]),
     state=EventManagerSG.type,
 )
