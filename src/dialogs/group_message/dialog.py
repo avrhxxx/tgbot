@@ -86,7 +86,7 @@ async def on_send(callback: CallbackQuery, button, dm: DialogManager):
 
     if not config:
         await callback.answer("Config missing", show_alert=True)
-        logger.error("[GROUP MESSAGE] config missing in middleware")
+        logger.error("[GROUP MESSAGE] config missing")
         return
 
     chat_ids = config.access.chat_ids
@@ -112,10 +112,7 @@ async def on_send(callback: CallbackQuery, button, dm: DialogManager):
 
     await callback.answer("Sent ✔")
 
-    await dm.start(
-        MainMenuSG.main,
-        mode=StartMode.RESET_STACK,
-    )
+    await dm.start(MainMenuSG.main, mode=StartMode.RESET_STACK)
 
 
 # =========================
@@ -170,10 +167,6 @@ preview_window = Window(
     state=GroupMessageSG.preview,
 )
 
-
-# =========================
-# DIALOG
-# =========================
 
 group_message_dialog = Dialog(
     title_window,
