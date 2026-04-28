@@ -17,115 +17,117 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# RENDERER
+# RENDER
 # =========================
 
-def render_group_message(title: str, text: str, sender: str) -> str:
+def render(title: str, content: str, sender: str) -> str:
     return (
         "Group Message\n"
         "━━━━━━━━━━━━━━\n"
         f"<b>{title}</b>\n\n"
         "------\n"
-        f"{text}\n\n"
+        f"{content}\n\n"
         "━━━━━━━━━━━━━━\n"
         f"<i>Author: {sender}</i>"
     )
 
 
 # =========================
-# STEP 1 — TITLE
+# TITLE
 # =========================
 
-async def on_title_input(message: Message, widget, dialog_manager: DialogManager):
+async def on_title(message: Message, widget, dm: DialogManager):
     title = (message.text or "").strip()
 
     if not title:
         return
 
-    dialog_manager.dialog_data["title"] = title
+    dm.dialog_data["title"] = title
     logger.info("[GROUP MESSAGE] title set")
 
-    await dialog_manager.switch_to(GroupMessageSG.content)
+    await dm.switch_to(GroupMessageSG.content)
 
 
-async def on_skip_title(callback: CallbackQuery, button, dialog_manager: DialogManager):
-    dialog_manager.dialog_data["title"] = "Announcement"
+async def on_skip(callback: CallbackQuery, button, dm: DialogManager):
+    dm.dialog_data["title"] = "Announcement"
     logger.info("[GROUP MESSAGE] title skipped")
 
-    await dialog_manager.switch_to(GroupMessageSG.content)
+    await dm.switch_to(GroupMessageSG.content)
 
 
 # =========================
-# STEP 2 — CONTENT
+# CONTENT
 # =========================
 
-async def on_content_input(message: Message, widget, dialog_manager: DialogManager):
-    text = (message.text or "").strip()
+async def on_content(message: Message, widget, dm: DialogManager):
+    content = (message.text or "").strip()
 
-    if not text:
+    if not content:
         return
 
-    dialog_manager.dialog_data["text"] = text
+    dm.dialog_data["content"] = content
     logger.info("[GROUP MESSAGE] content set")
 
-    await dialog_manager.switch_to(GroupMessageSG.preview)
+    await dm.switch_to(GroupMessageSG.preview)
 
 
 # =========================
-# SEND HANDLER
+# EDIT FROM PREVIEW
 # =========================
 
-async def on_send(callback: CallbackQuery, button, dialog_manager: DialogManager):
-    data = dialog_manager.dialog_data
+async def edit_title(callback: CallbackQuery, button, dm: DialogManager):
+    await dm.switch_to(GroupMessageSG.title)
 
-    title = data.get("title", "Announcement")
-    text = data.get("text", "")
 
-    config = dialog_manager.middleware_data.get("config")
-    bot = dialog_manager.middleware_data.get("bot")
+async def edit_content(callback: CallbackQuery, button, dm: DialogManager):
+    await dm.switch_to(GroupMessageSG.content)
+
+
+# =========================
+# SEND
+# =========================
+
+async def on_send(callback: CallbackQuery, button, dm: DialogManager):
+    config = dm.middleware_data.get("config")
+    bot = dm.middleware_data.get("bot")
+
+    if not config or not bot:
+        await callback.answer("Config/Bot missing", show_alert=True)
+        return
+
+    title = dm.dialog_data.get("title", "Announcement")
+    content = dm.dialog_data.get("content", "")
 
     user = callback.from_user
     sender = user.full_name if user else "unknown"
 
-    message_text = render_group_message(title, text, sender)
-
-    if not config or not bot:
-        await callback.answer("Config or bot missing", show_alert=True)
-        logger.error("[GROUP MESSAGE] missing config/bot")
-        return
+    text = render(title, content, sender)
 
     for chat_id in config.access.chat_ids:
         try:
-            await bot.send_message(chat_id, message_text, parse_mode="HTML")
+            await bot.send_message(chat_id, text, parse_mode="HTML")
         except Exception as e:
             logger.error(f"[GROUP MESSAGE] send failed -> {chat_id}: {e}")
 
-    logger.info("[GROUP MESSAGE] sent to all chats")
-
     await callback.answer("Sent ✔")
 
-    await dialog_manager.start(
-        MainMenuSG.main,
-        mode=StartMode.RESET_STACK,
-    )
+    await dm.start(MainMenuSG.main, mode=StartMode.RESET_STACK)
 
 
 # =========================
-# GETTER (FIXED!)
+# GETTER
 # =========================
 
 async def preview_getter(dialog_manager: DialogManager, **kwargs):
-    data = dialog_manager.dialog_data
-
-    title = data.get("title", "Announcement")
-    text = data.get("text", "")
+    title = dialog_manager.dialog_data.get("title", "Announcement")
+    content = dialog_manager.dialog_data.get("content", "")
 
     event = dialog_manager.event
     user = getattr(event, "from_user", None)
     sender = user.full_name if user else "unknown"
 
     return {
-        "preview": render_group_message(title, text, sender)
+        "preview": render(title, content, sender)
     }
 
 
@@ -134,46 +136,39 @@ async def preview_getter(dialog_manager: DialogManager, **kwargs):
 # =========================
 
 title_window = Window(
-    Const(
-        "Group Message\n\n"
-        "Enter title (or skip):"
-    ),
-    MessageInput(on_title_input),
+    Const("Enter title (or skip):"),
+    MessageInput(on_title),
     Row(
-        Button(Const("Skip"), id="skip_title", on_click=on_skip_title),
+        Button(Const("Skip"), id="skip", on_click=on_skip),
     ),
     state=GroupMessageSG.title,
 )
 
 content_window = Window(
-    Const(
-        "Group Message\n\n"
-        "Enter message content:"
+    Const("Enter message content:"),
+    MessageInput(on_content),
+    Row(
+        Button(Const("Back"), id="back", on_click=lambda c, b, m: m.back()),
     ),
-    MessageInput(on_content_input),
     state=GroupMessageSG.content,
 )
 
 preview_window = Window(
     Format("{preview}"),
     Row(
+        Button(Const("Edit title"), id="edit_title", on_click=edit_title),
+        Button(Const("Edit text"), id="edit_text", on_click=edit_content),
+    ),
+    Row(
         Button(Const("Send"), id="send", on_click=on_send),
     ),
     Row(
-        Button(
-            Const("Back"),
-            id="back",
-            on_click=lambda c, b, m: m.switch_to(GroupMessageSG.content),
-        )
+        Button(Const("Back"), id="back", on_click=lambda c, b, m: m.back()),
     ),
     getter=preview_getter,
     state=GroupMessageSG.preview,
 )
 
-
-# =========================
-# DIALOG
-# =========================
 
 group_message_dialog = Dialog(
     title_window,
