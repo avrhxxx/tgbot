@@ -8,13 +8,13 @@ import logging
 from datetime import datetime
 
 from aiogram.types import Message, CallbackQuery, User
-
 from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
 
 from src.dialogs.main_menu.states import MainMenuSG
 from src.dialogs.group_message.states import GroupMessageSG
+from src.dialogs.event_manager.states import EventManagerSG
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,16 @@ async def go_group_message(callback: CallbackQuery, button, dialog_manager: Dial
 
     await dialog_manager.start(
         GroupMessageSG.title,
-        mode=StartMode.RESET_STACK,  # czyści stack → nowy flow jak wizard
+        mode=StartMode.RESET_STACK,
+    )
+
+
+async def go_event_manager(callback: CallbackQuery, button, dialog_manager: DialogManager):
+    logger.info("➡️ Navigate: Event Manager")
+
+    await dialog_manager.start(
+        EventManagerSG.type,
+        mode=StartMode.RESET_STACK,
     )
 
 
@@ -82,7 +91,7 @@ main_menu_window = Window(
         Button(
             Const("📅 Event Manager"),
             id="events",
-            on_click=lambda c, b, m: c.answer("🚧 Not implemented"),
+            on_click=go_event_manager,
         )
     ),
     Row(
