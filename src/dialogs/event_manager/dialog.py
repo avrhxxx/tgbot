@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# EVENT TYPES (safe ids)
+# EVENT TYPES (fixed set)
 # =========================
 
-EVENT_TYPES = {
-    "arcadian": "Arcadian Conquest",
-    "ghoulion": "Ghoulion Pursuit",
-    "reservoir": "Reservoir Raid",
-    "kvk": "KvK",
-    "city": "City Contest",
-}
+EVENT_TYPES = [
+    "Arcadian Conquest",
+    "Ghoulion Pursuit",
+    "Reservoir Raid",
+    "KvK",
+    "City Contest",
+]
 
 
 # =========================
-# DATE GENERATOR
+# DATE GENERATOR (7 days)
 # =========================
 
 def generate_dates(days: int = 7):
@@ -40,10 +40,11 @@ def generate_dates(days: int = 7):
 # =========================
 
 async def on_type_select(callback: CallbackQuery, button, dm: DialogManager):
-    key = button.widget_id
-    dm.dialog_data["type"] = EVENT_TYPES.get(key)
+    index = int(button.widget_id.replace("t", ""))
+    selected = EVENT_TYPES[index]
 
-    logger.info(f"[EVENT] type set -> {key}")
+    dm.dialog_data["type"] = selected
+    logger.info(f"[EVENT] type set -> {selected}")
 
     await dm.switch_to(EventManagerSG.date)
 
@@ -53,12 +54,12 @@ async def on_type_select(callback: CallbackQuery, button, dm: DialogManager):
 # =========================
 
 async def on_date_select(callback: CallbackQuery, button, dm: DialogManager):
-    date_map = dm.dialog_data.get("date_map", {})
+    dates = generate_dates(7)
 
-    selected = date_map.get(button.widget_id)
+    index = int(button.widget_id.replace("d", ""))
+    selected = dates[index]
 
     dm.dialog_data["date"] = selected
-
     logger.info(f"[EVENT] date set -> {selected}")
 
     await dm.switch_to(EventManagerSG.time)
@@ -75,7 +76,6 @@ async def on_time_input(message: Message, widget, dm: DialogManager):
         return
 
     dm.dialog_data["time"] = time
-
     logger.info(f"[EVENT] time set -> {time}")
 
     await dm.switch_to(EventManagerSG.description)
@@ -89,7 +89,6 @@ async def on_description(message: Message, widget, dm: DialogManager):
     text = (message.text or "").strip()
 
     dm.dialog_data["description"] = text or None
-
     logger.info("[EVENT] description set")
 
     await dm.switch_to(EventManagerSG.preview)
@@ -97,26 +96,9 @@ async def on_description(message: Message, widget, dm: DialogManager):
 
 async def skip_description(callback: CallbackQuery, button, dm: DialogManager):
     dm.dialog_data["description"] = None
-
     logger.info("[EVENT] description skipped")
 
     await dm.switch_to(EventManagerSG.preview)
-
-
-# =========================
-# DATE GETTER (IMPORTANT)
-# =========================
-
-async def date_getter(dialog_manager: DialogManager, **kwargs):
-    dates = generate_dates(7)
-
-    date_map = {f"d{i}": d for i, d in enumerate(dates)}
-
-    dialog_manager.dialog_data["date_map"] = date_map
-
-    return {
-        "dates": [(k, v) for k, v in date_map.items()]
-    }
 
 
 # =========================
@@ -147,14 +129,13 @@ async def on_send(callback: CallbackQuery, button, dm: DialogManager):
         return
 
     text = (
-        "EVENT\n"
-        "━━━━━━━━━━━━━━\n"
+        f"EVENT\n"
+        f"━━━━━━━━━━━━━━\n"
         f"Type: {dm.dialog_data.get('type')}\n"
         f"Date: {dm.dialog_data.get('date')}\n"
         f"Time (UTC): {dm.dialog_data.get('time')}\n\n"
-        "Description:\n"
-        f"{dm.dialog_data.get('description') or '-'}\n"
-        "━━━━━━━━━━━━━━"
+        f"Description:\n{dm.dialog_data.get('description') or '-'}\n"
+        f"━━━━━━━━━━━━━━"
     )
 
     for chat_id in config.access.chat_ids:
@@ -169,26 +150,40 @@ async def on_send(callback: CallbackQuery, button, dm: DialogManager):
 
 
 # =========================
+# BUILD BUTTONS
+# =========================
+
+def build_type_buttons():
+    return Row(*[
+        Button(Const(t), id=f"t{i}", on_click=on_type_select)
+        for i, t in enumerate(EVENT_TYPES)
+    ])
+
+
+def build_date_buttons():
+    dates = generate_dates(7)
+
+    return Row(*[
+        Button(Const(d), id=f"d{i}", on_click=on_date_select)
+        for i, d in enumerate(dates)
+    ])
+
+
+# =========================
 # WINDOWS
 # =========================
 
 # -------- TYPE --------
 type_window = Window(
     Const("Select event type:"),
-    Row(*[
-        Button(Const(label), id=key, on_click=on_type_select)
-        for key, label in EVENT_TYPES.items()
-    ]),
+    build_type_buttons(),
     state=EventManagerSG.type,
 )
 
 # -------- DATE --------
 date_window = Window(
     Const("Select date (next 7 days):"),
-    Row(*[
-        Button(Format("{item[1]}"), id="{item[0]}", on_click=on_date_select)
-    ]),
-    getter=date_getter,
+    build_date_buttons(),
     state=EventManagerSG.date,
 )
 
