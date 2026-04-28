@@ -40,10 +40,10 @@ def generate_dates(days: int = 7):
 # =========================
 
 async def on_type_select(callback: CallbackQuery, button, dm: DialogManager):
-    event_key = button.widget_id
-    dm.dialog_data["type"] = EVENT_TYPES.get(event_key)
+    key = button.widget_id
+    dm.dialog_data["type"] = EVENT_TYPES.get(key)
 
-    logger.info(f"[EVENT] type set -> {event_key}")
+    logger.info(f"[EVENT] type set -> {key}")
 
     await dm.switch_to(EventManagerSG.date)
 
@@ -53,9 +53,13 @@ async def on_type_select(callback: CallbackQuery, button, dm: DialogManager):
 # =========================
 
 async def on_date_select(callback: CallbackQuery, button, dm: DialogManager):
-    dm.dialog_data["date"] = button.widget_id
+    date_map = dm.dialog_data.get("date_map", {})
 
-    logger.info(f"[EVENT] date set -> {button.widget_id}")
+    selected = date_map.get(button.widget_id)
+
+    dm.dialog_data["date"] = selected
+
+    logger.info(f"[EVENT] date set -> {selected}")
 
     await dm.switch_to(EventManagerSG.time)
 
@@ -97,6 +101,22 @@ async def skip_description(callback: CallbackQuery, button, dm: DialogManager):
     logger.info("[EVENT] description skipped")
 
     await dm.switch_to(EventManagerSG.preview)
+
+
+# =========================
+# DATE GETTER (IMPORTANT)
+# =========================
+
+async def date_getter(dialog_manager: DialogManager, **kwargs):
+    dates = generate_dates(7)
+
+    date_map = {f"d{i}": d for i, d in enumerate(dates)}
+
+    dialog_manager.dialog_data["date_map"] = date_map
+
+    return {
+        "dates": [(k, v) for k, v in date_map.items()]
+    }
 
 
 # =========================
@@ -166,9 +186,9 @@ type_window = Window(
 date_window = Window(
     Const("Select date (next 7 days):"),
     Row(*[
-        Button(Const(d), id=d, on_click=on_date_select)
-        for d in generate_dates(7)
+        Button(Format("{item[1]}"), id="{item[0]}", on_click=on_date_select)
     ]),
+    getter=date_getter,
     state=EventManagerSG.date,
 )
 
