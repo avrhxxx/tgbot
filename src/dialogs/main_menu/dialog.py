@@ -9,7 +9,7 @@ from datetime import datetime
 
 from aiogram.types import Message, CallbackQuery, User
 
-from aiogram_dialog import Dialog, Window, DialogManager
+from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 from aiogram_dialog.widgets.text import Const, Format
 from aiogram_dialog.widgets.kbd import Button, Row
 
@@ -51,11 +51,12 @@ async def main_menu_getter(dialog_manager: DialogManager, **kwargs):
 # HANDLERS
 # =========================
 
-async def go_group_message(callback, button, dialog_manager: DialogManager):
+async def go_group_message(callback: CallbackQuery, button, dialog_manager: DialogManager):
     logger.info("➡️ Navigate: Group Message")
 
     await dialog_manager.start(
-        GroupMessageSG.input
+        GroupMessageSG.title,
+        mode=StartMode.RESET_STACK,  # czyści stack → nowy flow jak wizard
     )
 
 
