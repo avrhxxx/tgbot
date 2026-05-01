@@ -1,6 +1,6 @@
 # src/config/config.py
 # GROUP: config
-# DESCRIPTION: MVP config for AI Wiki Bot (Telegram + Vertex AI + Firestore)
+# DESCRIPTION: MVP config for AI Wiki Bot (Telegram + Vertex AI + Google Search + Firestore)
 
 import json
 from dataclasses import dataclass
@@ -30,12 +30,23 @@ class GeminiConfig:
 
 
 # =========================
+# GOOGLE SEARCH (NEW 🔥)
+# =========================
+
+@dataclass
+class GoogleSearchConfig:
+    api_key: str | None
+    cx: str | None
+
+
+# =========================
 # GOOGLE (VERTEX + SERVICES)
 # =========================
 
 @dataclass
 class GoogleConfig:
     service_account: dict[str, Any] | None
+    search: GoogleSearchConfig
 
 
 # =========================
@@ -90,6 +101,10 @@ def load_config() -> Config:
         google=GoogleConfig(
             service_account=_parse_json(
                 getenv("GOOGLE_SERVICE_ACCOUNT", default=None)
+            ),
+            search=GoogleSearchConfig(
+                api_key=getenv("GOOGLE_SEARCH_API_KEY", default=None),
+                cx=getenv("GOOGLE_SEARCH_CX", default=None),
             ),
         ),
     )
