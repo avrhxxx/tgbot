@@ -1,6 +1,6 @@
 # src/ai/gemini.py
 # GROUP: ai
-# DESCRIPTION: Vertex AI Gemini client for Wiki Bot (production LLM layer)
+# DESCRIPTION: Vertex AI Gemini client (production-safe + correct auth + non-blocking wrapper)
 
 import logging
 from typing import Any
@@ -8,12 +8,9 @@ from typing import Any
 import vertexai
 from vertexai.generative_models import GenerativeModel
 
-from src.config.config import load_config
 from src.google.auth import load_service_account
 
 logger = logging.getLogger("ai.gemini")
-
-config = load_config()
 
 
 # =========================
@@ -31,23 +28,25 @@ class GeminiClient:
         # =========================
         self.credentials = load_service_account()
 
+        project_id = self.credentials.project_id
+
         # =========================
         # INIT VERTEX AI
         # =========================
         vertexai.init(
-            project=config.google.service_account.get("project_id"),
+            project=project_id,
             location="us-central1",
             credentials=self.credentials,
         )
 
         # =========================
-        # MODEL (VERTEX VERSION)
+        # MODEL
         # =========================
         self.model = GenerativeModel("gemini-1.5-pro")
 
-    async def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str) -> str:
         """
-        Sends prompt to Vertex AI Gemini and returns response text.
+        Synchronous Vertex call (wrapped safely by async layer outside).
         """
 
         logger.info("Sending request to Vertex AI Gemini")
