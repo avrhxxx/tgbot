@@ -1,14 +1,15 @@
 # src/ai/gemini.py
 # GROUP: ai
-# DESCRIPTION: Gemini AI client for Wiki Bot (core LLM layer)
+# DESCRIPTION: Vertex AI Gemini client for Wiki Bot (production LLM layer)
 
 import logging
 from typing import Any
 
-import aiohttp
-from aiohttp import ClientTimeout
+import vertexai
+from vertexai.generative_models import GenerativeModel
 
 from src.config.config import load_config
+from src.google.auth import load_service_account
 
 logger = logging.getLogger("ai.gemini")
 
@@ -16,90 +17,57 @@ config = load_config()
 
 
 # =========================
-# GEMINI CLIENT
+# GEMINI CLIENT (VERTEX AI)
 # =========================
 
 class GeminiClient:
     """
-    Minimal async Gemini client (REST API).
+    Production Vertex AI Gemini client (Google Cloud authenticated).
     """
 
     def __init__(self):
-        self.api_key = config.gemini.api_key
+        # =========================
+        # LOAD SERVICE ACCOUNT
+        # =========================
+        self.credentials = load_service_account()
 
-        # Base endpoint for Gemini API
-        self.base_url = "https://generativelanguage.googleapis.com/v1beta/"
+        # =========================
+        # INIT VERTEX AI
+        # =========================
+        vertexai.init(
+            project=config.google.service_account.get("project_id"),
+            location="us-central1",
+            credentials=self.credentials,
+        )
 
-        # Stable model (Railway-safe choice)
-        self.model = "models/gemini-2.5-flash"
+        # =========================
+        # MODEL (VERTEX VERSION)
+        # =========================
+        self.model = GenerativeModel("gemini-1.5-pro")
 
     async def generate(self, prompt: str) -> str:
         """
-        Sends prompt to Gemini and returns response text.
+        Sends prompt to Vertex AI Gemini and returns response text.
         """
 
-        if not self.api_key:
-            raise RuntimeError("GEMINI_API_KEY is missing")
+        logger.info("Sending request to Vertex AI Gemini")
 
-        # =========================
-        # BUILD REQUEST URL
-        # =========================
-        url = (
-            f"{self.base_url}"
-            f"{self.model}:generateContent?key={self.api_key}"
-        )
+        try:
+            response = self.model.generate_content(prompt)
 
-        payload: dict[str, Any] = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": prompt}
-                    ]
-                }
-            ]
-        }
+            text = getattr(response, "text", None)
 
-        timeout = ClientTimeout(total=30)
+            if not text:
+                logger.error("Empty Vertex response")
+                return "Error: empty AI response"
 
-        logger.info("Sending request to Gemini")
+            logger.info("Vertex AI response received")
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                json=payload,
-                timeout=timeout
-            ) as resp:
+            return str(text)
 
-                data: dict[str, Any] = await resp.json()
-
-                # =========================
-                # DEBUG RESPONSE
-                # =========================
-                logger.info("Gemini raw response: %s", data)
-
-                # =========================
-                # API ERROR HANDLING
-                # =========================
-                if "error" in data:
-                    logger.error("Gemini API error: %s", data["error"])
-                    return (
-                        f"AI error: "
-                        f"{data['error'].get('message', 'unknown')}"
-                    )
-
-                # =========================
-                # PARSE RESPONSE
-                # =========================
-                try:
-                    text = (
-                        data["candidates"][0]
-                        ["content"]["parts"][0]["text"]
-                    )
-                    return str(text)
-
-                except Exception:
-                    logger.exception("Invalid Gemini response format")
-                    return "Error: invalid AI response"
+        except Exception as e:
+            logger.exception("Vertex AI error: %s", e)
+            return f"AI error: {str(e)}"
 
 
 # =========================
