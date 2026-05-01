@@ -3,6 +3,8 @@
 # DESCRIPTION: Wikipedia API client (free + stable knowledge source for RAG)
 
 import logging
+from typing import Any, cast
+
 import aiohttp
 
 logger = logging.getLogger("wiki.wikipedia")
@@ -10,11 +12,11 @@ logger = logging.getLogger("wiki.wikipedia")
 WIKI_API_URL = "https://en.wikipedia.org/w/api.php"
 
 
-def _extract_summary(data: dict) -> str:
+def _extract_summary(data: dict[str, Any]) -> str:
     """
-    Extracts clean summary from Wikipedia REST response.
+    Extracts clean summary from Wikipedia response.
     """
-    return data.get("extract", "").strip()
+    return str(data.get("extract", "")).strip()
 
 
 async def fetch_wikipedia(query: str) -> list[str]:
@@ -23,28 +25,32 @@ async def fetch_wikipedia(query: str) -> list[str]:
     Returns structured snippets for RAG context.
     """
 
-    params = {
+    params: dict[str, str | int] = {
         "action": "query",
         "format": "json",
         "prop": "extracts",
-        "exintro": True,
-        "explaintext": True,
+        "exintro": 1,
+        "explaintext": 1,
         "redirects": 1,
         "titles": query,
     }
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(WIKI_API_URL, params=params) as resp:
+            async with session.get(
+                WIKI_API_URL,
+                params=cast(dict[str, str | int], params),
+            ) as resp:
+
                 if resp.status != 200:
                     logger.warning("Wikipedia HTTP error: %s", resp.status)
                     return []
 
-                data = await resp.json()
+                data: dict[str, Any] = await resp.json()
 
         pages = data.get("query", {}).get("pages", {})
 
-        results = []
+        results: list[str] = []
 
         for page in pages.values():
             text = _extract_summary(page)
