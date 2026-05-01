@@ -1,11 +1,9 @@
 # src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: Weighted knowledge aggregator v2 (Reddit + Fandom + Search → normalized AI context)
+# DESCRIPTION: Knowledge aggregator v3 (Google Search only → clean RAG context)
 
 import logging
 
-from src.wiki.knowledge.reddit_client import search_reddit
-from src.wiki.knowledge.fandom_client import fetch_fandom_page
 from src.wiki.knowledge.google_client import google_search
 
 logger = logging.getLogger("wiki.aggregator")
@@ -31,23 +29,6 @@ def _dedup(items: list[str]) -> list[str]:
     return out
 
 
-def _split_fandom(text: str) -> list[str]:
-    """
-    Converts raw fandom text into structured lines.
-    """
-    if not text:
-        return []
-
-    # FIX: avoid ambiguous variable name (ruff E741)
-    lines = [
-        line.strip()
-        for line in text.split("\n")
-        if len(line.strip()) > 40
-    ]
-
-    return lines
-
-
 def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
     """
     Clean formatting + safe truncation for LLM context.
@@ -71,49 +52,33 @@ def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
 
 async def build_knowledge_context(query: str) -> str:
     """
-    Builds normalized, structured context for Gemini RAG.
+    Builds normalized context using Google Search only.
     """
 
     logger.info("Building knowledge context for: %s", query)
 
     # =========================
-    # FETCH SOURCES
+    # FETCH (ONLY GOOGLE)
     # =========================
-    reddit_raw = await search_reddit(query)
-    fandom_raw = await fetch_fandom_page(query)
     search_raw = await google_search(query)
 
     # =========================
     # NORMALIZATION
     # =========================
-    reddit_data = _dedup(reddit_raw)
-    fandom_data = _dedup(_split_fandom(fandom_raw))
     search_data = _dedup(search_raw)
 
     parts = []
 
     # =========================
-    # FANDOM (HIGH TRUST)
-    # =========================
-    if fandom_data:
-        parts.append(
-            _format_block("FANDOM WIKI (HIGH TRUST)", fandom_data, max_items=5)
-        )
-
-    # =========================
-    # REDDIT (COMMUNITY SIGNAL)
-    # =========================
-    if reddit_data:
-        parts.append(
-            _format_block("REDDIT COMMUNITY INSIGHTS", reddit_data, max_items=5)
-        )
-
-    # =========================
-    # SEARCH (LOWER TRUST)
+    # SEARCH (PRIMARY SOURCE)
     # =========================
     if search_data:
         parts.append(
-            _format_block("WEB SEARCH SNIPPETS (LOW TRUST)", search_data, max_items=5)
+            _format_block(
+                "WEB SEARCH (GOOGLE - PRIMARY SOURCE)",
+                search_data,
+                max_items=5,
+            )
         )
 
     final_context = "\n\n".join(parts).strip()
