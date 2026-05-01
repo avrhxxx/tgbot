@@ -1,10 +1,33 @@
+# =========================
+# TELEGRAM BOT
+# =========================
 aiogram>=3.4.1
 aiogram-dialog>=2.1.0
 
+# =========================
+# CONFIG / TYPES
+# =========================
 pydantic>=2.5
 pydantic-settings>=2.2
 
+# =========================
+# CACHE / UTIL
+# =========================
 cachetools>=5.3.0
 
+# =========================
+# HTTP CLIENT
+# =========================
+aiohttp>=3.9.0
+
+# =========================
+# GOOGLE CLOUD (VERTEX + AUTH)
+# =========================
+google-cloud-aiplatform>=1.38.0
+google-auth>=2.25.0
+
+# =========================
+# LINT / TYPE CHECK (DEV ONLY)
+# =========================
 ruff
 mypy
