@@ -3,7 +3,10 @@
 # DESCRIPTION: Gemini AI client for Wiki Bot (core LLM layer)
 
 import logging
+from typing import Any
+
 import aiohttp
+from aiohttp import ClientTimeout
 
 from src.config.config import load_config
 
@@ -40,7 +43,7 @@ class GeminiClient:
             f"gemini-1.5-flash:generateContent?key={self.api_key}"
         )
 
-        payload = {
+        payload: dict[str, Any] = {
             "contents": [
                 {
                     "parts": [
@@ -50,16 +53,26 @@ class GeminiClient:
             ]
         }
 
+        timeout = ClientTimeout(total=30)
+
         logger.info("Sending request to Gemini")
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, timeout=30) as resp:
-                data = await resp.json()
+            async with session.post(
+                url,
+                json=payload,
+                timeout=timeout
+            ) as resp:
+
+                data: dict[str, Any] = await resp.json()
 
                 try:
-                    return (
-                        data["candidates"][0]["content"]["parts"][0]["text"]
+                    text = (
+                        data["candidates"][0]
+                        ["content"]["parts"][0]["text"]
                     )
+                    return str(text)
+
                 except Exception:
                     logger.exception("Invalid Gemini response format")
                     return "Error: invalid AI response"
