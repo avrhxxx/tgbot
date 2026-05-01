@@ -41,7 +41,7 @@ class GeminiClient:
         # =========================
         # MODEL
         # =========================
-        self.model = GenerativeModel("gemini-1.5-pro")
+        self.model = GenerativeModel("gemini-1.5-flash")
 
     def generate(self, prompt: str) -> str:
         """
