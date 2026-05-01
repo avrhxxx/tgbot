@@ -1,31 +1,43 @@
 # src/google/auth.py
 # GROUP: google
-# DESCRIPTION: Central Google Service Account auth (Vertex + Firebase + Sheets ready)
+# DESCRIPTION: Vertex-compatible auth (ADC-first, SA fallback)
 
 import json
 import logging
 import os
+
 from google.oauth2 import service_account
+from google.auth import default
 
 logger = logging.getLogger("google.auth")
 
 SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
-    "https://www.googleapis.com/auth/datastore",
-    "https://www.googleapis.com/auth/spreadsheets",
 ]
 
 
 def load_service_account():
     """
-    Central Google auth (used by Vertex, Firestore, Sheets).
+    Vertex-safe authentication loader.
+
+    Priority:
+    1. ADC (best for Vertex)
+    2. Service Account JSON (fallback)
     """
 
     raw = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
+    # =========================
+    # 1. ADC MODE (VERTEX BEST PRACTICE)
+    # =========================
     if not raw:
-        raise RuntimeError("GOOGLE_SERVICE_ACCOUNT not provided")
+        logger.info("Using ADC authentication (recommended for Vertex)")
+        creds, _ = default(scopes=SCOPES)
+        return creds
 
+    # =========================
+    # 2. SERVICE ACCOUNT FALLBACK
+    # =========================
     try:
         data = json.loads(raw)
 
@@ -39,7 +51,6 @@ def load_service_account():
     if missing:
         raise RuntimeError(f"Missing fields in service account: {missing}")
 
-    # normalize key
     data["private_key"] = data["private_key"].replace("\\n", "\n")
 
     credentials = service_account.Credentials.from_service_account_info(
@@ -47,6 +58,6 @@ def load_service_account():
         scopes=SCOPES,
     )
 
-    logger.info("Google SA loaded: %s", data["client_email"])
+    logger.info("Using Service Account auth: %s", data["client_email"])
 
     return credentials
