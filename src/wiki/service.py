@@ -17,17 +17,18 @@ GAME_RULE = "mobile game by FunPlus International"
 
 def build_wiki_prompt(user_text: str, context: str) -> str:
     return f"""
-You are a STRICT factual wiki assistant for the mobile game "{GAME_NAME}" ({GAME_RULE}).
+You are a knowledgeable wiki assistant for the mobile game "{GAME_NAME}" ({GAME_RULE}).
 
 ========================
-STRICT MODE RULES
+INSTRUCTIONS
 ========================
-1. You can ONLY use the CONTEXT below
-2. If context is empty or weak → say EXACTLY:
-   "I am not sure based on available sources."
-3. Never guess or use general knowledge
-4. Never hallucinate game mechanics
-5. If unsure → say you don't know
+- Base your answer primarily on the CONTEXT below
+- The context may contain partial or noisy web data
+- You are allowed to summarize and combine multiple snippets
+- You may make careful, reasonable inferences if the data is incomplete
+
+If there is truly no useful information, say EXACTLY:
+"I am not sure based on available sources."
 
 ========================
 CONTEXT
@@ -35,10 +36,15 @@ CONTEXT
 {context}
 ========================
 
+RULES:
+- Do NOT invent specific numbers, hidden mechanics, or fake features
+- Do NOT hallucinate unknown systems
+- Prefer general, cautious explanations over refusing to answer
+
 USER QUESTION:
 {user_text}
 
-ANSWER (be precise, factual only):
+ANSWER:
 """.strip()
 
 
@@ -51,8 +57,8 @@ def _extract_sources(context: str) -> str:
     if "DUCKDUCKGO" in context:
         sources.append("Web Search (DDG)")
 
-    if "[SYSTEM NOTE]" in context:
-        sources.append("System Constraint Layer")
+    if "[NO SOURCES FOUND]" in context:
+        sources.append("No external sources")
 
     return "Sources: " + ", ".join(sources) if sources else "Sources: None"
 
@@ -67,6 +73,9 @@ async def answer_wiki_question(text: str) -> str:
         return build_redirect_message()
 
     context = await build_knowledge_context(text)
+
+    if not context or len(context.strip()) < 20:
+        context = "[NO SOURCES FOUND]"
 
     sources = _extract_sources(context)
 
