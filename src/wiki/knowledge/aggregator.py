@@ -1,17 +1,14 @@
 # src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: Knowledge aggregator v3 (Google Search only → clean RAG context)
+# DESCRIPTION: RAG aggregator v5 (Wikipedia + DDG only, no paid APIs)
 
 import logging
 
-from src.wiki.knowledge.google_client import google_search
+from src.wiki.knowledge.wikipedia_client import fetch_wikipedia
+from src.wiki.knowledge.ddg_client import search_ddg
 
 logger = logging.getLogger("wiki.aggregator")
 
-
-# =========================
-# HELPERS
-# =========================
 
 def _dedup(items: list[str]) -> list[str]:
     seen = set()
@@ -26,51 +23,50 @@ def _dedup(items: list[str]) -> list[str]:
     return out
 
 
-def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
+def _format_block(title: str, items: list[str]) -> str:
     if not items:
         return ""
 
-    trimmed = items[:max_items]
-
     lines = [f"[{title}]"]
 
-    for item in trimmed:
+    for item in items[:5]:
         lines.append(f"- {item}")
 
     return "\n".join(lines)
 
 
-# =========================
-# MAIN AGGREGATOR
-# =========================
-
 async def build_knowledge_context(query: str) -> str:
+
     logger.info("Building knowledge context for: %s", query)
 
-    search_raw = await google_search(query)
-    search_data = _dedup(search_raw)
+    # =========================
+    # SOURCES
+    # =========================
+    wiki_raw = await fetch_wikipedia(query)
+    ddg_raw = await search_ddg(query)
+
+    wiki = _dedup(wiki_raw)
+    ddg = _dedup(ddg_raw)
 
     parts = []
 
     # =========================
-    # SEARCH BLOCK
+    # WIKIPEDIA (HIGH TRUST)
     # =========================
-    if search_data:
-        parts.append(
-            _format_block(
-                "WEB SEARCH (GOOGLE - PRIMARY SOURCE)",
-                search_data,
-                max_items=5,
-            )
-        )
-    else:
-        # 🔥 IMPORTANT: controlled fallback (prevents "dead context")
-        parts.append(
-            "[WEB SEARCH (GOOGLE)]\n- No relevant results found, answer with general knowledge but clearly mark uncertainty"
-        )
+    if wiki:
+        parts.append(_format_block("WIKIPEDIA (HIGH TRUST)", wiki))
 
-    final_context = "\n\n".join(parts).strip()
+    # =========================
+    # DDG (WEB SIGNAL)
+    # =========================
+    if ddg:
+        parts.append(_format_block("WEB SEARCH (DUCKDUCKGO)", ddg))
 
-    logger.info("Context built length: %s", len(final_context))
+    if not parts:
+        parts.append("[NO SOURCES FOUND]")
 
-    return final_context
+    final = "\n\n".join(parts).strip()
+
+    logger.info("Context built length: %s", len(final))
+
+    return final
