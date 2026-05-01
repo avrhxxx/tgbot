@@ -4,7 +4,6 @@
 
 import asyncio
 import logging
-import aiohttp
 
 from aiogram import Bot, Dispatcher
 
@@ -18,33 +17,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bootstrap")
 
 
-# =========================
-# 🔥 DEBUG GEMINI MODELS
-# =========================
-async def debug_list_models(api_key: str):
-    try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                data = await resp.json()
-
-                logger.info("====================================")
-                logger.info("🔍 GEMINI AVAILABLE MODELS:")
-                logger.info(data)
-                logger.info("====================================")
-
-    except Exception as e:
-        logger.exception("Failed to fetch Gemini models: %s", e)
-
-
 async def main():
     config = load_config()
-
-    # =========================
-    # 🔥 DEBUG CALL (TEMP)
-    # =========================
-    await debug_list_models(config.gemini.api_key)
 
     # =========================
     # BOT + DISPATCHER
