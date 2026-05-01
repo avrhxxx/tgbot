@@ -1,6 +1,6 @@
 # src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: Weighted knowledge aggregator (Reddit + Fandom + Search → structured AI context)
+# DESCRIPTION: Weighted knowledge aggregator v2 (Reddit + Fandom + Search → normalized AI context)
 
 import logging
 
@@ -10,22 +10,42 @@ from src.wiki.knowledge.google_client import google_search
 
 logger = logging.getLogger("wiki.aggregator")
 
+
 # =========================
-# WEIGHT CONFIG
+# HELPERS
 # =========================
 
-WEIGHTS = {
-    "fandom": 3,
-    "reddit": 2,
-    "search": 1
-}
+def _dedup(items: list[str]) -> list[str]:
+    """
+    Removes duplicate strings while preserving order.
+    """
+    seen = set()
+    out = []
+
+    for item in items:
+        clean = item.strip()
+        if clean and clean not in seen:
+            seen.add(clean)
+            out.append(clean)
+
+    return out
+
+
+def _split_fandom(text: str) -> list[str]:
+    """
+    Converts raw fandom text into structured lines.
+    """
+    if not text:
+        return []
+
+    lines = [l.strip() for l in text.split("\n") if len(l.strip()) > 40]
+    return lines
 
 
 def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
     """
-    Clean formatting + limit enforcement.
+    Clean formatting + safe truncation for LLM context.
     """
-
     if not items:
         return ""
 
@@ -33,10 +53,8 @@ def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
 
     lines = [f"[{title}]"]
 
-    for i in trimmed:
-        clean = i.strip()
-        if clean:
-            lines.append(f"- {clean}")
+    for item in trimmed:
+        lines.append(f"- {item}")
 
     return "\n".join(lines)
 
@@ -47,14 +65,24 @@ def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
 
 async def build_knowledge_context(query: str) -> str:
     """
-    Builds weighted, structured context for Gemini.
+    Builds normalized, structured context for Gemini RAG.
     """
 
     logger.info("Building knowledge context for: %s", query)
 
-    reddit_data = await search_reddit(query)
-    fandom_data = await fetch_fandom_page(query)
-    search_data = await google_search(query)
+    # =========================
+    # FETCH SOURCES
+    # =========================
+    reddit_raw = await search_reddit(query)
+    fandom_raw = await fetch_fandom_page(query)
+    search_raw = await google_search(query)
+
+    # =========================
+    # NORMALIZATION
+    # =========================
+    reddit_data = _dedup(reddit_raw)
+    fandom_data = _dedup(_split_fandom(fandom_raw))
+    search_data = _dedup(search_raw)
 
     parts = []
 
@@ -63,11 +91,11 @@ async def build_knowledge_context(query: str) -> str:
     # =========================
     if fandom_data:
         parts.append(
-            _format_block("FANDOM WIKI (HIGH TRUST)", [fandom_data], max_items=1)
+            _format_block("FANDOM WIKI (HIGH TRUST)", fandom_data, max_items=5)
         )
 
     # =========================
-    # REDDIT (COMMUNITY)
+    # REDDIT (COMMUNITY SIGNAL)
     # =========================
     if reddit_data:
         parts.append(
@@ -75,11 +103,11 @@ async def build_knowledge_context(query: str) -> str:
         )
 
     # =========================
-    # SEARCH (UNCERTAIN)
+    # SEARCH (LOWER TRUST)
     # =========================
     if search_data:
         parts.append(
-            _format_block("WEB SEARCH SNIPPETS (LOWER TRUST)", search_data, max_items=5)
+            _format_block("WEB SEARCH SNIPPETS (LOW TRUST)", search_data, max_items=5)
         )
 
     final_context = "\n\n".join(parts).strip()
