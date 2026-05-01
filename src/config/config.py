@@ -58,8 +58,9 @@ def _parse_json(value: str | None):
 
     try:
         return json.loads(value)
-    except Exception:
-        raise ValueError("Invalid JSON in environment variable")
+
+    except Exception as err:
+        raise ValueError("Invalid JSON in environment variable") from err
 
 
 # =========================
