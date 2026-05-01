@@ -58,9 +58,7 @@ async def answer_wiki_question(text: str) -> str:
 
         return response.strip()
 
-    except Exception as e:
+    except Exception:
         logger.exception("Wiki service failed")
 
-        return (
-            "⚠️ AI service error. Please try again later."
-        )
+        return "⚠️ AI service error. Please try again later."
