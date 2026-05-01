@@ -1,19 +1,39 @@
 # src/wiki/knowledge/google_client.py
 # GROUP: wiki
-# DESCRIPTION: Lightweight Google search layer (snippet-based, no scraping)
+# DESCRIPTION: Safe search layer (DuckDuckGo lightweight structured snippets)
 
 import logging
 import aiohttp
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger("wiki.google")
 
-GOOGLE_SEARCH_URL = "https://www.google.com/search"
+DDG_URL = "https://duckduckgo.com/html/"
+
+
+def _extract_snippets(html: str) -> list[str]:
+    """
+    Extract search snippets from DuckDuckGo HTML.
+    """
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    results = []
+
+    for a in soup.select(".result__body"):
+        title = a.select_one(".result__title")
+        snippet = a.select_one(".result__snippet")
+
+        if title and snippet:
+            text = f"{title.get_text(strip=True)} - {snippet.get_text(strip=True)}"
+            results.append(text)
+
+    return results[:5]
 
 
 async def google_search(query: str) -> list[str]:
     """
-    Lightweight search (MVP version).
-    NOTE: returns raw HTML snippets (later upgrade to SerpAPI or custom engine)
+    Safe search layer (replaces Google scraping).
     """
 
     params = {
@@ -21,19 +41,20 @@ async def google_search(query: str) -> list[str]:
     }
 
     headers = {
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "tiles-survive-wiki-bot/1.0"
     }
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(GOOGLE_SEARCH_URL, params=params, headers=headers) as resp:
+            async with session.get(DDG_URL, params=params, headers=headers) as resp:
                 html = await resp.text()
 
-        # MVP: we do NOT parse fully yet
-        # later: BeautifulSoup + structured results
+        results = _extract_snippets(html)
 
-        return [html[:1500]]
+        logger.info("Search results: %s", len(results))
+
+        return results
 
     except Exception as e:
-        logger.exception("Google search failed: %s", e)
+        logger.exception("Search failed: %s", e)
         return []
