@@ -1,14 +1,19 @@
 # src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: RAG aggregator v5 (Wikipedia + DDG only, improved reliability)
+# DESCRIPTION: RAG aggregator v6 (Wikipedia + DDG + page fetch)
 
 import logging
+import aiohttp
 
 from src.wiki.knowledge.wikipedia_client import fetch_wikipedia
 from src.wiki.knowledge.ddg_client import search_ddg
 
 logger = logging.getLogger("wiki.aggregator")
 
+
+# =========================
+# HELPERS
+# =========================
 
 def _dedup(items: list[str]) -> list[str]:
     seen = set()
@@ -35,20 +40,64 @@ def _format_block(title: str, items: list[str]) -> str:
     return "\n".join(lines)
 
 
-def _is_low_quality(wiki: list[str], ddg: list[str]) -> bool:
-    """
-    Detects weak context signal (important for prompt behavior)
-    """
-    return len(wiki) == 0 and len(ddg) == 0
+# =========================
+# SIMPLE HTML EXTRACTOR
+# =========================
 
+def _extract_text(html: str) -> str:
+    """
+    Very lightweight text extraction (CI-safe, no deps).
+    """
+    if not html:
+        return ""
+
+    text = (
+        html.replace("<script", " ")
+            .replace("<style", " ")
+            .replace("<", " ")
+            .replace(">", " ")
+    )
+
+    # collapse noise
+    text = " ".join(text.split())
+
+    return text[:1500]
+
+
+# =========================
+# FETCH PAGE CONTENT
+# =========================
+
+async def _fetch_page(url: str) -> str:
+    """
+    Fetches raw HTML from a page.
+    """
+    try:
+        headers = {
+            "User-Agent": "shadow-wiki-bot/1.0"
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=10) as resp:
+                if resp.status != 200:
+                    return ""
+
+                html = await resp.text()
+                return _extract_text(html)
+
+    except Exception as e:
+        logger.warning("Page fetch failed: %s", e)
+        return ""
+
+
+# =========================
+# MAIN
+# =========================
 
 async def build_knowledge_context(query: str) -> str:
 
     logger.info("Building knowledge context for: %s", query)
 
-    # =========================
-    # SOURCES
-    # =========================
     wiki_raw = await fetch_wikipedia(query)
     ddg_raw = await search_ddg(query)
 
@@ -64,19 +113,41 @@ async def build_knowledge_context(query: str) -> str:
         parts.append(_format_block("WIKIPEDIA (HIGH TRUST)", wiki))
 
     # =========================
-    # DDG
+    # DDG (SNIPPETS)
     # =========================
     if ddg:
-        parts.append(_format_block("WEB SEARCH (DUCKDUCKGO)", ddg))
+        parts.append(_format_block("WEB SEARCH (SNIPPETS)", ddg))
+
+        # =========================
+        # PAGE FETCH (NEW 🔥)
+        # =========================
+        # try to extract URLs from ddg results
+        urls = []
+        for item in ddg:
+            if "http" in item:
+                parts_split = item.split()
+                for p in parts_split:
+                    if p.startswith("http"):
+                        urls.append(p)
+
+        urls = urls[:3]  # limit cost + latency
+
+        for url in urls:
+            page_text = await _fetch_page(url)
+
+            if page_text:
+                parts.append(
+                    _format_block("SOURCE PAGE", [page_text])
+                )
 
     # =========================
-    # CRITICAL SIGNAL FOR AI
+    # FALLBACK SIGNAL
     # =========================
-    if _is_low_quality(wiki, ddg):
+    if not parts:
         parts.append(
             "[SYSTEM NOTE]\n"
-            "- No reliable sources found in Wikipedia or web search\n"
-            "- Answer ONLY if you are confident from general knowledge\n"
+            "- No sources found\n"
+            "- Answer ONLY if confident\n"
             "- Otherwise say: I am not sure based on available sources"
         )
 
