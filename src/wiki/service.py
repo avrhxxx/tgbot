@@ -3,6 +3,7 @@
 # DESCRIPTION: AI Wiki service powered by Vertex AI RAG assistant
 
 import logging
+import asyncio
 
 from src.ai.gemini import gemini_client
 from src.wiki.guard import is_game_related, build_redirect_message
@@ -23,7 +24,7 @@ If information is missing in context, say:
 "I am not sure based on available sources."
 
 ========================
-CONTEXT (REDDIT + FANDOM + SEARCH)
+CONTEXT (WEB SEARCH - GOOGLE CUSTOM SEARCH)
 ========================
 {context}
 ========================
@@ -43,14 +44,8 @@ Answer:
 def _extract_sources(context: str) -> str:
     sources = []
 
-    if "[FANDOM WIKI" in context:
-        sources.append("Fandom Wiki")
-
-    if "[REDDIT" in context:
-        sources.append("Reddit Community")
-
     if "[WEB SEARCH" in context:
-        sources.append("Web Search")
+        sources.append("Google Web Search")
 
     return "Sources: " + ", ".join(sources) if sources else "Sources: None"
 
@@ -74,7 +69,11 @@ async def answer_wiki_question(text: str) -> str:
     prompt = build_wiki_prompt(text, context)
 
     try:
-        response = gemini_client.generate(prompt)
+        # FIX: sync wrapper for async safety
+        response = await asyncio.to_thread(
+            gemini_client.generate,
+            prompt
+        )
 
         if not response:
             return "No response from AI."
