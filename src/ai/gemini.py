@@ -1,6 +1,6 @@
 # src/ai/gemini.py
 # GROUP: ai
-# DESCRIPTION: Vertex AI Gemini client (production-safe + correct auth + non-blocking wrapper)
+# DESCRIPTION: Vertex AI Gemini client (production-safe + stable model routing)
 
 import logging
 
@@ -18,19 +18,22 @@ logger = logging.getLogger("ai.gemini")
 
 class GeminiClient:
     """
-    Production Vertex AI Gemini client (Google Cloud authenticated).
+    Production Vertex AI Gemini client (stable + fallback-safe).
     """
 
     def __init__(self):
         # =========================
-        # LOAD SERVICE ACCOUNT
+        # AUTH
         # =========================
         self.credentials = load_service_account()
 
-        project_id = self.credentials.project_id
+        project_id = getattr(self.credentials, "project_id", None)
+
+        if not project_id:
+            raise RuntimeError("Missing project_id in Google credentials")
 
         # =========================
-        # INIT VERTEX AI
+        # INIT VERTEX
         # =========================
         vertexai.init(
             project=project_id,
@@ -39,13 +42,30 @@ class GeminiClient:
         )
 
         # =========================
-        # MODEL
+        # MODEL ROUTING (STABLE)
         # =========================
-        self.model = GenerativeModel("gemini-1.5-flash")
+        self.model_name = "gemini-2.0-flash-001"
+
+        try:
+            self.model = GenerativeModel(self.model_name)
+            logger.info("Using Vertex model: %s", self.model_name)
+
+        except Exception as e:
+            logger.warning(
+                "Primary model failed (%s), falling back: %s",
+                self.model_name,
+                e,
+            )
+
+            # fallback (safer option)
+            self.model_name = "gemini-2.0-flash-lite-001"
+            self.model = GenerativeModel(self.model_name)
+
+            logger.info("Fallback Vertex model: %s", self.model_name)
 
     def generate(self, prompt: str) -> str:
         """
-        Synchronous Vertex call (wrapped safely by async layer outside).
+        Blocking Vertex call (safe wrapper for async layer).
         """
 
         logger.info("Sending request to Vertex AI Gemini")
@@ -60,7 +80,6 @@ class GeminiClient:
                 return "Error: empty AI response"
 
             logger.info("Vertex AI response received")
-
             return str(text)
 
         except Exception as e:
