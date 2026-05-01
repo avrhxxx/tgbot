@@ -1,18 +1,19 @@
 # src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: RAG aggregator v8 (Wikipedia + Tavily, clean AI-grade search)
+# DESCRIPTION: RAG aggregator v8 (Wikipedia + SearXNG)
 
 import logging
+import os
 
 from src.wiki.knowledge.wikipedia_client import fetch_wikipedia
-from src.wiki.knowledge.tavily_client import search_tavily
+from src.wiki.knowledge.searx_client import SearxClient
 
 logger = logging.getLogger("wiki.aggregator")
 
+searx = SearxClient(
+    base_url=os.getenv("SEARX_URL", "https://searx.be")
+)
 
-# =========================
-# HELPERS
-# =========================
 
 def _dedup(items: list[str]) -> list[str]:
     seen = set()
@@ -39,10 +40,6 @@ def _tag_block(tag: str, title: str, items: list[str]) -> str:
     return "\n".join(lines)
 
 
-# =========================
-# MAIN
-# =========================
-
 async def build_knowledge_context(query: str) -> str:
 
     logger.info("Building knowledge context for: %s", query)
@@ -51,7 +48,7 @@ async def build_knowledge_context(query: str) -> str:
     # SOURCES
     # =========================
     wiki_raw = await fetch_wikipedia(query)
-    web_raw = await search_tavily(query)
+    web_raw = await searx.search(query)
 
     wiki = _dedup(wiki_raw)
     web = _dedup(web_raw)
@@ -59,7 +56,7 @@ async def build_knowledge_context(query: str) -> str:
     parts = []
 
     # =========================
-    # FACTS (WIKIPEDIA)
+    # FACTS
     # =========================
     if wiki:
         parts.append(
@@ -67,21 +64,21 @@ async def build_knowledge_context(query: str) -> str:
         )
 
     # =========================
-    # WEB (TAVILY - AI SEARCH)
+    # WEB SEARCH (SEARXNG)
     # =========================
     if web:
         parts.append(
-            _tag_block("WEB", "TAVILY SEARCH RESULTS", web)
+            _tag_block("WEB", "SEARX SEARCH RESULTS", web)
         )
 
     # =========================
-    # HARD FALLBACK SIGNAL
+    # FALLBACK
     # =========================
     if not parts:
         parts.append(
-            "[SYSTEM RULE]\n"
+            "[SYSTEM]\n"
             "- No reliable sources found\n"
-            "- Do NOT guess or hallucinate\n"
+            "- Do not guess\n"
             "- Respond: I am not sure based on available sources"
         )
 
