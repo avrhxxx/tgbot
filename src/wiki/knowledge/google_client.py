@@ -1,61 +1,75 @@
 # src/wiki/knowledge/google_client.py
 # GROUP: wiki
-# DESCRIPTION: Safe search layer (DuckDuckGo lightweight structured snippets)
+# DESCRIPTION: Google Custom Search API client (production-safe structured search)
 
 import logging
 import aiohttp
 
+from src.config.config import load_config
+
 logger = logging.getLogger("wiki.google")
 
-DDG_URL = "https://duckduckgo.com/html/"
+config = load_config()
+
+GOOGLE_API_URL = "https://www.googleapis.com/customsearch/v1"
 
 
-def _extract_snippets(html: str) -> list[str]:
+def _format_results(items: list[dict]) -> list[str]:
     """
-    Lightweight fallback HTML parsing (no external dependencies).
+    Formats Google API results into clean text snippets.
     """
 
     results: list[str] = []
 
-    # very naive but CI-safe extraction
-    blocks = html.split("result__body")
+    for item in items:
+        title = item.get("title", "")
+        snippet = item.get("snippet", "")
+        link = item.get("link", "")
 
-    for block in blocks:
-        if "result__title" in block and "result__snippet" in block:
+        combined = f"{title}\n{snippet}\n{link}".strip()
 
-            # crude text extraction (MVP fallback)
-            text = block.replace("<", " <").replace(">", "> ")
-
-            if len(text) > 80:
-                results.append(text[:300])
+        if combined:
+            results.append(combined)
 
     return results[:5]
 
 
 async def google_search(query: str) -> list[str]:
     """
-    Safe search layer (replaces Google scraping).
+    Production Google Search using Custom Search API.
     """
 
-    params = {
-        "q": f"Tiles Survive {query}"
-    }
+    api_key = config.google.search.api_key
+    cx = config.google.search.cx
 
-    headers = {
-        "User-Agent": "tiles-survive-wiki-bot/1.0"
+    if not api_key or not cx:
+        logger.error("Google Search API not configured")
+        return []
+
+    params = {
+        "key": api_key,
+        "cx": cx,
+        "q": f"Tiles Survive {query}",
     }
 
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(DDG_URL, params=params, headers=headers) as resp:
-                html = await resp.text()
+            async with session.get(GOOGLE_API_URL, params=params) as resp:
 
-        results = _extract_snippets(html)
+                if resp.status != 200:
+                    logger.warning("Google API HTTP error: %s", resp.status)
+                    return []
 
-        logger.info("Search results: %s", len(results))
+                data = await resp.json()
+
+        items = data.get("items", [])
+
+        results = _format_results(items)
+
+        logger.info("Google results: %s", len(results))
 
         return results
 
     except Exception as e:
-        logger.exception("Search failed: %s", e)
+        logger.exception("Google search failed: %s", e)
         return []
