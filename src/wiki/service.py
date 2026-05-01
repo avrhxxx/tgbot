@@ -5,6 +5,7 @@
 import logging
 
 from src.ai.gemini import gemini_client
+from src.wiki.guard import is_game_related, build_redirect_message
 
 logger = logging.getLogger("wiki.service")
 
@@ -18,25 +19,22 @@ GAME_RULE = "mobile game by FunPlus International"
 
 def build_wiki_prompt(user_text: str) -> str:
     """
-    Strict domain prompt - AI is ONLY allowed to answer about Tiles Survive!
+    Strict domain prompt for Gemini (game-only context).
     """
 
     return f"""
 You are an expert wiki assistant for the mobile game "{GAME_NAME}" ({GAME_RULE}).
 
 CRITICAL RULES:
-- You ONLY answer questions about "{GAME_NAME}"
-- If the question is NOT about this game, respond EXACTLY:
-  "I can only answer questions about Tiles Survive!."
-- Do NOT use general knowledge outside the game
-- Do NOT invent mechanics or items
-- If unsure about something in-game, say "I am not sure"
+- Answer ONLY about "{GAME_NAME}"
+- Do NOT use outside knowledge
+- If unsure, say "I am not sure"
+- Do NOT hallucinate game mechanics
 
-Style rules:
-- Wikipedia-like tone
-- structured answers
-- clear sections if needed
-- practical tips when relevant
+Style:
+- Wikipedia-like structure
+- clear sections
+- practical gameplay advice
 
 User question:
 {user_text}
@@ -51,7 +49,7 @@ Answer:
 
 async def answer_wiki_question(text: str) -> str:
     """
-    Main AI entrypoint (game-restricted).
+    Main AI entrypoint (guarded + domain restricted).
     """
 
     logger.info("Game query received: %s", text)
@@ -59,6 +57,15 @@ async def answer_wiki_question(text: str) -> str:
     if not text or not text.strip():
         return "Please ask a question about Tiles Survive!."
 
+    # =========================
+    # 🧠 GUARD LAYER (NEW)
+    # =========================
+    if not is_game_related(text):
+        return build_redirect_message()
+
+    # =========================
+    # 🤖 GEMINI LAYER
+    # =========================
     prompt = build_wiki_prompt(text)
 
     try:
@@ -71,5 +78,4 @@ async def answer_wiki_question(text: str) -> str:
 
     except Exception:
         logger.exception("Wiki service failed")
-
         return "⚠️ AI service error. Please try again later."
