@@ -1,24 +1,25 @@
 # src/google/auth.py
 # GROUP: google
-# DESCRIPTION: Service Account loader (Node-style safe parsing equivalent)
+# DESCRIPTION: Central Google Service Account auth (Vertex + Firebase + Sheets ready)
 
 import json
 import logging
+import os
 from google.oauth2 import service_account
 
 logger = logging.getLogger("google.auth")
 
 SCOPES = [
-    "https://www.googleapis.com/auth/cloud-platform"
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/datastore",
+    "https://www.googleapis.com/auth/spreadsheets",
 ]
 
 
 def load_service_account():
     """
-    Loads and validates service account from env (Node-style equivalent).
+    Central Google auth (used by Vertex, Firestore, Sheets).
     """
-
-    import os
 
     raw = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
@@ -38,7 +39,7 @@ def load_service_account():
     if missing:
         raise RuntimeError(f"Missing fields in service account: {missing}")
 
-    # normalize private key (Node-style fix)
+    # normalize key
     data["private_key"] = data["private_key"].replace("\\n", "\n")
 
     credentials = service_account.Credentials.from_service_account_info(
@@ -46,6 +47,6 @@ def load_service_account():
         scopes=SCOPES,
     )
 
-    logger.info("Google SA loaded for: %s", data["client_email"])
+    logger.info("Google SA loaded: %s", data["client_email"])
 
     return credentials
