@@ -14,9 +14,6 @@ logger = logging.getLogger("wiki.aggregator")
 # =========================
 
 def _dedup(items: list[str]) -> list[str]:
-    """
-    Removes duplicate strings while preserving order.
-    """
     seen = set()
     out = []
 
@@ -30,9 +27,6 @@ def _dedup(items: list[str]) -> list[str]:
 
 
 def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
-    """
-    Clean formatting + safe truncation for LLM context.
-    """
     if not items:
         return ""
 
@@ -51,26 +45,15 @@ def _format_block(title: str, items: list[str], max_items: int = 5) -> str:
 # =========================
 
 async def build_knowledge_context(query: str) -> str:
-    """
-    Builds normalized context using Google Search only.
-    """
-
     logger.info("Building knowledge context for: %s", query)
 
-    # =========================
-    # FETCH (ONLY GOOGLE)
-    # =========================
     search_raw = await google_search(query)
-
-    # =========================
-    # NORMALIZATION
-    # =========================
     search_data = _dedup(search_raw)
 
     parts = []
 
     # =========================
-    # SEARCH (PRIMARY SOURCE)
+    # SEARCH BLOCK
     # =========================
     if search_data:
         parts.append(
@@ -79,6 +62,11 @@ async def build_knowledge_context(query: str) -> str:
                 search_data,
                 max_items=5,
             )
+        )
+    else:
+        # 🔥 IMPORTANT: controlled fallback (prevents "dead context")
+        parts.append(
+            "[WEB SEARCH (GOOGLE)]\n- No relevant results found, answer with general knowledge but clearly mark uncertainty"
         )
 
     final_context = "\n\n".join(parts).strip()
