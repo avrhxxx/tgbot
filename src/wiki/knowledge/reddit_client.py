@@ -18,11 +18,12 @@ async def search_reddit(query: str, limit: int = 5) -> list[str]:
 
     url = f"https://www.reddit.com/r/{SUBREDDIT}/search.json"
 
-    params = {
+    # ✅ FIX: aiohttp-compatible param typing (str-only transport layer)
+    params: dict[str, str] = {
         "q": query,
-        "restrict_sr": 1,
+        "restrict_sr": "1",
         "sort": "relevance",
-        "limit": limit
+        "limit": str(limit),
     }
 
     headers = {
@@ -34,7 +35,7 @@ async def search_reddit(query: str, limit: int = 5) -> list[str]:
             async with session.get(url, params=params, headers=headers) as resp:
                 data = await resp.json()
 
-        results = []
+        results: list[str] = []
 
         for child in data.get("data", {}).get("children", []):
             post = child.get("data", {})
