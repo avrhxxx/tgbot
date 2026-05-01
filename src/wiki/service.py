@@ -1,12 +1,12 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service powered by Gemini (Tiles Survive context-grounded assistant)
+# DESCRIPTION: AI Wiki service powered by Gemini (Tiles Survive real internet RAG assistant)
 
 import logging
 
 from src.ai.gemini import gemini_client
 from src.wiki.guard import is_game_related, build_redirect_message
-from src.wiki.search import fetch_reddit_context
+from src.wiki.knowledge.aggregator import build_knowledge_context
 
 logger = logging.getLogger("wiki.service")
 
@@ -20,30 +20,32 @@ GAME_RULE = "mobile game by FunPlus International"
 
 def build_wiki_prompt(user_text: str, context: str) -> str:
     """
-    Context-grounded prompt (prevents hallucinations).
+    Context-grounded prompt (anti-hallucination RAG mode).
     """
 
     return f"""
 You are an expert wiki assistant for the mobile game "{GAME_NAME}" ({GAME_RULE}).
 
-You MUST use ONLY the provided context below.
-Do NOT invent information outside it.
+You MUST answer ONLY using the provided CONTEXT.
+If information is missing in context, explicitly say:
+"I am not sure based on available sources."
 
 ========================
-CONTEXT (from community / Reddit / guides):
+CONTEXT (REAL SOURCES: Reddit + Fandom + Google)
 {context}
 ========================
 
 CRITICAL RULES:
 - Answer ONLY about "{GAME_NAME}"
-- If context does not contain answer, say: "I am not sure based on available data"
-- Do NOT hallucinate
-- Be concise and structured
+- Do NOT invent mechanics or items
+- Do NOT use outside knowledge
+- Be strict and factual
+- Prefer bullet points when helpful
 
 Style:
-- Wikipedia-like sections
+- Wikipedia-like structure
+- clear sections
 - practical gameplay advice
-- clear bullet points when useful
 
 User question:
 {user_text}
@@ -58,7 +60,7 @@ Answer:
 
 async def answer_wiki_question(text: str) -> str:
     """
-    Main AI entrypoint (guarded + context-based reasoning).
+    Main AI entrypoint (FULL RAG: Reddit + Fandom + Google).
     """
 
     logger.info("Game query received: %s", text)
@@ -73,12 +75,15 @@ async def answer_wiki_question(text: str) -> str:
         return build_redirect_message()
 
     # =========================
-    # 🌐 WEB CONTEXT LAYER (Reddit mock)
+    # 🌐 REAL INTERNET KNOWLEDGE LAYER
     # =========================
-    context = fetch_reddit_context(text)
+    context = await build_knowledge_context(text)
+
+    if not context:
+        context = "No external sources found."
 
     # =========================
-    # 🤖 GEMINI LAYER (grounded)
+    # 🤖 GEMINI LAYER (context-only)
     # =========================
     prompt = build_wiki_prompt(text, context)
 
