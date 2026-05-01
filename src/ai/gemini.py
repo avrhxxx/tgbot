@@ -1,6 +1,6 @@
 # src/ai/gemini.py
 # GROUP: ai
-# DESCRIPTION: Vertex AI Gemini client (production-safe + stable model routing)
+# DESCRIPTION: Vertex AI Gemini client (fixed model name + stable runtime)
 
 import logging
 
@@ -18,7 +18,7 @@ logger = logging.getLogger("ai.gemini")
 
 class GeminiClient:
     """
-    Production Vertex AI Gemini client (stable + fallback-safe).
+    Production Vertex AI Gemini client.
     """
 
     def __init__(self):
@@ -26,11 +26,7 @@ class GeminiClient:
         # AUTH
         # =========================
         self.credentials = load_service_account()
-
-        project_id = getattr(self.credentials, "project_id", None)
-
-        if not project_id:
-            raise RuntimeError("Missing project_id in Google credentials")
+        project_id = self.credentials.project_id
 
         # =========================
         # INIT VERTEX
@@ -42,30 +38,15 @@ class GeminiClient:
         )
 
         # =========================
-        # MODEL ROUTING (STABLE)
+        # MODEL (FIXED)
         # =========================
-        self.model_name = "gemini-2.0-flash-001"
-
-        try:
-            self.model = GenerativeModel(self.model_name)
-            logger.info("Using Vertex model: %s", self.model_name)
-
-        except Exception as e:
-            logger.warning(
-                "Primary model failed (%s), falling back: %s",
-                self.model_name,
-                e,
-            )
-
-            # fallback (safer option)
-            self.model_name = "gemini-2.0-flash-lite-001"
-            self.model = GenerativeModel(self.model_name)
-
-            logger.info("Fallback Vertex model: %s", self.model_name)
+        # IMPORTANT:
+        # DO NOT use gemini-2.x publisher paths unless explicitly enabled
+        self.model = GenerativeModel("gemini-1.5-flash")
 
     def generate(self, prompt: str) -> str:
         """
-        Blocking Vertex call (safe wrapper for async layer).
+        Sync call (wrapped by async layer in service).
         """
 
         logger.info("Sending request to Vertex AI Gemini")
@@ -79,7 +60,6 @@ class GeminiClient:
                 logger.error("Empty Vertex response")
                 return "Error: empty AI response"
 
-            logger.info("Vertex AI response received")
             return str(text)
 
         except Exception as e:
