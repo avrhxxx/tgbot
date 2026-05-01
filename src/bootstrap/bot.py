@@ -8,6 +8,7 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from src.config.config import load_config
+from src.handlers.telegram_handler import handle_message
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
@@ -24,6 +25,9 @@ async def main():
     # =========================
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
+
+    # 🔥 REGISTER HANDLER (CRITICAL FIX)
+    dp.message.register(handle_message)
 
     # =========================
     # WEBHOOK SERVER
