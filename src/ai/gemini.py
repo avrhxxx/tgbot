@@ -26,9 +26,12 @@ class GeminiClient:
 
     def __init__(self):
         self.api_key = config.gemini.api_key
-        self.base_url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-        )
+
+        # Base endpoint for Gemini API
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta/"
+
+        # Stable model (Railway-safe choice)
+        self.model = "models/gemini-2.5-flash"
 
     async def generate(self, prompt: str) -> str:
         """
@@ -38,10 +41,12 @@ class GeminiClient:
         if not self.api_key:
             raise RuntimeError("GEMINI_API_KEY is missing")
 
-        # 🔥 FIXED MODEL
+        # =========================
+        # BUILD REQUEST URL
+        # =========================
         url = (
             f"{self.base_url}"
-            f"gemini-1.5-pro:generateContent?key={self.api_key}"
+            f"{self.model}:generateContent?key={self.api_key}"
         )
 
         payload: dict[str, Any] = {
@@ -68,19 +73,22 @@ class GeminiClient:
                 data: dict[str, Any] = await resp.json()
 
                 # =========================
-                # 🔥 DEBUG SAFETY
+                # DEBUG RESPONSE
                 # =========================
                 logger.info("Gemini raw response: %s", data)
 
                 # =========================
-                # ❌ ERROR HANDLING
+                # API ERROR HANDLING
                 # =========================
                 if "error" in data:
                     logger.error("Gemini API error: %s", data["error"])
-                    return f"AI error: {data['error'].get('message', 'unknown')}"
+                    return (
+                        f"AI error: "
+                        f"{data['error'].get('message', 'unknown')}"
+                    )
 
                 # =========================
-                # ✅ NORMAL RESPONSE
+                # PARSE RESPONSE
                 # =========================
                 try:
                     text = (
