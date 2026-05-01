@@ -1,11 +1,12 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service powered by Gemini (Tiles Survive domain-locked assistant)
+# DESCRIPTION: AI Wiki service powered by Gemini (Tiles Survive context-grounded assistant)
 
 import logging
 
 from src.ai.gemini import gemini_client
 from src.wiki.guard import is_game_related, build_redirect_message
+from src.wiki.search import fetch_reddit_context
 
 logger = logging.getLogger("wiki.service")
 
@@ -17,24 +18,32 @@ GAME_RULE = "mobile game by FunPlus International"
 # PROMPT ENGINE
 # =========================
 
-def build_wiki_prompt(user_text: str) -> str:
+def build_wiki_prompt(user_text: str, context: str) -> str:
     """
-    Strict domain prompt for Gemini (game-only context).
+    Context-grounded prompt (prevents hallucinations).
     """
 
     return f"""
 You are an expert wiki assistant for the mobile game "{GAME_NAME}" ({GAME_RULE}).
 
+You MUST use ONLY the provided context below.
+Do NOT invent information outside it.
+
+========================
+CONTEXT (from community / Reddit / guides):
+{context}
+========================
+
 CRITICAL RULES:
 - Answer ONLY about "{GAME_NAME}"
-- Do NOT use outside knowledge
-- If unsure, say "I am not sure"
-- Do NOT hallucinate game mechanics
+- If context does not contain answer, say: "I am not sure based on available data"
+- Do NOT hallucinate
+- Be concise and structured
 
 Style:
-- Wikipedia-like structure
-- clear sections
+- Wikipedia-like sections
 - practical gameplay advice
+- clear bullet points when useful
 
 User question:
 {user_text}
@@ -49,7 +58,7 @@ Answer:
 
 async def answer_wiki_question(text: str) -> str:
     """
-    Main AI entrypoint (guarded + domain restricted).
+    Main AI entrypoint (guarded + context-based reasoning).
     """
 
     logger.info("Game query received: %s", text)
@@ -58,15 +67,20 @@ async def answer_wiki_question(text: str) -> str:
         return "Please ask a question about Tiles Survive!."
 
     # =========================
-    # 🧠 GUARD LAYER (NEW)
+    # 🧠 GUARD LAYER
     # =========================
     if not is_game_related(text):
         return build_redirect_message()
 
     # =========================
-    # 🤖 GEMINI LAYER
+    # 🌐 WEB CONTEXT LAYER (Reddit mock)
     # =========================
-    prompt = build_wiki_prompt(text)
+    context = fetch_reddit_context(text)
+
+    # =========================
+    # 🤖 GEMINI LAYER (grounded)
+    # =========================
+    prompt = build_wiki_prompt(text, context)
 
     try:
         response = await gemini_client.generate(prompt)
