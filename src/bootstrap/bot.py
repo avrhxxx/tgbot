@@ -19,22 +19,35 @@ logger = logging.getLogger("bootstrap")
 async def main():
     config = load_config()
 
-    bot = Bot(token=config.bot.token)
+    # =========================
+    # BOT + DISPATCHER
+    # =========================
+    bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
+    # =========================
+    # WEBHOOK SERVER
+    # =========================
     webhook = WebhookServer(
         bot=bot,
         dp=dp,
         webhook_path="/webhook",
-        secret="shadow_secret"
+        secret=config.telegram.webhook_secret
     )
 
+    # =========================
+    # SET WEBHOOK (Railway-ready)
+    # =========================
     await setup_webhook(
         bot=bot,
-        webhook_url="https://YOUR_DOMAIN/webhook",
-        secret="shadow_secret"
+        webhook_url=config.telegram.webhook_url,
+        secret=config.telegram.webhook_secret
     )
 
+    # =========================
+    # RUN SERVER
+    # =========================
+    logger.info("Starting Shadow AI Wiki Bot...")
     await webhook.run()
 
 
