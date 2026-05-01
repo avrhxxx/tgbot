@@ -1,0 +1,10 @@
+aiogram>=3.4.1
+aiogram-dialog>=2.1.0
+
+pydantic>=2.5
+pydantic-settings>=2.2
+
+cachetools>=5.3.0
+
+ruff
+mypy
