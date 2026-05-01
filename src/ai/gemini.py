@@ -3,7 +3,6 @@
 # DESCRIPTION: Vertex AI Gemini client (production-safe + correct auth + non-blocking wrapper)
 
 import logging
-from typing import Any
 
 import vertexai
 from vertexai.generative_models import GenerativeModel
