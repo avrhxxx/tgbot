@@ -15,27 +15,35 @@ def _clean_text(html: str) -> str:
     Lightweight HTML extraction (MVP-safe, no external parser).
     """
 
-    # naive fallback extraction (CI-safe, no bs4 dependency)
+    if not html:
+        return ""
 
-    # remove scripts/styles quickly
-    cleaned = html.replace("<script", " <script").replace("<style", " <style")
+    # try to isolate main content block (Fandom structure-aware)
+    start_marker = 'mw-parser-output'
+    if start_marker not in html:
+        return ""
 
-    # very rough text slicing fallback
-    # (you can replace later with BS4 or lxml parser layer)
-    text = cleaned
+    # crude but effective extraction window
+    parts = html.split("<p>")
 
-    # extract only paragraph-like chunks
-    parts = []
+    text_blocks = []
 
-    for chunk in text.split("</p>"):
-        if "<p" in chunk:
-            inner = chunk.split("<p")[-1]
-            inner = inner.split(">")[-1].strip()
+    for part in parts:
+        # stop junk sections
+        if "</p>" in part:
+            clean = part.split("</p>")[0]
 
-            if len(inner) > 40:
-                parts.append(inner)
+            # remove leftover tags
+            clean = clean.replace("<b>", "").replace("</b>", "")
+            clean = clean.replace("<i>", "").replace("</i>", "")
+            clean = clean.replace("<br>", "\n")
 
-    return "\n".join(parts[:15])
+            clean = clean.strip()
+
+            if len(clean) > 40:
+                text_blocks.append(clean)
+
+    return "\n".join(text_blocks[:15])
 
 
 async def fetch_fandom_page(query: str) -> str:
@@ -47,12 +55,23 @@ async def fetch_fandom_page(query: str) -> str:
     url = f"{BASE_URL}{page_name}"
 
     headers = {
-        "User-Agent": "tiles-survive-wiki-bot/1.0"
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml"
     }
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=headers) as resp:
+
+                # 🔴 FIX: avoid false positives (404 / redirect pages)
+                if resp.status != 200:
+                    logger.warning("Fandom HTTP error: %s", resp.status)
+                    return ""
+
                 html = await resp.text()
 
         cleaned = _clean_text(html)
