@@ -1,6 +1,6 @@
 # src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: RAG aggregator v6 (Wikipedia + DDG + page fetch)
+# DESCRIPTION: RAG aggregator v7 (Wikipedia + DDG + page fetch with trust hierarchy)
 
 import logging
 import aiohttp
@@ -41,14 +41,23 @@ def _format_block(title: str, items: list[str]) -> str:
     return "\n".join(lines)
 
 
+def _tag_block(tag: str, title: str, items: list[str]) -> str:
+    if not items:
+        return ""
+
+    lines = [f"[{tag}] {title}"]
+
+    for item in items[:5]:
+        lines.append(f"- {item}")
+
+    return "\n".join(lines)
+
+
 # =========================
-# SIMPLE HTML EXTRACTOR
+# HTML EXTRACTOR
 # =========================
 
 def _extract_text(html: str) -> str:
-    """
-    Very lightweight text extraction (CI-safe, no deps).
-    """
     if not html:
         return ""
 
@@ -65,13 +74,10 @@ def _extract_text(html: str) -> str:
 
 
 # =========================
-# FETCH PAGE CONTENT
+# FETCH PAGE
 # =========================
 
 async def _fetch_page(url: str) -> str:
-    """
-    Fetches raw HTML from a page.
-    """
     try:
         headers = {
             "User-Agent": "shadow-wiki-bot/1.0"
@@ -114,25 +120,25 @@ async def build_knowledge_context(query: str) -> str:
     parts = []
 
     # =========================
-    # WIKIPEDIA
+    # FACTS (WIKI - HIGHEST TRUST)
     # =========================
     if wiki:
-        parts.append(_format_block("WIKIPEDIA (HIGH TRUST)", wiki))
+        parts.append(
+            _tag_block("FACT", "WIKIPEDIA", wiki)
+        )
 
     # =========================
-    # DDG (SNIPPETS)
+    # META + WEB
     # =========================
     if ddg:
-        parts.append(_format_block("WEB SEARCH (SNIPPETS)", ddg))
+        parts.append(
+            _tag_block("META", "WEB SNIPPETS", ddg)
+        )
 
-        # =========================
-        # PAGE FETCH (NEW 🔥)
-        # =========================
         urls = []
         for item in ddg:
             if "http" in item:
-                parts_split = item.split()
-                for p in parts_split:
+                for p in item.split():
                     if p.startswith("http"):
                         urls.append(p)
 
@@ -143,18 +149,18 @@ async def build_knowledge_context(query: str) -> str:
 
             if page_text:
                 parts.append(
-                    _format_block("SOURCE PAGE", [page_text])
+                    _tag_block("RAW", "SOURCE PAGE", [page_text])
                 )
 
     # =========================
-    # FALLBACK SIGNAL
+    # STRONG FALLBACK SIGNAL
     # =========================
     if not parts:
         parts.append(
-            "[SYSTEM NOTE]\n"
-            "- No sources found\n"
-            "- Answer ONLY if confident\n"
-            "- Otherwise say: I am not sure based on available sources"
+            "[SYSTEM RULE]\n"
+            "- No reliable sources found\n"
+            "- Do NOT guess\n"
+            "- If unsure: say 'I am not sure based on available sources'"
         )
 
     final = "\n\n".join(parts).strip()
