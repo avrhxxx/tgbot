@@ -1,12 +1,15 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service powered by Gemini (prompt-engineered knowledge layer)
+# DESCRIPTION: AI Wiki service powered by Gemini (Tiles Survive domain-locked assistant)
 
 import logging
 
 from src.ai.gemini import gemini_client
 
 logger = logging.getLogger("wiki.service")
+
+GAME_NAME = "Tiles Survive!"
+GAME_RULE = "mobile game by FunPlus International"
 
 
 # =========================
@@ -15,17 +18,25 @@ logger = logging.getLogger("wiki.service")
 
 def build_wiki_prompt(user_text: str) -> str:
     """
-    Converts user query into Wikipedia-style AI prompt.
+    Strict domain prompt - AI is ONLY allowed to answer about Tiles Survive!
     """
 
     return f"""
-You are an AI Wikipedia-style assistant.
+You are an expert wiki assistant for the mobile game "{GAME_NAME}" ({GAME_RULE}).
 
-Rules:
-- Answer like Wikipedia (neutral, factual, structured)
-- If you are unsure, say you are not certain
-- Keep answers concise but informative
-- Do not hallucinate facts
+CRITICAL RULES:
+- You ONLY answer questions about "{GAME_NAME}"
+- If the question is NOT about this game, respond EXACTLY:
+  "I can only answer questions about Tiles Survive!."
+- Do NOT use general knowledge outside the game
+- Do NOT invent mechanics or items
+- If unsure about something in-game, say "I am not sure"
+
+Style rules:
+- Wikipedia-like tone
+- structured answers
+- clear sections if needed
+- practical tips when relevant
 
 User question:
 {user_text}
@@ -40,13 +51,13 @@ Answer:
 
 async def answer_wiki_question(text: str) -> str:
     """
-    Main entry point for AI wiki responses.
+    Main AI entrypoint (game-restricted).
     """
 
-    logger.info("Wiki query received: %s", text)
+    logger.info("Game query received: %s", text)
 
     if not text or not text.strip():
-        return "Please provide a valid question."
+        return "Please ask a question about Tiles Survive!."
 
     prompt = build_wiki_prompt(text)
 
