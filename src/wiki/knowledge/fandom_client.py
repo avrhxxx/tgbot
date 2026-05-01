@@ -4,7 +4,6 @@
 
 import logging
 import aiohttp
-from bs4 import BeautifulSoup
 
 logger = logging.getLogger("wiki.fandom")
 
@@ -13,30 +12,30 @@ BASE_URL = "https://tiles-survive.fandom.com/wiki/"
 
 def _clean_text(html: str) -> str:
     """
-    Extracts readable article text from Fandom HTML.
+    Lightweight HTML extraction (MVP-safe, no external parser).
     """
 
-    soup = BeautifulSoup(html, "html.parser")
+    # naive fallback extraction (CI-safe, no bs4 dependency)
 
-    # remove junk
-    for tag in soup(["script", "style", "nav", "footer", "aside"]):
-        tag.decompose()
+    # remove scripts/styles quickly
+    cleaned = html.replace("<script", " <script").replace("<style", " <style")
 
-    content = soup.find("div", {"class": "mw-parser-output"})
+    # very rough text slicing fallback
+    # (you can replace later with BS4 or lxml parser layer)
+    text = cleaned
 
-    if not content:
-        return ""
+    # extract only paragraph-like chunks
+    parts = []
 
-    paragraphs = content.find_all("p")
+    for chunk in text.split("</p>"):
+        if "<p" in chunk:
+            inner = chunk.split("<p")[-1]
+            inner = inner.split(">")[-1].strip()
 
-    text_parts = []
+            if len(inner) > 40:
+                parts.append(inner)
 
-    for p in paragraphs:
-        txt = p.get_text(strip=True)
-        if len(txt) > 40:  # filter noise
-            text_parts.append(txt)
-
-    return "\n".join(text_parts[:15])  # limit context size
+    return "\n".join(parts[:15])
 
 
 async def fetch_fandom_page(query: str) -> str:
