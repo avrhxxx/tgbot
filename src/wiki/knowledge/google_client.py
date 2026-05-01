@@ -4,7 +4,6 @@
 
 import logging
 import aiohttp
-from bs4 import BeautifulSoup
 
 logger = logging.getLogger("wiki.google")
 
@@ -13,20 +12,22 @@ DDG_URL = "https://duckduckgo.com/html/"
 
 def _extract_snippets(html: str) -> list[str]:
     """
-    Extract search snippets from DuckDuckGo HTML.
+    Lightweight fallback HTML parsing (no external dependencies).
     """
 
-    soup = BeautifulSoup(html, "html.parser")
+    results: list[str] = []
 
-    results = []
+    # very naive but CI-safe extraction
+    blocks = html.split("result__body")
 
-    for a in soup.select(".result__body"):
-        title = a.select_one(".result__title")
-        snippet = a.select_one(".result__snippet")
+    for block in blocks:
+        if "result__title" in block and "result__snippet" in block:
 
-        if title and snippet:
-            text = f"{title.get_text(strip=True)} - {snippet.get_text(strip=True)}"
-            results.append(text)
+            # crude text extraction (MVP fallback)
+            text = block.replace("<", " <").replace(">", "> ")
+
+            if len(text) > 80:
+                results.append(text[:300])
 
     return results[:5]
 
