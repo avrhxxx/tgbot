@@ -18,10 +18,9 @@ def _extract_snippets(html: str) -> list[str]:
 
     results: list[str] = []
 
-    # title + snippet pattern (DuckDuckGo HTML structure)
     pattern = re.compile(
         r'result__title.*?>(.*?)</a>.*?result__snippet.*?>(.*?)</a>',
-        re.DOTALL
+        re.DOTALL,
     )
 
     matches = pattern.findall(html)
@@ -29,7 +28,6 @@ def _extract_snippets(html: str) -> list[str]:
     for title, snippet in matches:
         clean = f"{title.strip()} - {snippet.strip()}"
 
-        # safety filter
         if len(clean) > 60:
             results.append(clean[:400])
 
@@ -41,8 +39,8 @@ async def search_ddg(query: str) -> list[str]:
     Free web search fallback (no API key).
     """
 
-    params = {
-        "q": query
+    params: dict[str, str] = {
+        "q": query,
     }
 
     headers = {
@@ -53,13 +51,14 @@ async def search_ddg(query: str) -> list[str]:
         )
     }
 
+    timeout = aiohttp.ClientTimeout(total=10)
+
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(
                 DDG_URL,
                 params=params,
                 headers=headers,
-                timeout=10
             ) as resp:
 
                 html = await resp.text()
