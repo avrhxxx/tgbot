@@ -1,6 +1,6 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service powered by Gemini (Tiles Survive real internet RAG assistant)
+# DESCRIPTION: AI Wiki service powered by Gemini (Tiles Survive source-tracked RAG assistant)
 
 import logging
 
@@ -20,7 +20,7 @@ GAME_RULE = "mobile game by FunPlus International"
 
 def build_wiki_prompt(user_text: str, context: str) -> str:
     """
-    Context-grounded prompt (anti-hallucination RAG mode).
+    Strict context-grounded prompt (anti-hallucination RAG mode).
     """
 
     return f"""
@@ -31,21 +31,20 @@ If information is missing in context, explicitly say:
 "I am not sure based on available sources."
 
 ========================
-CONTEXT (REAL SOURCES: Reddit + Fandom + Google)
+CONTEXT (REDDIT + FANDOM + SEARCH)
+========================
 {context}
 ========================
 
 CRITICAL RULES:
-- Answer ONLY about "{GAME_NAME}"
-- Do NOT invent mechanics or items
+- Do NOT invent mechanics, items, or stats
 - Do NOT use outside knowledge
-- Be strict and factual
-- Prefer bullet points when helpful
+- If unsure, say you don't know
+- Be strictly factual
 
-Style:
+STYLE:
 - Wikipedia-like structure
-- clear sections
-- practical gameplay advice
+- bullet points where useful
 
 User question:
 {user_text}
@@ -55,12 +54,35 @@ Answer:
 
 
 # =========================
+# SOURCE EXTRACTION (DEBUG LAYER)
+# =========================
+
+def _extract_sources(context: str) -> str:
+    """
+    Extracts visible source headers for user verification.
+    """
+
+    sources = []
+
+    if "[FANDOM WIKI" in context:
+        sources.append("Fandom Wiki")
+
+    if "[REDDIT" in context:
+        sources.append("Reddit Community")
+
+    if "[WEB SEARCH" in context:
+        sources.append("Web Search")
+
+    return "Sources: " + ", ".join(sources) if sources else "Sources: None"
+
+
+# =========================
 # MAIN SERVICE
 # =========================
 
 async def answer_wiki_question(text: str) -> str:
     """
-    Main AI entrypoint (FULL RAG: Reddit + Fandom + Google).
+    Main AI entrypoint (FULL RAG + source visibility).
     """
 
     logger.info("Game query received: %s", text)
@@ -69,21 +91,23 @@ async def answer_wiki_question(text: str) -> str:
         return "Please ask a question about Tiles Survive!."
 
     # =========================
-    # 🧠 GUARD LAYER
+    # GUARD LAYER
     # =========================
     if not is_game_related(text):
         return build_redirect_message()
 
     # =========================
-    # 🌐 REAL INTERNET KNOWLEDGE LAYER
+    # KNOWLEDGE LAYER
     # =========================
     context = await build_knowledge_context(text)
 
     if not context:
         context = "No external sources found."
 
+    sources = _extract_sources(context)
+
     # =========================
-    # 🤖 GEMINI LAYER (context-only)
+    # GEMINI LAYER
     # =========================
     prompt = build_wiki_prompt(text, context)
 
@@ -93,7 +117,10 @@ async def answer_wiki_question(text: str) -> str:
         if not response:
             return "No response from AI."
 
-        return response.strip()
+        # =========================
+        # FINAL OUTPUT (ANSWER + SOURCES)
+        # =========================
+        return f"{response.strip()}\n\n---\n{sources}"
 
     except Exception:
         logger.exception("Wiki service failed")
