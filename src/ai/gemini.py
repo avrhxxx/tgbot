@@ -66,6 +66,21 @@ class GeminiClient:
 
                 data: dict[str, Any] = await resp.json()
 
+                # =========================
+                # 🔥 DEBUG SAFETY
+                # =========================
+                logger.info("Gemini raw response: %s", data)
+
+                # =========================
+                # ❌ ERROR HANDLING
+                # =========================
+                if "error" in data:
+                    logger.error("Gemini API error: %s", data["error"])
+                    return f"AI error: {data['error'].get('message', 'unknown')}"
+
+                # =========================
+                # ✅ NORMAL RESPONSE
+                # =========================
                 try:
                     text = (
                         data["candidates"][0]
