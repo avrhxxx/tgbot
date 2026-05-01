@@ -38,9 +38,10 @@ class GeminiClient:
         if not self.api_key:
             raise RuntimeError("GEMINI_API_KEY is missing")
 
+        # 🔥 FIXED MODEL
         url = (
             f"{self.base_url}"
-            f"gemini-1.5-flash:generateContent?key={self.api_key}"
+            f"gemini-1.5-pro:generateContent?key={self.api_key}"
         )
 
         payload: dict[str, Any] = {
