@@ -4,6 +4,7 @@
 
 import logging
 import aiohttp
+from aiohttp import ClientTimeout
 
 from src.wiki.knowledge.wikipedia_client import fetch_wikipedia
 from src.wiki.knowledge.ddg_client import search_ddg
@@ -58,7 +59,6 @@ def _extract_text(html: str) -> str:
             .replace(">", " ")
     )
 
-    # collapse noise
     text = " ".join(text.split())
 
     return text[:1500]
@@ -77,8 +77,15 @@ async def _fetch_page(url: str) -> str:
             "User-Agent": "shadow-wiki-bot/1.0"
         }
 
+        timeout = ClientTimeout(total=10)
+
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, headers=headers, timeout=10) as resp:
+            async with session.get(
+                url,
+                headers=headers,
+                timeout=timeout
+            ) as resp:
+
                 if resp.status != 200:
                     return ""
 
@@ -121,7 +128,6 @@ async def build_knowledge_context(query: str) -> str:
         # =========================
         # PAGE FETCH (NEW 🔥)
         # =========================
-        # try to extract URLs from ddg results
         urls = []
         for item in ddg:
             if "http" in item:
@@ -130,7 +136,7 @@ async def build_knowledge_context(query: str) -> str:
                     if p.startswith("http"):
                         urls.append(p)
 
-        urls = urls[:3]  # limit cost + latency
+        urls = urls[:3]
 
         for url in urls:
             page_text = await _fetch_page(url)
