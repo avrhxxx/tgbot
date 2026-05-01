@@ -23,6 +23,6 @@ async def handle_message(message: types.Message):
         response = await answer_wiki_question(user_text)
         await message.answer(response)
 
-    except Exception as e:
+    except Exception:
         logger.exception("Handler error")
         await message.answer("Error processing request.")
