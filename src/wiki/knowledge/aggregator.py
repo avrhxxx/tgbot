@@ -38,7 +38,13 @@ def _split_fandom(text: str) -> list[str]:
     if not text:
         return []
 
-    lines = [l.strip() for l in text.split("\n") if len(l.strip()) > 40]
+    # FIX: avoid ambiguous variable name (ruff E741)
+    lines = [
+        line.strip()
+        for line in text.split("\n")
+        if len(line.strip()) > 40
+    ]
+
     return lines
 
 
