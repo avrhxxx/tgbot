@@ -4,7 +4,7 @@
 
 import logging
 import time
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from google.cloud import firestore  # type: ignore
 
@@ -17,7 +17,6 @@ class FirestoreClient:
     def __init__(self):
         credentials = load_service_account()
         self.db = firestore.Client(credentials=credentials)
-
         self.collection = "knowledge"
 
     # =========================
@@ -38,29 +37,44 @@ class FirestoreClient:
     # =========================
     # READ
     # =========================
-    async def search_knowledge(self, query: str, limit: int = 3) -> List[str]:
+    async def search_knowledge(
+        self,
+        query: str,
+        limit: int = 3
+    ) -> List[Dict[str, Any]]:
+
         query = query.lower()
 
         docs = (
             self.db.collection(self.collection)
-            .limit(20)
+            .limit(50)
             .stream()
         )
 
-        results: List[str] = []
+        results: List[Dict[str, Any]] = []
 
         for doc in docs:
             data: Optional[Dict[str, Any]] = doc.to_dict()
 
-            # 🔥 SAFE GUARD (FIX MYPI ERROR)
             if not data:
                 continue
 
             topic = data.get("topic", "")
             content = data.get("content", "")
+            url = data.get("url", "")
 
-            if topic and topic in query and content:
-                results.append(content)
+            if not content:
+                continue
+
+            # simple relevance match (MVP)
+            if topic and topic in query:
+                results.append(
+                    {
+                        "topic": topic,
+                        "content": content,
+                        "url": url,
+                    }
+                )
 
         logger.info("Firestore results: %s", len(results))
 
