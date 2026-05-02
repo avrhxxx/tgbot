@@ -1,56 +1,26 @@
 # src/wiki/guard.py
 # GROUP: wiki
-# DESCRIPTION: Soft game scope guard for AI Wiki Bot (Tiles Survive)
+# DESCRIPTION: Minimal scope guard (only hard off-topic detection)
 
 import logging
 
 logger = logging.getLogger("wiki.guard")
 
-GAME_KEYWORDS = {
-    "tiles survive",
-    "tilesurvive",
-    "game",
-    "strategy",
-    "build",
-    "upgrade",
-    "units",
-    "survivors",
-    "base",
-    "resources",
-    "zombie",
-}
+GAME_ANCHOR = "tiles survive"
 
 
 def is_game_related(text: str) -> bool:
-    """
-    Checks if user question is related to Tiles Survive game.
-    Soft classification (not strict NLP).
-    """
-
     if not text:
         return False
 
     text_lower = text.lower()
 
-    # hard anchor: game name
-    if "tiles survive" in text_lower:
-        return True
-
-    # keyword match
-    for kw in GAME_KEYWORDS:
-        if kw in text_lower:
-            return True
-
-    return False
+    # ONLY hard block outside domain
+    return GAME_ANCHOR in text_lower
 
 
 def build_redirect_message() -> str:
-    """
-    Message shown when user asks outside game scope.
-    Soft redirect instead of hard block.
-    """
-
     return (
-        "I can only help with Tiles Survive! 🎮\n"
-        "Ask me about strategies, upgrades, resources or gameplay tips."
+        "I can only help with *Tiles Survive!* 🎮\n\n"
+        "Ask me about gameplay, strategies, heroes or upgrades."
     )
