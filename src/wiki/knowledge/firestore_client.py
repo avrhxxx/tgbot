@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 from google.cloud import firestore  # type: ignore
 from src.google.auth import load_service_account
@@ -19,7 +19,17 @@ class FirestoreClient:
     # =========================
     # WRITE
     # =========================
-    async def add_knowledge(self, topic: str, url: str, content: str) -> None:
+    async def add_knowledge(
+        self,
+        topic: str,
+        url: str,
+        content: str,
+        embedding: List[float] | None = None,
+    ) -> None:
+        """
+        Stores knowledge entry with optional embedding (RAG v2 ready).
+        """
+
         doc = {
             "topic": topic.lower().strip(),
             "url": url,
@@ -27,8 +37,8 @@ class FirestoreClient:
             "created_at": int(time.time()),
             "keywords": topic.lower().split(),
 
-            # 🔥 IMPORTANT FOR RAG v2
-            "embedding": None,
+            # 🔥 RAG VECTOR FIELD
+            "embedding": embedding or [],
         }
 
         self.db.collection(self.collection).add(doc)
@@ -60,6 +70,10 @@ class FirestoreClient:
                 data = doc.to_dict()
                 if not data:
                     continue
+
+                # normalize missing embedding
+                if "embedding" not in data:
+                    data["embedding"] = []
 
                 results.append(data)
 
