@@ -1,6 +1,6 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service powered by Firestore + Prompt Engine + Gemini
+# DESCRIPTION: AI Wiki service (RAG v2 - vector-based orchestration)
 
 import logging
 import asyncio
@@ -10,10 +10,10 @@ from src.wiki.guard import is_game_related, build_redirect_message
 from src.wiki.knowledge.firestore_client import FirestoreClient
 from src.ai.prompt_engine import build_prompt
 
-logger = logging.getLogger("wiki.service")
+# 👉 NEW: vector layer (musisz mieć ten moduł)
+from src.ai.embeddings import vector_store
 
-GAME_NAME = "Tiles Survive!"
-GAME_RULE = "mobile game by FunPlus International"
+logger = logging.getLogger("wiki.service")
 
 firestore = FirestoreClient()
 
@@ -28,37 +28,40 @@ async def answer_wiki_question(text: str) -> str:
         return build_redirect_message()
 
     # =========================
-    # FIRESTORE CONTEXT
+    # VECTOR RETRIEVAL (NEW CORE)
     # =========================
     try:
-        docs = await firestore.search_knowledge(text)
+        results = vector_store.search(text, top_k=5)
     except Exception:
-        logger.exception("Firestore query failed")
-        docs = []
+        logger.exception("Vector search failed")
+        results = []
 
     context_parts = []
 
-    if docs:
-        for d in docs:
-            topic = d.get("topic", "")
-            content = d.get("content", "")
-            url = d.get("url", "")
+    # =========================
+    # BUILD RAG CONTEXT
+    # =========================
+    for r in results:
+        content = r.get("content", "")
+        metadata = r.get("metadata", {})
 
-            if not content:
-                continue
+        if not content:
+            continue
 
-            # 🔥 SOURCE ADDED (important for RAG trust)
-            context_parts.append(
-                f"[TOPIC: {topic}]\nSOURCE: {url}\n{content[:1500]}"
-            )
+        topic = metadata.get("topic", "")
+        url = metadata.get("url", "")
+
+        context_parts.append(
+            f"[TOPIC: {topic}]\nSOURCE: {url}\n{content}"
+        )
 
     context = "\n\n---\n\n".join(context_parts).strip()
 
     if not context:
-        context = "[NO SOURCES FOUND]"
+        context = "[NO RELEVANT MEMORY FOUND]"
 
     # =========================
-    # PROMPT ENGINE
+    # PROMPT ENGINE (RAG-AWARE)
     # =========================
     prompt = build_prompt(text, context)
 
