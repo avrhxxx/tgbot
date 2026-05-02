@@ -1,7 +1,9 @@
+# src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: Firestore-only knowledge context builder
+# DESCRIPTION: Firestore-only knowledge context builder (RAG layer)
 
 import logging
+from typing import List, Dict, Any
 
 from src.wiki.knowledge.firestore_client import FirestoreClient
 
@@ -10,33 +12,44 @@ logger = logging.getLogger("wiki.aggregator")
 firestore = FirestoreClient()
 
 
-def _format_block(items):
+def _format_block(items: List[str]) -> str:
     if not items:
         return ""
-    return "\n".join([f"- {i}" for i in items])
+    return "\n".join(f"- {i}" for i in items)
 
 
 async def build_knowledge_context(query: str) -> str:
     logger.info("Firestore-only context for: %s", query)
 
     try:
-        docs = await firestore.search_knowledge(query)
+        docs: List[Dict[str, Any]] = await firestore.search_knowledge(query)
 
         if not docs:
             return "[NO DATA]\nNo stored knowledge found."
 
-        parts = []
+        parts: List[str] = []
 
         for d in docs:
-            topic = d.get("topic", "")
-            content = d.get("content", "")
+            if not isinstance(d, dict):
+                continue
+
+            topic = str(d.get("topic", "") or "")
+            content = str(d.get("content", "") or "")
+            url = str(d.get("url", "") or "")
 
             if not content:
                 continue
 
-            parts.append(
-                f"[TOPIC: {topic}]\n{content[:1500]}"
-            )
+            block = f"[TOPIC: {topic}]"
+            if url:
+                block += f"\nSOURCE: {url}"
+
+            block += f"\n{content[:1500]}"
+
+            parts.append(block)
+
+        if not parts:
+            return "[NO DATA]\nNo usable knowledge found."
 
         return "\n\n---\n\n".join(parts)
 
