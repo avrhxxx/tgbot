@@ -15,11 +15,7 @@ TELEGRAM_LIMIT = 4096
 # =========================
 # MESSAGE CHUNKER
 # =========================
-
 def split_message(text: str, limit: int = TELEGRAM_LIMIT) -> list[str]:
-    """
-    Splits long AI response into Telegram-safe chunks.
-    """
     if len(text) <= limit:
         return [text]
 
@@ -42,7 +38,6 @@ def split_message(text: str, limit: int = TELEGRAM_LIMIT) -> list[str]:
 # =========================
 # HANDLER
 # =========================
-
 async def handle_message(message: types.Message):
     user_text = message.text
 
@@ -52,6 +47,10 @@ async def handle_message(message: types.Message):
         await message.answer("Send me a question.")
         return
 
+    # 🔥 IMPORTANT: block all commands from AI layer
+    if user_text.startswith("/"):
+        return
+
     try:
         response = await answer_wiki_question(user_text)
 
@@ -59,9 +58,7 @@ async def handle_message(message: types.Message):
             await message.answer("No response from AI.")
             return
 
-        chunks = split_message(response)
-
-        for chunk in chunks:
+        for chunk in split_message(response):
             await message.answer(chunk)
 
     except Exception:
