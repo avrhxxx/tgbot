@@ -8,6 +8,8 @@ from typing import List, Dict, Any, Tuple
 
 logger = logging.getLogger("wiki.embeddings.vector_store")
 
+MIN_SCORE = 0.2
+
 
 # =========================
 # COSINE SIMILARITY
@@ -16,7 +18,6 @@ def _cosine_similarity(a: List[float], b: List[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
 
-    # FIX: ruff B905 compliance (safe strict usage)
     dot = sum(x * y for x, y in zip(a, b, strict=True))
 
     norm_a = math.sqrt(sum(x * x for x in a))
@@ -62,16 +63,24 @@ class VectorStore:
             return []
 
         scored: List[Tuple[float, Dict[str, Any]]] = []
+        seen_urls = set()
 
         for d in docs:
             embedding = d.get("embedding")
 
-            if not embedding:
+            if not embedding or not isinstance(embedding, list):
                 continue
+
+            url = d.get("url")
+
+            if url:
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
 
             score = _cosine_similarity(query_vec, embedding)
 
-            if score > 0:
+            if score >= MIN_SCORE:
                 scored.append((score, d))
 
         scored.sort(key=lambda x: x[0], reverse=True)
