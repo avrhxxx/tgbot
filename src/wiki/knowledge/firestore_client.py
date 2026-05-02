@@ -4,7 +4,7 @@
 
 import logging
 import time
-from typing import List
+from typing import List, Optional, Dict, Any
 
 from google.cloud import firestore  # type: ignore
 
@@ -50,12 +50,16 @@ class FirestoreClient:
         results: List[str] = []
 
         for doc in docs:
-            data = doc.to_dict()
+            data: Optional[Dict[str, Any]] = doc.to_dict()
+
+            # 🔥 SAFE GUARD (FIX MYPI ERROR)
+            if not data:
+                continue
 
             topic = data.get("topic", "")
             content = data.get("content", "")
 
-            if topic in query:
+            if topic and topic in query and content:
                 results.append(content)
 
         logger.info("Firestore results: %s", len(results))
