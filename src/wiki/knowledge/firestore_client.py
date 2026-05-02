@@ -2,6 +2,7 @@
 
 import logging
 import time
+import hashlib
 from typing import List, Dict, Any, Optional
 
 from google.cloud import firestore  # type: ignore
@@ -17,7 +18,17 @@ class FirestoreClient:
         self.collection = "knowledge"
 
     # =========================
-    # WRITE
+    # UTILS
+    # =========================
+    def _doc_id(self, url: str) -> str:
+        """
+        Stable document ID based on URL.
+        Prevents duplicates.
+        """
+        return hashlib.sha256(url.encode("utf-8")).hexdigest()
+
+    # =========================
+    # WRITE (IDEMPOTENT)
     # =========================
     async def add_knowledge(
         self,
@@ -25,10 +36,20 @@ class FirestoreClient:
         url: str,
         content: str,
         embedding: Optional[List[float]] = None,
-    ) -> None:
+    ) -> bool:
         """
-        Stores knowledge entry with optional embedding (RAG v2 ready).
+        Stores knowledge entry safely (no duplicates).
+        Returns True if created, False if already exists.
         """
+
+        doc_id = self._doc_id(url)
+        ref = self.db.collection(self.collection).document(doc_id)
+
+        # 🔥 CHECK IF EXISTS
+        existing = ref.get()
+        if existing.exists:
+            logger.info("Skipping duplicate URL: %s", url)
+            return False
 
         doc = {
             "topic": topic.lower().strip(),
@@ -39,9 +60,10 @@ class FirestoreClient:
             "embedding": embedding if embedding is not None else [],
         }
 
-        self.db.collection(self.collection).add(doc)
+        ref.set(doc)
 
         logger.info("Knowledge added: %s (%s)", topic, url)
+        return True
 
     # =========================
     # RAW FETCH (FOR VECTOR STORE)
@@ -69,9 +91,7 @@ class FirestoreClient:
                 if not data:
                     continue
 
-                # normalize embedding field
                 data["embedding"] = data.get("embedding") or []
-
                 results.append(data)
 
             logger.info("Firestore raw fetch: %s docs", len(results))
@@ -81,3 +101,15 @@ class FirestoreClient:
         except Exception as e:
             logger.exception("Firestore raw fetch failed: %s", e)
             return []
+
+    # =========================
+    # DUPLICATE CHECK (OPTIONAL PUBLIC API)
+    # =========================
+    async def source_exists(self, url: str) -> bool:
+        """
+        Fast check using deterministic doc ID.
+        """
+        doc_id = self._doc_id(url)
+        ref = self.db.collection(self.collection).document(doc_id)
+
+        return ref.get().exists
