@@ -1,13 +1,10 @@
 # src/wiki/knowledge/firestore_client.py
-# GROUP: wiki
-# DESCRIPTION: Firestore knowledge storage (RAG-ready MVP + future embeddings)
 
 import logging
 import time
 from typing import List, Dict, Any, Optional
 
 from google.cloud import firestore  # type: ignore
-
 from src.google.auth import load_service_account
 
 logger = logging.getLogger("wiki.firestore")
@@ -19,9 +16,6 @@ class FirestoreClient:
         self.db = firestore.Client(credentials=credentials)
         self.collection = "knowledge"
 
-    # =========================
-    # WRITE
-    # =========================
     async def add_knowledge(self, topic: str, url: str, content: str) -> None:
         doc = {
             "topic": topic.lower().strip(),
@@ -29,8 +23,6 @@ class FirestoreClient:
             "content": content,
             "created_at": int(time.time()),
             "keywords": topic.lower().split(),
-            # future vector search
-            "embedding": None,
         }
 
         self.db.collection(self.collection).add(doc)
@@ -38,7 +30,7 @@ class FirestoreClient:
         logger.info("Knowledge added: %s (%s)", topic, url)
 
     # =========================
-    # READ (IMPROVED RAG MVP)
+    # IMPROVED RAG SEARCH (v2)
     # =========================
     async def search_knowledge(
         self,
@@ -46,8 +38,8 @@ class FirestoreClient:
         limit: int = 3
     ) -> List[Dict[str, Any]]:
 
-        query_norm = query.lower()
-        query_tokens = set(query_norm.split())
+        q = query.lower()
+        query_tokens = set(q.split())
 
         docs = (
             self.db.collection(self.collection)
@@ -55,16 +47,15 @@ class FirestoreClient:
             .stream()
         )
 
-        scored_results: List[Dict[str, Any]] = []
+        results: List[Dict[str, Any]] = []
 
         for doc in docs:
             data: Optional[Dict[str, Any]] = doc.to_dict()
-
             if not data:
                 continue
 
             topic = (data.get("topic") or "").lower()
-            content = data.get("content") or ""
+            content = (data.get("content") or "").lower()
             url = data.get("url") or ""
 
             if not content:
@@ -72,35 +63,35 @@ class FirestoreClient:
 
             score = 0
 
-            # direct topic match
-            if topic and topic in query_norm:
-                score += 5
+            # 1. topic match (soft)
+            if topic and (topic in q or q in topic):
+                score += 4
 
-            # keyword overlap
+            # 2. keyword overlap (improved)
             keywords = data.get("keywords") or []
             for k in keywords:
-                if k in query_tokens:
+                if k in q:
                     score += 2
 
-            # weak content match
-            if any(t in content.lower() for t in query_tokens):
-                score += 1
+            # 3. content overlap (stronger now)
+            for t in query_tokens:
+                if t in content:
+                    score += 1
+
+            # 4. phrase bonus (IMPORTANT FIX)
+            if any(len(t) > 4 and t in content for t in query_tokens):
+                score += 2
 
             if score > 0:
-                scored_results.append(
-                    {
-                        "topic": topic,
-                        "content": content,
-                        "url": url,
-                        "score": score,
-                    }
-                )
+                results.append({
+                    "topic": topic,
+                    "content": data.get("content", ""),
+                    "url": url,
+                    "score": score,
+                })
 
-        # sort by relevance
-        scored_results.sort(key=lambda x: x["score"], reverse=True)
+        results.sort(key=lambda x: x["score"], reverse=True)
 
-        results = scored_results[:limit]
+        logger.info("Firestore results (scored v2): %s", len(results))
 
-        logger.info("Firestore results (scored): %s", len(results))
-
-        return results
+        return results[:limit]
