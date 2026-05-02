@@ -4,23 +4,20 @@
 
 import logging
 from cachetools import TTLCache
+from typing import Dict, Any
 
 logger = logging.getLogger("services.session")
 
 # =========================
 # SESSION STORAGE
 # =========================
-# maxsize = ile userów równolegle
-# ttl = 30 min pamięci kontekstu
-session_cache = TTLCache(maxsize=10000, ttl=1800)
+session_cache: TTLCache[int, Dict[str, Any]] = TTLCache(
+    maxsize=10000,
+    ttl=1800
+)
 
 
-def get_session(user_id: int) -> dict:
-    """
-    Returns session context for a user.
-    Creates new session if not exists.
-    """
-
+def get_session(user_id: int) -> Dict[str, Any]:
     session = session_cache.get(user_id)
 
     if session is None:
@@ -34,10 +31,13 @@ def get_session(user_id: int) -> dict:
     return session
 
 
-def update_session(user_id: int, *, topic: str | None = None, entities: list[str] | None = None, question: str | None = None) -> None:
-    """
-    Updates session context after each bot interaction.
-    """
+def update_session(
+    user_id: int,
+    *,
+    topic: str | None = None,
+    entities: list[str] | None = None,
+    question: str | None = None,
+) -> None:
 
     session = get_session(user_id)
 
@@ -56,10 +56,6 @@ def update_session(user_id: int, *, topic: str | None = None, entities: list[str
 
 
 def build_session_context(user_id: int) -> str:
-    """
-    Converts session memory into prompt-friendly text block.
-    """
-
     session = get_session(user_id)
 
     parts = []
