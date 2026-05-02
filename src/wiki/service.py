@@ -8,11 +8,14 @@ import asyncio
 from src.ai.gemini import gemini_client
 from src.wiki.guard import is_game_related, build_redirect_message
 from src.wiki.knowledge.aggregator import build_knowledge_context
+from src.wiki.knowledge.firestore_client import FirestoreClient
 
 logger = logging.getLogger("wiki.service")
 
 GAME_NAME = "Tiles Survive!"
 GAME_RULE = "mobile game by FunPlus International"
+
+firestore = FirestoreClient()
 
 
 def build_wiki_prompt(user_text: str, context: str) -> str:
@@ -22,12 +25,12 @@ You are a knowledgeable wiki assistant for the mobile game "{GAME_NAME}" ({GAME_
 ========================
 INSTRUCTIONS
 ========================
-- Base your answer primarily on the CONTEXT below
-- The context may contain partial or noisy web data
-- You are allowed to summarize and combine multiple snippets
-- You may make careful, reasonable inferences if the data is incomplete
+- PRIORITIZE facts from USER PROVIDED DATA if present
+- Base your answer on the CONTEXT below
+- You may summarize and combine multiple sources
+- Be careful and factual
 
-If there is truly no useful information, say EXACTLY:
+If there is no useful information, say EXACTLY:
 "I am not sure based on available sources."
 
 ========================
@@ -37,9 +40,9 @@ CONTEXT
 ========================
 
 RULES:
-- Do NOT invent specific numbers, hidden mechanics, or fake features
-- Do NOT hallucinate unknown systems
-- Prefer general, cautious explanations over refusing to answer
+- Do NOT invent mechanics
+- Do NOT hallucinate features
+- Prefer "I am not sure" over guessing
 
 USER QUESTION:
 {user_text}
@@ -51,14 +54,17 @@ ANSWER:
 def _extract_sources(context: str) -> str:
     sources = []
 
+    if "[USER DATA]" in context:
+        sources.append("User Knowledge Base")
+
     if "WIKIPEDIA" in context:
         sources.append("Wikipedia")
 
-    if "DUCKDUCKGO" in context:
-        sources.append("Web Search (DDG)")
+    if "SEARX" in context:
+        sources.append("Web Search")
 
     if "[NO SOURCES FOUND]" in context:
-        sources.append("No external sources")
+        sources.append("No sources")
 
     return "Sources: " + ", ".join(sources) if sources else "Sources: None"
 
@@ -72,14 +78,38 @@ async def answer_wiki_question(text: str) -> str:
     if not is_game_related(text):
         return build_redirect_message()
 
-    context = await build_knowledge_context(text)
+    # =========================
+    # 🔥 1. FIRESTORE FIRST
+    # =========================
+    user_data = await firestore.search_knowledge(text)
 
-    if not context or len(context.strip()) < 20:
-        context = "[NO SOURCES FOUND]"
+    parts = []
 
-    sources = _extract_sources(context)
+    if user_data:
+        parts.append("[USER DATA]")
+        for item in user_data:
+            parts.append(f"- {item[:1000]}")
 
-    prompt = build_wiki_prompt(text, context)
+    # =========================
+    # 🔥 2. FALLBACK (WEB)
+    # =========================
+    if not user_data:
+        context = await build_knowledge_context(text)
+
+        if context:
+            parts.append(context)
+
+    # =========================
+    # FINAL CONTEXT
+    # =========================
+    final_context = "\n\n".join(parts).strip()
+
+    if not final_context:
+        final_context = "[NO SOURCES FOUND]"
+
+    sources = _extract_sources(final_context)
+
+    prompt = build_wiki_prompt(text, final_context)
 
     try:
         response = await asyncio.to_thread(
