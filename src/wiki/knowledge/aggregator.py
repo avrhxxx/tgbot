@@ -1,89 +1,45 @@
-# src/wiki/knowledge/aggregator.py
 # GROUP: wiki
-# DESCRIPTION: RAG aggregator v8 (Wikipedia + SearXNG)
+# DESCRIPTION: Firestore-only knowledge context builder
 
 import logging
-import os
 
-from src.wiki.knowledge.wikipedia_client import fetch_wikipedia
-from src.wiki.knowledge.searx_client import SearxClient
+from src.wiki.knowledge.firestore_client import FirestoreClient
 
 logger = logging.getLogger("wiki.aggregator")
 
-searx = SearxClient(
-    base_url=os.getenv("SEARX_URL", "https://searx.be")
-)
+firestore = FirestoreClient()
 
 
-def _dedup(items: list[str]) -> list[str]:
-    seen = set()
-    out = []
-
-    for item in items:
-        clean = item.strip()
-        if clean and clean not in seen:
-            seen.add(clean)
-            out.append(clean)
-
-    return out
-
-
-def _tag_block(tag: str, title: str, items: list[str]) -> str:
+def _format_block(items):
     if not items:
         return ""
-
-    lines = [f"[{tag}] {title}"]
-
-    for item in items[:5]:
-        lines.append(f"- {item}")
-
-    return "\n".join(lines)
+    return "\n".join([f"- {i}" for i in items])
 
 
 async def build_knowledge_context(query: str) -> str:
+    logger.info("Firestore-only context for: %s", query)
 
-    logger.info("Building knowledge context for: %s", query)
+    try:
+        docs = await firestore.search_knowledge(query)
 
-    # =========================
-    # SOURCES
-    # =========================
-    wiki_raw = await fetch_wikipedia(query)
-    web_raw = await searx.search(query)
+        if not docs:
+            return "[NO DATA]\nNo stored knowledge found."
 
-    wiki = _dedup(wiki_raw)
-    web = _dedup(web_raw)
+        parts = []
 
-    parts = []
+        for d in docs:
+            topic = d.get("topic", "")
+            content = d.get("content", "")
 
-    # =========================
-    # FACTS
-    # =========================
-    if wiki:
-        parts.append(
-            _tag_block("FACT", "WIKIPEDIA", wiki)
-        )
+            if not content:
+                continue
 
-    # =========================
-    # WEB SEARCH (SEARXNG)
-    # =========================
-    if web:
-        parts.append(
-            _tag_block("WEB", "SEARX SEARCH RESULTS", web)
-        )
+            parts.append(
+                f"[TOPIC: {topic}]\n{content[:1500]}"
+            )
 
-    # =========================
-    # FALLBACK
-    # =========================
-    if not parts:
-        parts.append(
-            "[SYSTEM]\n"
-            "- No reliable sources found\n"
-            "- Do not guess\n"
-            "- Respond: I am not sure based on available sources"
-        )
+        return "\n\n---\n\n".join(parts)
 
-    final = "\n\n".join(parts).strip()
-
-    logger.info("Context built length: %s", len(final))
-
-    return final
+    except Exception as e:
+        logger.exception("Firestore read failed: %s", e)
+        return "[ERROR] Unable to fetch knowledge"
