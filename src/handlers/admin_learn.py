@@ -9,12 +9,14 @@ from aiogram import Router
 from aiogram.types import Message
 
 from src.wiki.knowledge.firestore_client import FirestoreClient
-from src.ai.embeddings import embedding_client  # 🔥 NEW
+from src.wiki.embeddings.client import EmbeddingClient
 
 logger = logging.getLogger("handlers.admin.learn")
 
 router = Router()
+
 firestore = FirestoreClient()
+embedding_client = EmbeddingClient()
 
 
 # =========================
@@ -77,10 +79,11 @@ async def _fetch_page(url: str) -> str:
 
                 html = await resp.text()
 
+                # Try trafilatura first
                 if TRAFILATURA_AVAILABLE:
                     try:
                         extracted = trafilatura.extract(html)
-                        if extracted:
+                        if extracted and len(extracted) > 200:
                             return extracted
                     except Exception as e:
                         logger.warning("Trafilatura failed: %s", e)
@@ -128,7 +131,7 @@ async def learn_handler(message: Message):
                 topic=topic,
                 url=url,
                 content=chunk,
-                embedding=embedding,   # 🔥 CRITICAL
+                embedding=embedding,
             )
 
             saved += 1
