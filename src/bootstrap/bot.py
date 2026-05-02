@@ -5,7 +5,7 @@
 import asyncio
 import logging
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
 
 from src.config.config import load_config
 from src.handlers.telegram_handler import handle_message
@@ -25,14 +25,14 @@ async def main():
     dp = Dispatcher()
 
     # =========================
-    # ROUTERS FIRST (COMMANDS)
+    # ROUTERS (ORDER MATTERS)
     # =========================
     dp.include_router(learn_router)
 
-    # =========================
-    # FALLBACK AI HANDLER LAST
-    # =========================
-    dp.message.register(handle_message)
+    # fallback router instead of raw register
+    fallback_router = Router()
+    fallback_router.message.register(handle_message)
+    dp.include_router(fallback_router)
 
     # =========================
     # WEBHOOK
