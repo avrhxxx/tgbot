@@ -1,6 +1,6 @@
 # src/wiki/knowledge/firestore_client.py
 # GROUP: wiki
-# DESCRIPTION: Firestore knowledge storage (admin-fed RAG memory)
+# DESCRIPTION: Firestore knowledge storage (RAG-ready MVP + future embeddings)
 
 import logging
 import time
@@ -24,10 +24,13 @@ class FirestoreClient:
     # =========================
     async def add_knowledge(self, topic: str, url: str, content: str) -> None:
         doc = {
-            "topic": topic.lower(),
+            "topic": topic.lower().strip(),
             "url": url,
             "content": content,
             "created_at": int(time.time()),
+            "keywords": topic.lower().split(),
+            # future vector search
+            "embedding": None,
         }
 
         self.db.collection(self.collection).add(doc)
@@ -35,7 +38,7 @@ class FirestoreClient:
         logger.info("Knowledge added: %s (%s)", topic, url)
 
     # =========================
-    # READ
+    # READ (IMPROVED RAG MVP)
     # =========================
     async def search_knowledge(
         self,
@@ -43,15 +46,16 @@ class FirestoreClient:
         limit: int = 3
     ) -> List[Dict[str, Any]]:
 
-        query = query.lower()
+        query_norm = query.lower()
+        query_tokens = set(query_norm.split())
 
         docs = (
             self.db.collection(self.collection)
-            .limit(50)
+            .limit(100)
             .stream()
         )
 
-        results: List[Dict[str, Any]] = []
+        scored_results: List[Dict[str, Any]] = []
 
         for doc in docs:
             data: Optional[Dict[str, Any]] = doc.to_dict()
@@ -59,23 +63,44 @@ class FirestoreClient:
             if not data:
                 continue
 
-            topic = data.get("topic", "")
-            content = data.get("content", "")
-            url = data.get("url", "")
+            topic = (data.get("topic") or "").lower()
+            content = data.get("content") or ""
+            url = data.get("url") or ""
 
             if not content:
                 continue
 
-            # simple relevance match (MVP)
-            if topic and topic in query:
-                results.append(
+            score = 0
+
+            # direct topic match
+            if topic and topic in query_norm:
+                score += 5
+
+            # keyword overlap
+            keywords = data.get("keywords") or []
+            for k in keywords:
+                if k in query_tokens:
+                    score += 2
+
+            # weak content match
+            if any(t in content.lower() for t in query_tokens):
+                score += 1
+
+            if score > 0:
+                scored_results.append(
                     {
                         "topic": topic,
                         "content": content,
                         "url": url,
+                        "score": score,
                     }
                 )
 
-        logger.info("Firestore results: %s", len(results))
+        # sort by relevance
+        scored_results.sort(key=lambda x: x["score"], reverse=True)
 
-        return results[:limit]
+        results = scored_results[:limit]
+
+        logger.info("Firestore results (scored): %s", len(results))
+
+        return results
