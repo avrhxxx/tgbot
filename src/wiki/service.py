@@ -1,6 +1,6 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service (RAG v2 - vector-based orchestration)
+# DESCRIPTION: AI Wiki service (RAG v2 - vector + fallback hybrid)
 
 import logging
 import asyncio
@@ -10,12 +10,17 @@ from src.wiki.guard import is_game_related, build_redirect_message
 from src.wiki.knowledge.firestore_client import FirestoreClient
 from src.ai.prompt_engine import build_prompt
 
-# 👉 NEW: vector layer (musisz mieć ten moduł)
-from src.ai.embeddings import vector_store
+from src.wiki.embeddings.client import EmbeddingClient
+from src.wiki.embeddings.vector_store import VectorStore
 
 logger = logging.getLogger("wiki.service")
 
+# =========================
+# INIT LAYERS
+# =========================
 firestore = FirestoreClient()
+embedder = EmbeddingClient()
+vector_store = VectorStore(firestore, embedder)
 
 
 async def answer_wiki_question(text: str) -> str:
@@ -28,28 +33,23 @@ async def answer_wiki_question(text: str) -> str:
         return build_redirect_message()
 
     # =========================
-    # VECTOR RETRIEVAL (NEW CORE)
+    # VECTOR RETRIEVAL (RAG v2)
     # =========================
     try:
-        results = vector_store.search(text, top_k=5)
+        results = await vector_store.search(text, limit=5)
     except Exception:
         logger.exception("Vector search failed")
         results = []
 
     context_parts = []
 
-    # =========================
-    # BUILD RAG CONTEXT
-    # =========================
     for r in results:
         content = r.get("content", "")
-        metadata = r.get("metadata", {})
+        url = r.get("url", "")
+        topic = r.get("topic", "")
 
         if not content:
             continue
-
-        topic = metadata.get("topic", "")
-        url = metadata.get("url", "")
 
         context_parts.append(
             f"[TOPIC: {topic}]\nSOURCE: {url}\n{content}"
@@ -61,7 +61,7 @@ async def answer_wiki_question(text: str) -> str:
         context = "[NO RELEVANT MEMORY FOUND]"
 
     # =========================
-    # PROMPT ENGINE (RAG-AWARE)
+    # PROMPT ENGINE
     # =========================
     prompt = build_prompt(text, context)
 
