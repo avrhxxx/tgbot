@@ -1,13 +1,12 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service powered by Vertex AI RAG assistant
+# DESCRIPTION: AI Wiki service powered by Vertex AI + Firestore-only RAG
 
 import logging
 import asyncio
 
 from src.ai.gemini import gemini_client
 from src.wiki.guard import is_game_related, build_redirect_message
-from src.wiki.knowledge.aggregator import build_knowledge_context
 from src.wiki.knowledge.firestore_client import FirestoreClient
 
 logger = logging.getLogger("wiki.service")
@@ -18,6 +17,9 @@ GAME_RULE = "mobile game by FunPlus International"
 firestore = FirestoreClient()
 
 
+# =========================
+# PROMPT BUILDER
+# =========================
 def build_wiki_prompt(user_text: str, context: str) -> str:
     return f"""
 You are a knowledgeable wiki assistant for the mobile game "{GAME_NAME}" ({GAME_RULE}).
@@ -25,12 +27,9 @@ You are a knowledgeable wiki assistant for the mobile game "{GAME_NAME}" ({GAME_
 ========================
 INSTRUCTIONS
 ========================
-- PRIORITIZE facts from USER PROVIDED DATA if present
-- Base your answer on the CONTEXT below
-- You may summarize and combine multiple sources
-- Be careful and factual
-
-If there is no useful information, say EXACTLY:
+- Use ONLY the provided CONTEXT
+- CONTEXT comes from a user-maintained knowledge base (Firestore)
+- If context is insufficient, say EXACTLY:
 "I am not sure based on available sources."
 
 ========================
@@ -51,24 +50,18 @@ ANSWER:
 """.strip()
 
 
-def _extract_sources(context: str) -> str:
-    sources = []
-
-    if "[USER DATA]" in context:
-        sources.append("User Knowledge Base")
-
-    if "WIKIPEDIA" in context:
-        sources.append("Wikipedia")
-
-    if "SEARX" in context:
-        sources.append("Web Search")
-
-    if "[NO SOURCES FOUND]" in context:
-        sources.append("No sources")
-
-    return "Sources: " + ", ".join(sources) if sources else "Sources: None"
+# =========================
+# SOURCES LABEL
+# =========================
+def _extract_sources(has_data: bool) -> str:
+    if has_data:
+        return "Sources: Firestore Knowledge Base"
+    return "Sources: None"
 
 
+# =========================
+# MAIN ENTRY
+# =========================
 async def answer_wiki_question(text: str) -> str:
     logger.info("Game query received: %s", text)
 
@@ -79,36 +72,41 @@ async def answer_wiki_question(text: str) -> str:
         return build_redirect_message()
 
     # =========================
-    # 🔥 1. FIRESTORE FIRST
+    # FIRESTORE ONLY RETRIEVAL
     # =========================
-    user_data = await firestore.search_knowledge(text)
-
-    parts = []
-
-    if user_data:
-        parts.append("[USER DATA]")
-        for item in user_data:
-            parts.append(f"- {item[:1000]}")
+    try:
+        docs = await firestore.search_knowledge(text)
+    except Exception:
+        logger.exception("Firestore query failed")
+        docs = []
 
     # =========================
-    # 🔥 2. FALLBACK (WEB)
+    # BUILD CONTEXT
     # =========================
-    if not user_data:
-        context = await build_knowledge_context(text)
+    context_parts = []
 
-        if context:
-            parts.append(context)
+    if docs:
+        for d in docs:
+            topic = d.get("topic", "")
+            content = d.get("content", "")
 
-    # =========================
-    # FINAL CONTEXT
-    # =========================
-    final_context = "\n\n".join(parts).strip()
+            if not content:
+                continue
 
-    if not final_context:
+            context_parts.append(
+                f"[TOPIC: {topic}]\n{content[:1500]}"
+            )
+
+    final_context = "\n\n---\n\n".join(context_parts).strip()
+
+    has_data = bool(final_context)
+
+    if not has_data:
         final_context = "[NO SOURCES FOUND]"
 
-    sources = _extract_sources(final_context)
-
+    # =========================
+    # GEMINI PROMPT
+    # =========================
     prompt = build_wiki_prompt(text, final_context)
 
     try:
@@ -120,7 +118,7 @@ async def answer_wiki_question(text: str) -> str:
         if not response:
             return "No response from AI."
 
-        return f"{response.strip()}\n\n---\n{sources}"
+        return f"{response.strip()}\n\n---\n{_extract_sources(has_data)}"
 
     except Exception:
         logger.exception("Wiki service failed")
