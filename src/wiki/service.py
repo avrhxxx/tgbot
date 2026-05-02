@@ -47,8 +47,9 @@ async def answer_wiki_question(text: str) -> str:
             if not content:
                 continue
 
+            # 🔥 SOURCE ADDED (important for RAG trust)
             context_parts.append(
-                f"[TOPIC: {topic}]\n{content[:1500]}"
+                f"[TOPIC: {topic}]\nSOURCE: {url}\n{content[:1500]}"
             )
 
     context = "\n\n---\n\n".join(context_parts).strip()
