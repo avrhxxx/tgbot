@@ -1,0 +1,85 @@
+{
+  "game": "Tiles Survive",
+  "publisher": "FunPlus",
+  "sources": [
+    {
+      "type": "official",
+      "url": "https://funplus.com/games/tiles-survive/"
+    },
+    {
+      "type": "guide",
+      "url": "https://www.pocketgamer.com/tiles-survive/"
+    },
+    {
+      "type": "guide",
+      "url": "https://www.pocketgamer.com/tiles-survive/tier-list/"
+    },
+    {
+      "type": "guide",
+      "url": "https://lootbar.gg/blog/en/tiles-survive-hero-tier-list-best-heroes-ranked.html"
+    },
+    {
+      "type": "guide",
+      "url": "https://www.treyexgaming.com/tiles-survive-tier-list/"
+    },
+    {
+      "type": "guide",
+      "url": "https://www.packsify.com/blogs/tiles-survive-hero-tier-list"
+    },
+    {
+      "type": "guide",
+      "url": "https://gamestouse.com/tier-list/tiles-survive-tier-list/"
+    },
+    {
+      "type": "guide",
+      "url": "https://www.pocketgamer.com/articles/tiles-survive-guide/"
+    },
+    {
+      "type": "guide",
+      "url": "https://www.pocketgamer.com/articles/tiles-survive-tips-tricks/"
+    },
+    {
+      "type": "guide",
+      "url": "https://www.pocketgamer.com/articles/tiles-survive-best-heroes/"
+    },
+
+    {
+      "type": "community",
+      "url": "https://www.reddit.com/search/?q=Tiles%20Survive%20heroes"
+    },
+    {
+      "type": "community",
+      "url": "https://www.reddit.com/search/?q=Tiles%20Survive%20tier%20list"
+    },
+    {
+      "type": "community",
+      "url": "https://www.reddit.com/search/?q=Tiles%20Survive%20strategy"
+    },
+
+    {
+      "type": "video",
+      "url": "https://www.youtube.com/results?search_query=tiles+survive+guide"
+    },
+    {
+      "type": "video",
+      "url": "https://www.youtube.com/results?search_query=tiles+survive+best+heroes"
+    },
+    {
+      "type": "video",
+      "url": "https://www.youtube.com/results?search_query=tiles+survive+tips+tricks"
+    },
+
+    {
+      "type": "meta",
+      "url": "https://www.lootbar.gg/blog/en/tiles-survive-tier-list/"
+    },
+    {
+      "type": "meta",
+      "url": "https://www.treyexgaming.com/tiles-survive-guide/"
+    },
+    {
+      "type": "meta",
+      "url": "https://www.gamestouse.com/games/tiles-survive/"
+    }
+  ]
+}
