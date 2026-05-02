@@ -33,3 +33,5 @@ google-auth>=2.25.0
 # =========================
 ruff
 mypy
+
+trafilatura>=1.6.0
