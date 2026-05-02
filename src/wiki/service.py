@@ -54,9 +54,7 @@ ANSWER:
 # SOURCES LABEL
 # =========================
 def _extract_sources(has_data: bool) -> str:
-    if has_data:
-        return "Sources: Firestore Knowledge Base"
-    return "Sources: None"
+    return "Sources: Firestore Knowledge Base" if has_data else "Sources: None"
 
 
 # =========================
@@ -85,16 +83,14 @@ async def answer_wiki_question(text: str) -> str:
     # =========================
     context_parts = []
 
+    # 🔥 FIX: docs is List[str], NOT dict
     if docs:
-        for d in docs:
-            topic = d.get("topic", "")
-            content = d.get("content", "")
-
+        for content in docs:
             if not content:
                 continue
 
             context_parts.append(
-                f"[TOPIC: {topic}]\n{content[:1500]}"
+                f"[USER KNOWLEDGE]\n{content[:1500]}"
             )
 
     final_context = "\n\n---\n\n".join(context_parts).strip()
