@@ -1,6 +1,6 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service (RAG v2 - vector + fallback hybrid)
+# DESCRIPTION: AI Wiki service (RAG v2 - vector + fallback hybrid + sources footer)
 
 import logging
 import asyncio
@@ -23,14 +23,42 @@ embedder = EmbeddingClient()
 vector_store = VectorStore(firestore, embedder)
 
 
+# =========================
+# SOURCES FORMATTER (FOOTER)
+# =========================
+def format_sources_footer(sources: list[dict]) -> str:
+    if not sources:
+        return ""
+
+    lines = ["\n──────────────", "📚 Sources:"]
+
+    for s in sources[:5]:
+        topic = s.get("topic", "unknown")
+        url = s.get("url", "")
+        created_at = s.get("created_at", "")
+
+        if created_at:
+            lines.append(f"• {topic} – {created_at}")
+        else:
+            lines.append(f"• {topic}")
+
+    return "\n".join(lines)
+
+
+# =========================
+# MAIN SERVICE
+# =========================
 async def answer_wiki_question(text: str) -> str:
     logger.info("Game query received: %s", text)
 
     if not text or not text.strip():
         return "Please ask a question about Tiles Survive!."
 
+    # =========================
+    # SOFT GUARD (NO BLOCKING)
+    # =========================
     if not is_game_related(text):
-        return build_redirect_message()
+        logger.info("Non-game query detected, still processing via RAG fallback")
 
     # =========================
     # VECTOR RETRIEVAL (RAG v2)
@@ -41,12 +69,17 @@ async def answer_wiki_question(text: str) -> str:
         logger.exception("Vector search failed")
         results = []
 
-    context_parts = []
+    context_parts: list[str] = []
+    sources: list[dict] = []
 
+    # =========================
+    # BUILD CONTEXT + SOURCES
+    # =========================
     for r in results:
         content = r.get("content", "")
         url = r.get("url", "")
         topic = r.get("topic", "")
+        created_at = r.get("created_at", None)
 
         if not content:
             continue
@@ -54,6 +87,12 @@ async def answer_wiki_question(text: str) -> str:
         context_parts.append(
             f"[TOPIC: {topic}]\nSOURCE: {url}\n{content}"
         )
+
+        sources.append({
+            "topic": topic,
+            "url": url,
+            "created_at": created_at
+        })
 
     context = "\n\n---\n\n".join(context_parts).strip()
 
@@ -77,7 +116,10 @@ async def answer_wiki_question(text: str) -> str:
         if not response:
             return "No response from AI."
 
-        return response.strip()
+        final = response.strip()
+        final += format_sources_footer(sources)
+
+        return final
 
     except Exception:
         logger.exception("Wiki service failed")
