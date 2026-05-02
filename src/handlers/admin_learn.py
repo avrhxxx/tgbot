@@ -1,6 +1,6 @@
 # src/handlers/admin_learn.py
 # GROUP: handlers
-# DESCRIPTION: Admin command to teach bot knowledge (/learn) - upgraded extractor
+# DESCRIPTION: Admin command to teach bot knowledge (/learn) - upgraded ingestion pipeline
 
 import logging
 import re
@@ -9,6 +9,7 @@ from aiogram import Router
 from aiogram.types import Message
 
 from src.wiki.knowledge.firestore_client import FirestoreClient
+from src.ai.embeddings import embedding_client  # 🔥 NEW
 
 logger = logging.getLogger("handlers.admin.learn")
 
@@ -17,7 +18,7 @@ firestore = FirestoreClient()
 
 
 # =========================
-# OPTIONAL: BETTER EXTRACTOR
+# OPTIONAL EXTRACTOR
 # =========================
 try:
     import trafilatura
@@ -27,14 +28,38 @@ except ImportError:
 
 
 # =========================
-# FALLBACK HTML CLEANER
+# CLEANER FALLBACK
 # =========================
 def _clean_text(html: str) -> str:
     text = re.sub(r"<script.*?>.*?</script>", " ", html, flags=re.DOTALL)
     text = re.sub(r"<style.*?>.*?</style>", " ", text, flags=re.DOTALL)
     text = re.sub(r"<.*?>", " ", text)
-    text = " ".join(text.split())
-    return text[:3000]
+    return " ".join(text.split())
+
+
+# =========================
+# SIMPLE CHUNKER (MVP)
+# =========================
+def _chunk_text(text: str, size: int = 800) -> list[str]:
+    words = text.split()
+    chunks = []
+
+    current = []
+    length = 0
+
+    for w in words:
+        current.append(w)
+        length += 1
+
+        if length >= size:
+            chunks.append(" ".join(current))
+            current = []
+            length = 0
+
+    if current:
+        chunks.append(" ".join(current))
+
+    return chunks
 
 
 # =========================
@@ -52,20 +77,14 @@ async def _fetch_page(url: str) -> str:
 
                 html = await resp.text()
 
-                # =========================
-                # PRIMARY: TRAFILATURA
-                # =========================
                 if TRAFILATURA_AVAILABLE:
                     try:
                         extracted = trafilatura.extract(html)
-                        if extracted and len(extracted) > 200:
-                            return extracted[:5000]
+                        if extracted:
+                            return extracted
                     except Exception as e:
-                        logger.warning("Trafilatura failed, fallback to regex: %s", e)
+                        logger.warning("Trafilatura failed: %s", e)
 
-                # =========================
-                # FALLBACK: SIMPLE CLEANER
-                # =========================
                 return _clean_text(html)
 
     except Exception as e:
@@ -78,10 +97,6 @@ async def _fetch_page(url: str) -> str:
 # =========================
 @router.message(lambda m: m.text and m.text.startswith("/learn"))
 async def learn_handler(message: Message):
-    """
-    Usage:
-    /learn <topic> <url>
-    """
 
     text = message.text or ""
     parts = text.split()
@@ -93,23 +108,33 @@ async def learn_handler(message: Message):
     topic = parts[1].strip().lower()
     url = parts[2].strip()
 
-    await message.answer("📥 Learning from source...")
+    await message.answer("📥 Processing knowledge...")
 
     content = await _fetch_page(url)
 
     if not content or len(content) < 200:
-        await message.answer("❌ Failed to extract useful content.")
+        await message.answer("❌ Failed to extract content.")
         return
 
-    try:
-        await firestore.add_knowledge(
-            topic=topic,
-            url=url,
-            content=content[:5000],
-        )
+    chunks = _chunk_text(content)
 
-        await message.answer("✅ Knowledge saved.")
+    try:
+        saved = 0
+
+        for chunk in chunks:
+            embedding = embedding_client.embed(chunk)
+
+            await firestore.add_knowledge(
+                topic=topic,
+                url=url,
+                content=chunk,
+                embedding=embedding,   # 🔥 CRITICAL
+            )
+
+            saved += 1
+
+        await message.answer(f"✅ Learned {saved} knowledge chunks.")
 
     except Exception as e:
-        logger.exception("Firestore save failed: %s", e)
+        logger.exception("Learning pipeline failed: %s", e)
         await message.answer("❌ Failed to save knowledge.")
