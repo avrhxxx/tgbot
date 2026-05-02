@@ -4,7 +4,6 @@
 
 import logging
 import httpx
-from httpx import ClientTimeout
 
 logger = logging.getLogger("wiki.searx")
 
@@ -29,7 +28,7 @@ class SearxClient:
             "format": "json",
         }
 
-        timeout = ClientTimeout(total=DEFAULT_TIMEOUT)
+        timeout = httpx.Timeout(DEFAULT_TIMEOUT)
 
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
