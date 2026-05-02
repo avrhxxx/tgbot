@@ -1,26 +1,48 @@
 # src/wiki/guard.py
 # GROUP: wiki
-# DESCRIPTION: Minimal scope guard (only hard off-topic detection)
+# DESCRIPTION: Minimal soft guard (RAG-driven decision flow)
 
 import logging
 
 logger = logging.getLogger("wiki.guard")
 
-GAME_ANCHOR = "tiles survive"
+
+OFFTOPIC_HINTS = [
+    "cook",
+    "recipe",
+    "weather",
+    "politics",
+    "news",
+    "football",
+    "movie",
+    "porn",
+    "casino",
+]
 
 
 def is_game_related(text: str) -> bool:
+    """
+    Lightweight safety + off-topic filter.
+    Does NOT decide game relevance anymore (RAG handles that).
+    """
+
     if not text:
         return False
 
     text_lower = text.lower()
 
-    # ONLY hard block outside domain
-    return GAME_ANCHOR in text_lower
+    # HARD OFF-TOPIC BLOCK ONLY
+    for bad in OFFTOPIC_HINTS:
+        if bad in text_lower:
+            logger.info("Hard off-topic detected: %s", bad)
+            return False
+
+    # default: allow into RAG pipeline
+    return True
 
 
 def build_redirect_message() -> str:
     return (
-        "I can only help with *Tiles Survive!* 🎮\n\n"
-        "Ask me about gameplay, strategies, heroes or upgrades."
+        "I can only help with Tiles Survive! 🎮\n\n"
+        "Ask about heroes, builds, upgrades or strategy."
     )
