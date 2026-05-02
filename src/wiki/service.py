@@ -1,67 +1,52 @@
 # src/wiki/service.py
 # GROUP: wiki
-# DESCRIPTION: AI Wiki service (RAG v2 - vector + fallback hybrid + sources footer)
+# DESCRIPTION: AI Wiki service (RAG v2 + session-aware context)
 
 import logging
 import asyncio
 
 from src.ai.gemini import gemini_client
 from src.wiki.guard import is_game_related, build_redirect_message
-from src.wiki.knowledge.firestore_client import FirestoreClient
 from src.ai.prompt_engine import build_prompt
 
-from src.wiki.embeddings.client import EmbeddingClient
 from src.wiki.embeddings.vector_store import VectorStore
+from src.wiki.embeddings.client import EmbeddingClient
+from src.wiki.knowledge.firestore_client import FirestoreClient
+
+from src.services.session_service import (
+    get_session,
+    update_session,
+    build_session_context,
+)
 
 logger = logging.getLogger("wiki.service")
 
-# =========================
-# INIT LAYERS
-# =========================
 firestore = FirestoreClient()
 embedder = EmbeddingClient()
 vector_store = VectorStore(firestore, embedder)
 
 
-# =========================
-# SOURCES FORMATTER (FOOTER)
-# =========================
-def format_sources_footer(sources: list[dict]) -> str:
-    if not sources:
-        return ""
-
-    lines = ["\n──────────────", "📚 Sources:"]
-
-    for s in sources[:5]:
-        topic = s.get("topic", "unknown")
-        url = s.get("url", "")
-        created_at = s.get("created_at", "")
-
-        if created_at:
-            lines.append(f"• {topic} – {created_at}")
-        else:
-            lines.append(f"• {topic}")
-
-    return "\n".join(lines)
-
-
-# =========================
-# MAIN SERVICE
-# =========================
-async def answer_wiki_question(text: str) -> str:
+async def answer_wiki_question(text: str, user_id: int | None = None) -> str:
     logger.info("Game query received: %s", text)
 
     if not text or not text.strip():
         return "Please ask a question about Tiles Survive!."
 
-    # =========================
-    # SOFT GUARD (NO BLOCKING)
-    # =========================
     if not is_game_related(text):
-        logger.info("Non-game query detected, still processing via RAG fallback")
+        return build_redirect_message()
 
     # =========================
-    # VECTOR RETRIEVAL (RAG v2)
+    # SESSION CONTEXT (NEW)
+    # =========================
+    session_context = ""
+    session = None
+
+    if user_id is not None:
+        session = get_session(user_id)
+        session_context = build_session_context(user_id)
+
+    # =========================
+    # VECTOR SEARCH
     # =========================
     try:
         results = await vector_store.search(text, limit=5)
@@ -69,17 +54,15 @@ async def answer_wiki_question(text: str) -> str:
         logger.exception("Vector search failed")
         results = []
 
-    context_parts: list[str] = []
-    sources: list[dict] = []
+    context_parts = []
 
-    # =========================
-    # BUILD CONTEXT + SOURCES
-    # =========================
+    entities = []
+    topic = None
+
     for r in results:
         content = r.get("content", "")
         url = r.get("url", "")
-        topic = r.get("topic", "")
-        created_at = r.get("created_at", None)
+        topic = r.get("topic", topic)
 
         if not content:
             continue
@@ -88,11 +71,8 @@ async def answer_wiki_question(text: str) -> str:
             f"[TOPIC: {topic}]\nSOURCE: {url}\n{content}"
         )
 
-        sources.append({
-            "topic": topic,
-            "url": url,
-            "created_at": created_at
-        })
+        if topic:
+            entities.append(topic)
 
     context = "\n\n---\n\n".join(context_parts).strip()
 
@@ -100,9 +80,14 @@ async def answer_wiki_question(text: str) -> str:
         context = "[NO RELEVANT MEMORY FOUND]"
 
     # =========================
-    # PROMPT ENGINE
+    # PROMPT BUILD
     # =========================
-    prompt = build_prompt(text, context)
+    final_context = context
+
+    if session_context:
+        final_context = session_context + "\n\n" + context
+
+    prompt = build_prompt(text, final_context)
 
     # =========================
     # GEMINI CALL
@@ -116,11 +101,16 @@ async def answer_wiki_question(text: str) -> str:
         if not response:
             return "No response from AI."
 
-        final = response.strip()
-        final += format_sources_footer(sources)
+        return response.strip()
 
-        return final
-
-    except Exception:
-        logger.exception("Wiki service failed")
-        return "⚠️ AI service error. Please try again later."
+    finally:
+        # =========================
+        # SESSION UPDATE (POST)
+        # =========================
+        if user_id is not None:
+            update_session(
+                user_id,
+                topic=topic,
+                entities=entities,
+                question=text,
+            )
