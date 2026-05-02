@@ -25,7 +25,7 @@ embedding_client = EmbeddingClient()
 try:
     import trafilatura
     TRAFILATURA_AVAILABLE = True
-except ImportError:
+except Exception:
     TRAFILATURA_AVAILABLE = False
 
 
@@ -40,7 +40,7 @@ def _clean_text(html: str) -> str:
 
 
 # =========================
-# SIMPLE CHUNKER (MVP)
+# CHUNKER
 # =========================
 def _chunk_text(text: str, size: int = 800) -> list[str]:
     words = text.split()
@@ -79,7 +79,6 @@ async def _fetch_page(url: str) -> str:
 
                 html = await resp.text()
 
-                # Try trafilatura first
                 if TRAFILATURA_AVAILABLE:
                     try:
                         extracted = trafilatura.extract(html)
@@ -131,7 +130,7 @@ async def learn_handler(message: Message):
                 topic=topic,
                 url=url,
                 content=chunk,
-                embedding=embedding,
+                embedding=embedding,  # OK tylko jeśli FirestoreClient obsługuje
             )
 
             saved += 1
