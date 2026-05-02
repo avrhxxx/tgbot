@@ -9,6 +9,7 @@ from aiogram import Bot, Dispatcher
 
 from src.config.config import load_config
 from src.handlers.telegram_handler import handle_message
+from src.handlers.admin_learn import router as learn_router
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
@@ -26,7 +27,14 @@ async def main():
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
-    # 🔥 REGISTER HANDLER (CRITICAL FIX)
+    # =========================
+    # 🔥 ROUTERS FIRST
+    # =========================
+    dp.include_router(learn_router)
+
+    # =========================
+    # 🔥 FALLBACK HANDLER
+    # =========================
     dp.message.register(handle_message)
 
     # =========================
@@ -40,7 +48,7 @@ async def main():
     )
 
     # =========================
-    # SET WEBHOOK (Railway-ready)
+    # SET WEBHOOK
     # =========================
     await setup_webhook(
         bot=bot,
