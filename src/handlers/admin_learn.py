@@ -1,10 +1,9 @@
 # src/handlers/admin_learn.py
 # GROUP: handlers
-# DESCRIPTION: Admin command to teach bot knowledge (/learn)
+# DESCRIPTION: Admin command to teach bot knowledge (/learn) - upgraded extractor
 
 import logging
 import re
-
 import aiohttp
 from aiogram import Router
 from aiogram.types import Message
@@ -14,12 +13,21 @@ from src.wiki.knowledge.firestore_client import FirestoreClient
 logger = logging.getLogger("handlers.admin.learn")
 
 router = Router()
-
 firestore = FirestoreClient()
 
 
 # =========================
-# SIMPLE HTML CLEANER
+# OPTIONAL: BETTER EXTRACTOR
+# =========================
+try:
+    import trafilatura
+    TRAFILATURA_AVAILABLE = True
+except ImportError:
+    TRAFILATURA_AVAILABLE = False
+
+
+# =========================
+# FALLBACK HTML CLEANER
 # =========================
 def _clean_text(html: str) -> str:
     text = re.sub(r"<script.*?>.*?</script>", " ", html, flags=re.DOTALL)
@@ -34,10 +42,7 @@ def _clean_text(html: str) -> str:
 # =========================
 async def _fetch_page(url: str) -> str:
     try:
-        headers = {
-            "User-Agent": "shadow-bot/1.0"
-        }
-
+        headers = {"User-Agent": "shadow-bot/1.0"}
         timeout = aiohttp.ClientTimeout(total=10)
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
@@ -46,6 +51,21 @@ async def _fetch_page(url: str) -> str:
                     return ""
 
                 html = await resp.text()
+
+                # =========================
+                # PRIMARY: TRAFILATURA
+                # =========================
+                if TRAFILATURA_AVAILABLE:
+                    try:
+                        extracted = trafilatura.extract(html)
+                        if extracted and len(extracted) > 200:
+                            return extracted[:5000]
+                    except Exception as e:
+                        logger.warning("Trafilatura failed, fallback to regex: %s", e)
+
+                # =========================
+                # FALLBACK: SIMPLE CLEANER
+                # =========================
                 return _clean_text(html)
 
     except Exception as e:
@@ -54,7 +74,7 @@ async def _fetch_page(url: str) -> str:
 
 
 # =========================
-# /learn COMMAND (ADMIN ONLY)
+# /learn COMMAND
 # =========================
 @router.message(lambda m: m.text and m.text.startswith("/learn"))
 async def learn_handler(message: Message):
@@ -85,7 +105,7 @@ async def learn_handler(message: Message):
         await firestore.add_knowledge(
             topic=topic,
             url=url,
-            content=content[:3000]
+            content=content[:5000],
         )
 
         await message.answer("✅ Knowledge saved.")
