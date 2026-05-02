@@ -16,7 +16,9 @@ def _cosine_similarity(a: List[float], b: List[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
 
-    dot = sum(x * y for x, y in zip(a, b))
+    # FIX: ruff B905 compliance (safe strict usage)
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
 
@@ -39,9 +41,6 @@ class VectorStore:
         self.firestore = firestore_client
         self.embedder = embedding_client
 
-    # =========================
-    # SEARCH
-    # =========================
     async def search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Semantic search over Firestore knowledge base.
@@ -67,7 +66,6 @@ class VectorStore:
         for d in docs:
             embedding = d.get("embedding")
 
-            # skip non-embedded docs (backward compatibility)
             if not embedding:
                 continue
 
@@ -76,7 +74,6 @@ class VectorStore:
             if score > 0:
                 scored.append((score, d))
 
-        # sort by similarity
         scored.sort(key=lambda x: x[0], reverse=True)
 
         results = [item[1] for item in scored[:limit]]
