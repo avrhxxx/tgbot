@@ -14,7 +14,6 @@ from src.wiki.embeddings.client import EmbeddingClient
 from src.wiki.knowledge.firestore_client import FirestoreClient
 
 from src.services.session_service import (
-    get_session,
     update_session,
     build_session_context,
 )
@@ -39,10 +38,8 @@ async def answer_wiki_question(text: str, user_id: int | None = None) -> str:
     # SESSION CONTEXT (NEW)
     # =========================
     session_context = ""
-    session = None
 
     if user_id is not None:
-        session = get_session(user_id)
         session_context = build_session_context(user_id)
 
     # =========================
