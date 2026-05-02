@@ -22,7 +22,8 @@ async def build_knowledge_context(query: str) -> str:
     logger.info("Firestore-only context for: %s", query)
 
     try:
-        docs: List[Dict[str, Any]] = await firestore.search_knowledge(query)
+        # FIX: correct method name (v2 API)
+        docs: List[Dict[str, Any]] = await firestore.search_knowledge_raw()
 
         if not docs:
             return "[NO DATA]\nNo stored knowledge found."
