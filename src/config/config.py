@@ -1,11 +1,11 @@
 # src/config/config.py
 # GROUP: config
-# DESCRIPTION: Central runtime config (Railway-ready, single source of truth)
+# DESCRIPTION: Central runtime config (Railway-safe, single source of truth)
 
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from src.config.base import getenv
 
@@ -30,7 +30,7 @@ class TelegramConfig:
 
 @dataclass
 class GeminiConfig:
-    api_key: str  # REQUIRED in production
+    api_key: str | None
 
 
 # =========================
@@ -39,8 +39,8 @@ class GeminiConfig:
 
 @dataclass
 class GoogleConfig:
-    service_account: dict[str, Any]
-    sheets_id: str
+    service_account: dict[str, Any] | None
+    sheets_id: str | None
 
 
 # =========================
@@ -58,22 +58,25 @@ class Config:
 # HELPERS
 # =========================
 
-def _parse_json(value: str) -> dict[str, Any]:
+def _parse_json(value: str | None) -> dict[str, Any] | None:
+    if not value:
+        return None
+
     try:
         data = json.loads(value)
 
         if not isinstance(data, dict):
             raise ValueError("Expected JSON object")
 
-        # fix newline issue in private key
+        # fix private key formatting for Google SA
         if "private_key" in data:
             data["private_key"] = data["private_key"].replace("\\n", "\n")
 
         return data
 
     except Exception as err:
-        logger.error("❌ JSON parse failed: %s", err)
-        raise
+        logger.error("❌ GOOGLE_SERVICE_ACCOUNT parse failed: %s", err)
+        return None
 
 
 def _parse_admin_ids(value: str | None) -> list[int]:
@@ -102,11 +105,13 @@ def load_config() -> Config:
             admin_ids=_parse_admin_ids(getenv("ADMIN_IDS")),
         ),
         gemini=GeminiConfig(
-            api_key=getenv("GEMINI_API_KEY"),
+            api_key=getenv("GEMINI_API_KEY", required=False),
         ),
         google=GoogleConfig(
-            service_account=_parse_json(getenv("GOOGLE_SERVICE_ACCOUNT")),
-            sheets_id=getenv("GOOGLE_SHEET_ID"),
+            service_account=_parse_json(
+                getenv("GOOGLE_SERVICE_ACCOUNT", required=False)
+            ),
+            sheets_id=getenv("GOOGLE_SHEET_ID", required=False),
         ),
     )
 
