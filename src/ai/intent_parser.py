@@ -5,7 +5,7 @@
 import logging
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from src.ai.gemini import GeminiClient
 
