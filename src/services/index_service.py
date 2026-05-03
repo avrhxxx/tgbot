@@ -27,7 +27,14 @@ class IndexService:
         logger.info("⚙️ Intent received: %s", intent)
 
         name = intent["name"]
-        entity_type = intent["type"]
+
+        # =========================
+        # NEW UNIFIED FIELD (NO LEGACY TYPE)
+        # =========================
+        entity_type = intent.get("entity_type") or intent.get("type") or intent.get("object")
+
+        if not entity_type:
+            raise ValueError("Missing entity_type in intent")
 
         normalized = self.normalize(name)
 
