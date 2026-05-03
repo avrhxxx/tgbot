@@ -12,10 +12,7 @@ from src.handlers.telegram_handler import handle_message
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
-# 🔐 Google auth
 from src.google.auth import load_google_credentials
-
-# 📊 Sheets bootstrap
 from src.google.sheets.client import GoogleSheetsClient
 from src.google.sheets.bootstrap import SheetsBootstrap
 
@@ -34,6 +31,7 @@ async def main():
 
     try:
         creds = load_google_credentials()
+
         logger.info("✅ Google auth initialized successfully")
         logger.info("🔑 Auth type: %s", type(creds).__name__)
 
@@ -50,7 +48,7 @@ async def main():
         try:
             logger.info("📊 Initializing Google Sheets client...")
 
-            sheets_client = GoogleSheetsClient()
+            sheets_client = GoogleSheetsClient(credentials=creds)
 
             bootstrap = SheetsBootstrap(client=sheets_client)
 
@@ -72,15 +70,12 @@ async def main():
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
-    # =========================
-    # ROUTING (MINIMAL)
-    # =========================
     fallback_router = Router()
     fallback_router.message.register(handle_message)
     dp.include_router(fallback_router)
 
     # =========================
-    # WEBHOOK SETUP
+    # WEBHOOK
     # =========================
     webhook = WebhookServer(
         bot=bot,
@@ -95,7 +90,7 @@ async def main():
         secret=config.telegram.webhook_secret,
     )
 
-    logger.info("🚀 Starting CLEAN Shadow Bot (auth + sheets + webhook, no AI)...")
+    logger.info("🚀 Starting CLEAN Shadow Bot (auth + sheets + webhook)...")
     await webhook.run()
 
 
