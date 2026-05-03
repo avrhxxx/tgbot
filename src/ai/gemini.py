@@ -1,13 +1,13 @@
 # src/ai/gemini.py
 # GROUP: ai
-# DESCRIPTION: Vertex AI Gemini client (production-grade, region fallback, stable model)
+# DESCRIPTION: Vertex AI Gemini client (production-grade, Railway-safe, config-driven)
 
 import logging
 
 import vertexai
 from vertexai.generative_models import GenerativeModel
 
-from src.google.auth import load_service_account
+from src.config.config import load_config
 
 logger = logging.getLogger("ai.gemini")
 
@@ -16,28 +16,36 @@ class GeminiClient:
     """
     Production Vertex AI Gemini client.
 
-    Features:
-    - service account auth
+    - config-driven auth (Railway-safe)
     - EU-first region
     - fallback region
-    - stable Gemini 2.5 model
+    - Gemini 2.5 Flash stable
     """
 
     def __init__(self):
 
         # =========================
-        # AUTH
+        # CONFIG
         # =========================
-        self.credentials = load_service_account()
-        self.project_id = self.credentials.project_id
+        config = load_config()
+
+        self.credentials = config.google.service_account
+
+        if not self.credentials:
+            raise RuntimeError("Missing GOOGLE_SERVICE_ACCOUNT config")
+
+        self.project_id = self.credentials.get("project_id")
+
+        if not self.project_id:
+            raise RuntimeError("Missing project_id in service account")
 
         # =========================
-        # MODEL CONFIG (UPDATED)
+        # MODEL
         # =========================
         self.model_name = "gemini-2.5-flash"
 
         # =========================
-        # INIT VERTEX AI (PRIMARY REGION)
+        # INIT VERTEX (EU FIRST)
         # =========================
         self._init_vertex(region="europe-west4")
 
@@ -92,7 +100,6 @@ class GeminiClient:
         except Exception as e:
             msg = str(e)
 
-            # 🔥 auto recovery
             if "NOT_FOUND" in msg or "does not have access" in msg:
                 logger.warning("⚠️ Model/region issue → fallback triggered")
                 self._switch_region_if_needed()
@@ -109,7 +116,7 @@ class GeminiClient:
 
 
 # =========================
-# SINGLETON (KEEP)
+# SINGLETON
 # =========================
 
 gemini_client = GeminiClient()
