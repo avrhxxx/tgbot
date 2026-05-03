@@ -14,15 +14,9 @@ config = load_config()
 
 
 class GoogleSheetsClient:
-    """
-    Minimal Sheets client used ONLY for bootstrap layer.
-
-    Responsibilities:
-    - provide authenticated Google Sheets service
-    - expose spreadsheet_id
-    """
-
     def __init__(self):
+        logger.info("📊 Initializing Google Sheets client...")
+
         self.credentials = load_google_credentials()
 
         self.service = build(
@@ -32,10 +26,14 @@ class GoogleSheetsClient:
             cache_discovery=False,
         )
 
-        self.sheet_id = getattr(config.google, "sheets_id", None)
+        self.sheet_id = config.google.sheets_id
 
-        if not self.sheet_id:
-            logger.warning("⚠️ GOOGLE_SHEETS_ID not set in environment")
+        if self.sheet_id:
+            logger.info("🟢 Sheets ID loaded successfully")
+        else:
+            logger.warning("⚠️ GOOGLE_SHEET_ID is missing (Sheets disabled)")
+
+        logger.info("📊 Sheets client initialized")
 
     def get_service(self):
         return self.service
