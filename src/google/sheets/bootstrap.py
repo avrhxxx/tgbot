@@ -1,50 +1,45 @@
 # src/google/sheets/bootstrap.py
 # GROUP: google.sheets
-# DESCRIPTION: Idempotent Google Sheets schema initializer (create tabs + headers once)
+# DESCRIPTION: Simplified Sheets bootstrap (single-table architecture: indexes only)
 
 import logging
-from typing import List
-
 from googleapiclient.errors import HttpError  # type: ignore
 
-from src.google.sheets.schema import SHEETS_SCHEMA
 from src.google.sheets.client import GoogleSheetsClient
 
 logger = logging.getLogger("google.sheets.bootstrap")
 
 
 class SheetsBootstrap:
-    """
-    Lightweight initializer for game index sheets.
 
-    Responsibilities:
-    - ensure tabs exist
-    - ensure headers exist
-    - avoid duplicates (idempotent)
-    """
+    SHEET_NAME = "indexes"
+
+    HEADERS = ["id", "type", "name", "normalized", "created_at"]
 
     def __init__(self, client: GoogleSheetsClient):
         self.client = client
 
     # =========================
-    # PUBLIC ENTRYPOINT
+    # ENTRYPOINT
     # =========================
     def ensure(self) -> None:
+
         if not self.client.sheet_id:
-            logger.warning("SheetsBootstrap skipped (no SHEET_ID)")
+            logger.warning("⚠️ SheetsBootstrap skipped (missing SHEET_ID)")
             return
 
-        logger.info("📊 Starting Sheets schema bootstrap...")
+        logger.info("📊 Starting Sheets schema bootstrap (single-table mode)")
 
-        self._ensure_tabs()
+        self._ensure_tab()
         self._ensure_headers()
 
         logger.info("✅ Sheets schema bootstrap completed")
 
     # =========================
-    # TABS
+    # TAB CREATION
     # =========================
-    def _ensure_tabs(self) -> List[str]:
+    def _ensure_tab(self) -> None:
+
         try:
             sheet = self.client.service.spreadsheets().get(
                 spreadsheetId=self.client.sheet_id
@@ -55,55 +50,52 @@ class SheetsBootstrap:
                 for s in sheet.get("sheets", [])
             ]
 
-            for tab in SHEETS_SCHEMA.keys():
-                if tab not in existing_tabs:
-                    self._create_tab(tab)
+            if self.SHEET_NAME in existing_tabs:
+                logger.info("⏭️ Sheet exists: %s", self.SHEET_NAME)
+                return
 
-            return existing_tabs
+            body = {
+                "requests": [
+                    {
+                        "addSheet": {
+                            "properties": {"title": self.SHEET_NAME}
+                        }
+                    }
+                ]
+            }
+
+            self.client.service.spreadsheets().batchUpdate(
+                spreadsheetId=self.client.sheet_id,
+                body=body,
+            ).execute()
+
+            logger.info("➕ Created sheet tab: %s", self.SHEET_NAME)
 
         except HttpError as e:
-            logger.error("❌ Failed to fetch sheet structure: %s", e)
+            logger.exception("❌ Failed to ensure sheet tab")
             raise
-
-    def _create_tab(self, tab_name: str) -> None:
-        body = {
-            "requests": [
-                {
-                    "addSheet": {
-                        "properties": {"title": tab_name}
-                    }
-                }
-            ]
-        }
-
-        self.client.service.spreadsheets().batchUpdate(
-            spreadsheetId=self.client.sheet_id,
-            body=body,
-        ).execute()
-
-        logger.info("➕ Created sheet tab: %s", tab_name)
 
     # =========================
     # HEADERS
     # =========================
     def _ensure_headers(self) -> None:
-        for tab_name, headers in SHEETS_SCHEMA.items():
-            range_ = f"{tab_name}!A1:{chr(64 + len(headers))}1"
 
-            result = self.client.service.spreadsheets().values().get(
-                spreadsheetId=self.client.sheet_id,
-                range=range_,
-            ).execute()
+        range_ = f"{self.SHEET_NAME}!A1:E1"
 
-            if result.get("values"):
-                logger.info("⏭️ Headers already exist: %s", tab_name)
-                continue
+        result = self.client.service.spreadsheets().values().get(
+            spreadsheetId=self.client.sheet_id,
+            range=range_,
+        ).execute()
 
-            self.client.service.spreadsheets().values().update(
-                spreadsheetId=self.client.sheet_id,
-                range=range_,
-                valueInputOption="RAW",
-                body={"values": [headers]},
-            ).execute()
+        if result.get("values"):
+            logger.info("⏭️ Headers already exist: %s", self.SHEET_NAME)
+            return
 
-            logger.info("🧾 Headers initialized: %s -> %s", tab_name, headers)
+        self.client.service.spreadsheets().values().update(
+            spreadsheetId=self.client.sheet_id,
+            range=range_,
+            valueInputOption="RAW",
+            body={"values": [self.HEADERS]},
+        ).execute()
+
+        logger.info("🧾 Headers initialized: %s", self.HEADERS)
