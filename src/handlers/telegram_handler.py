@@ -25,20 +25,32 @@ def get_game_state(sheets_client):
 
         rows = result.get("values", [])
 
-        heroes, skills, buildings = [], [], []
+        heroes = []
+        skills = []
+        buildings = []
 
+        # IMPORTANT: structured extraction with relations
         for r in rows[1:]:
             if len(r) < 3:
                 continue
 
-            t = r[1]
+            entity_type = r[1]
             name = r[2]
 
-            if t == "hero":
+            parent_type = r[4] if len(r) > 4 else None
+            parent_name = r[5] if len(r) > 5 else None
+
+            if entity_type == "hero":
                 heroes.append(name)
-            elif t == "skill":
-                skills.append(name)
-            elif t == "building":
+
+            elif entity_type == "skill":
+                # store with relation for filtering in prompt
+                skills.append({
+                    "name": name,
+                    "parent": parent_name
+                })
+
+            elif entity_type == "building":
                 buildings.append(name)
 
         return heroes, skills, buildings
@@ -49,56 +61,75 @@ def get_game_state(sheets_client):
 
 
 # =========================
-# PROMPT BUILDER (COACH v2)
+# PROMPT BUILDER (COACH v3 - RELATIONAL + FIRESTORE)
 # =========================
 def build_prompt(user_text: str, state):
     heroes, skills, buildings = state
 
     return f"""
-You are an advanced GAME COACH AI.
+You are a STRICT GAME COACH AI.
 
-You MUST follow these rules:
-
-========================
-1. LANGUAGE RULE
-========================
-Respond in the SAME language as the user message.
+You work like a DATABASE QUERY ENGINE + GAME WIKI.
 
 ========================
-2. DATA SOURCES
+LANGUAGE RULE
 ========================
-You have access to:
-
-- INDEX DATABASE (authoritative list of entities)
-- FIRESTORE (mechanics & descriptions, currently may be empty)
+Respond in the same language as the user.
 
 ========================
-3. CURRENT INDEX DATABASE
+DATA MODEL
 ========================
+You have structured game data:
 
 HEROES:
 {heroes}
 
-SKILLS:
+SKILLS (structured):
 {skills}
 
 BUILDINGS:
 {buildings}
 
 ========================
-4. FIRESTORE RULE
+RELATION RULE (CRITICAL)
 ========================
-- If mechanic/description exists → use it
-- If NOT available → say:
-  "This exists in the game, but mechanics are not yet documented."
+Skills are linked to heroes via:
+- skill.parent == hero name
+
+If user asks:
+"skills of X"
+
+YOU MUST:
+- filter skills where parent == X
+- ignore all other skills
+
+NEVER use full skill list unless explicitly requested.
 
 ========================
-5. BEHAVIOR RULES
+FIRESTORE KNOWLEDGE LAYER
 ========================
-- Do NOT invent stats or mechanics
-- You can confirm existence from INDEXES
-- You can explain missing data as "not yet known"
-- Be concise and helpful like a game wiki assistant
+Firestore contains:
+- descriptions
+- mechanics
+- stats
+- scaling
+BUT MAY BE EMPTY
+
+RULES:
+- If Firestore data exists → use it
+- If missing → say:
+  "This exists in the game, but its mechanics are not yet documented."
+
+NEVER INVENT MECHANICS.
+
+========================
+ANSWER RULES
+========================
+- Be precise
+- Do not hallucinate
+- Use only filtered data
+- If unknown → say it is not documented
+- Act like a game wiki assistant
 
 ========================
 USER QUESTION
@@ -117,10 +148,9 @@ async def handle_message(message: Message):
 
     sheets_client = message.bot.__dict__.get("sheets_client")
 
-    # load game state
+    # load structured state
     state = get_game_state(sheets_client)
 
-    # build prompt
     prompt = build_prompt(text, state)
 
     try:
