@@ -53,6 +53,7 @@ async def main():
 
             logger.info("📊 Running Sheets schema bootstrap...")
             bootstrap.ensure()
+
             logger.info("✅ Sheets bootstrap completed successfully")
 
         except Exception as e:
@@ -67,8 +68,8 @@ async def main():
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
-    # 🔥 IMPORTANT: DI INJECTION
-    bot.sheets_client = sheets_client
+    # 🔥 IMPORTANT: SAFE DI INJECTION (mypy-safe)
+    setattr(bot, "sheets_client", sheets_client)
 
     # =========================
     # ROUTING
