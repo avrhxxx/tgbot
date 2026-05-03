@@ -80,8 +80,8 @@ def _parse_json(value: Optional[str]) -> Optional[dict[str, Any]]:
 
         return data
 
-    except Exception:
-        raise ValueError("Invalid JSON in GOOGLE_SERVICE_ACCOUNT")
+    except Exception as err:
+        raise ValueError("Invalid JSON in GOOGLE_SERVICE_ACCOUNT") from err
 
 
 # =========================
