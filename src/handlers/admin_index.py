@@ -60,9 +60,16 @@ async def handle_add(message: Message):
         logger.info("🧠 Intent parsed | %s", intent)
 
         # -------------------------
-        # SAFE SHEETS CLIENT ACCESS
+        # SAFE BOT CONTEXT ACCESS
         # -------------------------
-        sheets_client = message.bot.get("sheets_client")
+        bot = message.bot
+
+        if not bot:
+            logger.error("❌ Bot instance missing in message context")
+            await message.answer("❌ Internal error.")
+            return
+
+        sheets_client = getattr(bot, "sheets_client", None)
 
         if not sheets_client:
             logger.error("❌ Sheets client not found in bot context")
