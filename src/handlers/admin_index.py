@@ -1,6 +1,6 @@
 # src/handlers/admin_index.py
 # GROUP: handlers
-# DESCRIPTION: Admin-only index creation handler
+# DESCRIPTION: Admin-only index creation handler (SAFE DI + runtime guards)
 
 import logging
 
@@ -17,22 +17,33 @@ logger = logging.getLogger("handlers.admin_index")
 router = Router()
 
 config = load_config()
-
 intent_parser = IntentParser()
 
 
+# =========================
+# ADMIN CHECK
+# =========================
 def is_admin(user_id: int) -> bool:
-    return user_id in config.telegram.admin_ids
+    return user_id in getattr(config.telegram, "admin_ids", [])
 
 
+# =========================
+# HANDLER
+# =========================
 @router.message(F.text.startswith("dodaj"))
 async def handle_add(message: Message):
 
+    if not message.from_user:
+        return
+
     user_id = message.from_user.id
-    text = message.text
+    text = message.text or ""
 
-    logger.info("📩 Admin command received | user=%s text=%s", user_id, text)
+    logger.info("📩 Admin command received | user=%s | text=%s", user_id, text)
 
+    # -------------------------
+    # AUTH CHECK
+    # -------------------------
     if not is_admin(user_id):
         logger.warning("⛔ Unauthorized access attempt | user_id=%s", user_id)
         await message.answer("❌ No permission.")
@@ -41,19 +52,35 @@ async def handle_add(message: Message):
     logger.info("🔐 Admin verified")
 
     try:
-        intent = intent_parser.parse(text)
+        # -------------------------
+        # INTENT PARSE
+        # -------------------------
+        intent = intent_parser.parse(str(text))
 
-        logger.info("🧠 Intent received in handler: %s", intent)
+        logger.info("🧠 Intent parsed | %s", intent)
 
-        sheets_client = SheetsWriter(message.bot["sheets_client"])
-        service = IndexService(sheets_client)
+        # -------------------------
+        # SAFE SHEETS CLIENT ACCESS
+        # -------------------------
+        sheets_client = message.bot.get("sheets_client")
+
+        if not sheets_client:
+            logger.error("❌ Sheets client not found in bot context")
+            await message.answer("❌ Sheets not initialized.")
+            return
+
+        # -------------------------
+        # SERVICE LAYER
+        # -------------------------
+        writer = SheetsWriter(sheets_client)
+        service = IndexService(writer)
 
         result = service.handle(intent)
 
-        logger.info("🎯 Final result stored: %s", result)
+        logger.info("🎯 Index stored successfully | %s", result)
 
         await message.answer(f"✅ Added: {result}")
 
-    except Exception as e:
+    except Exception:
         logger.exception("❌ Handler failed")
         await message.answer("❌ Error while processing command.")
