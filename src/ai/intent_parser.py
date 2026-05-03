@@ -1,6 +1,6 @@
 # src/ai/intent_parser.py
 # GROUP: ai
-# DESCRIPTION: Vertex AI strict intent parser (NL → structured index schema)
+# DESCRIPTION: Vertex AI intent parser (clean contract, no computed fields)
 
 import logging
 import json
@@ -12,118 +12,72 @@ logger = logging.getLogger("ai.intent_parser")
 
 
 class IntentParser:
-    """
-    Strict converter: natural language → structured index command.
-    """
 
     def __init__(self):
         self.client = GeminiClient()
-        logger.info("🧠 IntentParser initialized (GeminiClient ready)")
+        logger.info("🧠 IntentParser initialized")
 
-    # =========================
-    # MAIN PARSE PIPELINE
-    # =========================
     def parse(self, text: str) -> Dict[str, Any]:
 
         logger.info("📩 Incoming text for parsing | text=%s", text)
 
-        # =========================
-        # PROMPT (STRICT SCHEMA)
-        # =========================
         prompt = f"""
-You are a STRICT JSON generator for a game indexing system.
+You are a strict command parser.
 
-RULES:
-- Output ONLY valid JSON
-- No markdown
-- No explanation
-- No extra fields
+Return ONLY valid JSON.
 
-ALLOWED ACTIONS:
+Allowed action:
 - add_index
 
-ALLOWED TYPES:
+Allowed types:
 - building
 - hero
 - item
 - resource
 
-OUTPUT SCHEMA:
-{{
-  "action": "add_index",
-  "type": "<building|hero|item|resource>",
-  "name": "<original name>",
-  "normalized": "<snake_case lowercase name>"
-}}
+User message:
+{text}
 
-NORMALIZATION RULES:
-- lowercase
-- spaces → underscores
-- remove special characters
-
-EXAMPLE:
-Input:
-add building Power Plant
-
-Output:
+Output format:
 {{
   "action": "add_index",
   "type": "building",
-  "name": "Power Plant",
-  "normalized": "power_plant"
+  "name": "Power Plant"
 }}
-
-USER INPUT:
-{text}
 """
 
-        logger.debug("🧾 Sending prompt to AI")
+        logger.debug("🧾 Sending prompt to Gemini")
 
         response = self.client.generate(prompt)
 
         logger.info("📨 Raw AI response received")
-        logger.debug("🧠 AI RAW: %s", response)
 
-        # =========================
-        # PARSE + VALIDATE
-        # =========================
         try:
             data = json.loads(response)
 
-            logger.debug("🔎 Parsed JSON: %s", data)
-
             if not isinstance(data, dict):
-                logger.error("❌ AI response is not a dict")
-                raise ValueError("Invalid AI response format")
+                raise ValueError("AI returned invalid JSON")
 
-            # =========================
-            # REQUIRED FIELD SAFETY
-            # =========================
-            required = ["action", "type", "name", "normalized"]
+            # ------------------------
+            # REQUIRED FIELDS CHECK
+            # ------------------------
+            required = ["action", "type", "name"]
 
             for field in required:
                 if field not in data:
-                    logger.error("❌ Missing field in AI response: %s", field)
+                    logger.error("❌ Missing field: %s", field)
                     raise ValueError(f"Missing field: {field}")
 
             logger.info(
-                "✅ AI intent parsed successfully | action=%s type=%s name=%s normalized=%s",
+                "✅ Intent parsed | action=%s type=%s name=%s",
                 data.get("action"),
                 data.get("type"),
                 data.get("name"),
-                data.get("normalized"),
             )
 
             return data
 
-        except json.JSONDecodeError as e:
-            logger.error("❌ JSON decode failed")
-            logger.error("🔎 RAW RESPONSE: %s", response)
-            logger.exception(e)
-            raise
-
-        except Exception as e:
+        except Exception:
             logger.error("❌ Intent parsing failed")
             logger.error("🔎 RAW RESPONSE: %s", response)
-            logger.exception(e)
             raise
