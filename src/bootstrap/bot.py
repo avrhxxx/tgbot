@@ -32,16 +32,14 @@ async def main():
 
     try:
         creds = load_google_credentials()
-
         logger.info("✅ Google auth initialized successfully")
         logger.info("🔑 Auth type: %s", type(creds).__name__)
-
     except Exception as e:
         logger.error("❌ Google auth failed: %s", e)
         creds = None
 
     # =========================
-    # 📊 GOOGLE SHEETS BOOTSTRAP
+    # 📊 GOOGLE SHEETS INIT
     # =========================
     sheets_client = None
 
@@ -54,9 +52,7 @@ async def main():
             bootstrap = SheetsBootstrap(client=sheets_client)
 
             logger.info("📊 Running Sheets schema bootstrap...")
-
             bootstrap.ensure()
-
             logger.info("✅ Sheets bootstrap completed successfully")
 
         except Exception as e:
@@ -71,14 +67,14 @@ async def main():
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
-    # =========================
-    # ROUTING (IMPORTANT ORDER)
-    # =========================
+    # 🔥 IMPORTANT: DI INJECTION
+    bot.sheets_client = sheets_client
 
-    # 1. Admin / index engine FIRST (highest priority)
+    # =========================
+    # ROUTING
+    # =========================
     dp.include_router(admin_index_router)
 
-    # 2. Fallback handler LAST
     fallback_router = Router()
     fallback_router.message.register(handle_message)
     dp.include_router(fallback_router)
