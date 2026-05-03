@@ -12,6 +12,9 @@ from src.handlers.telegram_handler import handle_message
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
+# 🔐 Google auth smoke test
+from src.google.auth import load_google_credentials
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bootstrap")
@@ -19,6 +22,19 @@ logger = logging.getLogger("bootstrap")
 
 async def main():
     config = load_config()
+
+    # =========================
+    # 🔐 GOOGLE AUTH SMOKE TEST
+    # =========================
+    logger.info("🔐 Checking Google authentication...")
+
+    try:
+        creds = load_google_credentials()
+        logger.info("✅ Google auth initialized successfully")
+        logger.info("🔑 Auth type: %s", type(creds).__name__)
+
+    except Exception as e:
+        logger.error("❌ Google auth failed: %s", e)
 
     # =========================
     # TELEGRAM CORE
