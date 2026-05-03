@@ -3,10 +3,13 @@
 # DESCRIPTION: SAFE runtime config (Railway-ready, non-blocking bootstrap)
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any, Optional
 
 from src.config.base import getenv
+
+logger = logging.getLogger("config")
 
 
 # =========================
@@ -47,6 +50,7 @@ class GoogleSearchConfig:
 class GoogleConfig:
     service_account: Optional[dict[str, Any]]
     search: GoogleSearchConfig
+    sheets_id: Optional[str]   # 🔥 FIX ADDED
 
 
 # =========================
@@ -74,22 +78,24 @@ def _parse_json(value: Optional[str]) -> Optional[dict[str, Any]]:
         if not isinstance(data, dict):
             raise ValueError("Invalid JSON object")
 
-        # fix escaped newlines for service accounts
         if "private_key" in data:
             data["private_key"] = data["private_key"].replace("\\n", "\n")
 
         return data
 
     except Exception as err:
+        logger.error("❌ GOOGLE_SERVICE_ACCOUNT parse failed: %s", err)
         raise ValueError("Invalid JSON in GOOGLE_SERVICE_ACCOUNT") from err
 
 
 # =========================
-# LOAD CONFIG (SAFE MODE)
+# LOAD CONFIG
 # =========================
 
 def load_config() -> Config:
-    return Config(
+    logger.info("⚙️ Loading runtime config...")
+
+    cfg = Config(
         telegram=TelegramConfig(
             token=getenv("TELEGRAM_TOKEN"),
             webhook_secret=getenv("WEBHOOK_SECRET"),
@@ -106,5 +112,15 @@ def load_config() -> Config:
                 api_key=getenv("GOOGLE_SEARCH_API_KEY", default=None, required=False),
                 cx=getenv("GOOGLE_SEARCH_CX", default=None, required=False),
             ),
+            sheets_id=getenv("GOOGLE_SHEET_ID", default=None, required=False),  # 🔥 FIX
         ),
     )
+
+    logger.info(
+        "✅ Config loaded | sheets=%s | gemini=%s | search=%s",
+        bool(cfg.google.sheets_id),
+        bool(cfg.gemini.api_key),
+        bool(cfg.google.search.api_key),
+    )
+
+    return cfg
