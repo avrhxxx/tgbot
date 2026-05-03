@@ -15,6 +15,7 @@ pydantic-settings>=2.2
 # =========================
 cachetools>=5.3.0
 types-cachetools
+
 # =========================
 # HTTP CLIENT
 # =========================
@@ -29,9 +30,19 @@ google-cloud-firestore>=2.13.0
 google-auth>=2.25.0
 
 # =========================
+# GOOGLE SHEETS API
+# =========================
+google-api-python-client>=2.120.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+
+# =========================
 # LINT / TYPE CHECK (DEV ONLY)
 # =========================
 ruff
 mypy
 
+# =========================
+# SCRAPING / NLP
+# =========================
 trafilatura>=1.6.0
