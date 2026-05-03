@@ -1,6 +1,6 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: Clean Telegram bot entrypoint (SAFE BOOT MODE - no AI, no Sheets, no workers)
+# DESCRIPTION: Clean Telegram bot entrypoint (SAFE BOOT MODE + Google Auth + Sheets Bootstrap)
 
 import asyncio
 import logging
@@ -12,8 +12,12 @@ from src.handlers.telegram_handler import handle_message
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
-# 🔐 Google auth smoke test
+# 🔐 Google auth
 from src.google.auth import load_google_credentials
+
+# 📊 Sheets bootstrap
+from src.google.sheets.client import GoogleSheetsClient
+from src.google.sheets.bootstrap import SheetsBootstrap
 
 
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +28,7 @@ async def main():
     config = load_config()
 
     # =========================
-    # 🔐 GOOGLE AUTH SMOKE TEST
+    # 🔐 GOOGLE AUTH
     # =========================
     logger.info("🔐 Checking Google authentication...")
 
@@ -35,6 +39,32 @@ async def main():
 
     except Exception as e:
         logger.error("❌ Google auth failed: %s", e)
+        creds = None
+
+    # =========================
+    # 📊 GOOGLE SHEETS BOOTSTRAP
+    # =========================
+    sheets_client = None
+
+    if creds:
+        try:
+            logger.info("📊 Initializing Google Sheets client...")
+
+            sheets_client = GoogleSheetsClient()
+
+            bootstrap = SheetsBootstrap(client=sheets_client)
+
+            logger.info("📊 Running Sheets schema bootstrap...")
+
+            bootstrap.ensure()
+
+            logger.info("✅ Sheets bootstrap completed successfully")
+
+        except Exception as e:
+            logger.error("❌ Sheets bootstrap failed: %s", e)
+
+    else:
+        logger.warning("⚠️ Sheets skipped (no valid Google credentials)")
 
     # =========================
     # TELEGRAM CORE
@@ -65,7 +95,7 @@ async def main():
         secret=config.telegram.webhook_secret,
     )
 
-    logger.info("Starting CLEAN Shadow Bot (no AI / no Sheets / no workers)...")
+    logger.info("🚀 Starting CLEAN Shadow Bot (auth + sheets + webhook, no AI)...")
     await webhook.run()
 
 
