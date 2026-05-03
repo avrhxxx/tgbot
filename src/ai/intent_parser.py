@@ -1,11 +1,11 @@
 # src/ai/intent_parser.py
 # GROUP: ai
-# DESCRIPTION: Semantic intent parser (object + name + context extraction, AI-driven game indexing)
+# DESCRIPTION: Robust semantic intent parser (AI-safe, schema-flexible, production-ready)
 
 import logging
 import json
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from src.ai.gemini import GeminiClient
 
@@ -16,20 +16,52 @@ class IntentParser:
 
     def __init__(self):
         self.client = GeminiClient()
-        logger.info("🧠 IntentParser initialized (semantic mode)")
+        logger.info("🧠 IntentParser initialized (robust semantic mode)")
 
     # =========================
-    # SAFE JSON EXTRACTION
+    # JSON EXTRACTION (AI SAFE)
     # =========================
     def _extract_json(self, text: str) -> str:
         logger.debug("🧪 Extracting JSON from AI response")
 
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if not match:
-            logger.error("❌ No JSON found in response")
+            logger.error("❌ No JSON found in AI response")
             raise ValueError("No JSON found in AI response")
 
         return match.group(0)
+
+    # =========================
+    # FIELD NORMALIZATION (BACKWARD COMPAT)
+    # =========================
+    def _normalize_schema(self, data: Dict[str, Any]) -> Dict[str, Any]:
+
+        # support legacy AI outputs
+        if "object" not in data and "type" in data:
+            logger.warning("⚠️ Mapping legacy 'type' → 'object'")
+            data["object"] = data["type"]
+
+        # ensure context exists
+        if "context" not in data or data["context"] is None:
+            data["context"] = {}
+
+        return data
+
+    # =========================
+    # VALIDATION (SAFE MODE)
+    # =========================
+    def _validate(self, data: Dict[str, Any]) -> None:
+
+        required = ["action", "object", "name"]
+
+        for field in required:
+            if field not in data or not data[field]:
+                logger.error("❌ Missing required field: %s", field)
+                raise ValueError(f"Missing field: {field}")
+
+        if data.get("action") != "add_index":
+            logger.error("❌ Invalid action: %s", data.get("action"))
+            raise ValueError("Invalid action")
 
     # =========================
     # MAIN PARSE
@@ -42,58 +74,36 @@ class IntentParser:
 You are a semantic game indexing parser.
 
 Your job:
-- Understand user intent in natural language
-- Extract structure from sentence meaning
-- Do NOT require strict schema matching
+- Understand intent from natural language
+- Extract structured meaning
+- Be flexible, not strict
 
 Return ONLY valid JSON.
 
 RULES:
-- object = main thing being created (building, hero, skill, item, resource)
-- name = final meaningful name of the object (usually last phrase)
+- object = main entity (building, hero, skill, item, resource)
+- name = final entity name
 - context = optional relationships (hero, building, etc.)
-- infer meaning from natural language
 
 Examples:
 
-Input:
-dodaj budynek Power Plant
-
+Input: dodaj budynek Power Plant
 Output:
-{{
-  "action": "add_index",
-  "object": "building",
-  "name": "Power Plant"
-}}
+{{"action":"add_index","object":"building","name":"Power Plant"}}
 
-Input:
-dodaj bohatera Tarzan
-
+Input: dodaj bohatera Tarzan
 Output:
-{{
-  "action": "add_index",
-  "object": "hero",
-  "name": "Tarzan"
-}}
+{{"action":"add_index","object":"hero","name":"Tarzan"}}
 
-Input:
-dodaj skill bohatera Tarzan Fire Strike
-
+Input: dodaj skill bohatera Tarzan Fire Strike
 Output:
-{{
-  "action": "add_index",
-  "object": "skill",
-  "name": "Fire Strike",
-  "context": {{
-    "hero": "Tarzan"
-  }}
-}}
+{{"action":"add_index","object":"skill","name":"Fire Strike","context":{{"hero":"Tarzan"}}}}
 
-User message:
+User:
 {text}
 """
 
-        logger.debug("🧾 Sending semantic prompt to AI")
+        logger.debug("🧾 Sending prompt to AI")
 
         response = self.client.generate(prompt)
 
@@ -103,44 +113,21 @@ User message:
             raw_json = self._extract_json(response)
             data = json.loads(raw_json)
 
-            logger.debug("📦 Parsed JSON: %s", data)
-
             if not isinstance(data, dict):
-                logger.error("❌ AI returned non-object JSON")
+                logger.error("❌ AI returned non-dict JSON")
                 raise ValueError("Invalid AI response format")
 
-            # =========================
-            # REQUIRED FIELDS
-            # =========================
-            required = ["action", "object", "name"]
+            # normalize schema BEFORE validation
+            data = self._normalize_schema(data)
 
-            for field in required:
-                if field not in data or not data[field]:
-                    logger.error("❌ Missing field: %s", field)
-                    raise ValueError(f"Missing field: {field}")
+            # validate required fields
+            self._validate(data)
 
-            # =========================
-            # VALIDATION
-            # =========================
-            if data["action"] != "add_index":
-                logger.error("❌ Invalid action: %s", data["action"])
-                raise ValueError("Invalid action")
-
-            # =========================
-            # CONTEXT NORMALIZATION
-            # =========================
-            if "context" in data and not isinstance(data["context"], dict):
-                logger.warning("⚠️ Invalid context format, resetting")
-                data["context"] = {}
-
-            # =========================
-            # FINAL LOG
-            # =========================
             logger.info(
-                "✅ Intent parsed | object=%s name=%s context=%s",
+                "✅ Intent parsed | object=%s name=%s context_keys=%s",
                 data.get("object"),
                 data.get("name"),
-                data.get("context"),
+                list(data.get("context", {}).keys()) if data.get("context") else []
             )
 
             return data
