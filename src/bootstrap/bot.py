@@ -68,8 +68,8 @@ async def main():
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
-    # 🔥 IMPORTANT: SAFE DI INJECTION (mypy-safe)
-    setattr(bot, "sheets_client", sheets_client)
+    # 🔥 SAFE CONTEXT INJECTION (ruff + mypy compatible)
+    bot.__dict__["sheets_client"] = sheets_client
 
     # =========================
     # ROUTING
