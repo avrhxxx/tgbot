@@ -13,6 +13,10 @@ from src.handlers.admin_learn import router as learn_router
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
+# 🔥 NEW IMPORTS
+from src.google.sheets.client import GoogleSheetsClient
+from src.wiki.workers.source_sync_worker import SourceSyncWorker
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bootstrap")
@@ -29,10 +33,29 @@ async def main():
     # =========================
     dp.include_router(learn_router)
 
-    # fallback router instead of raw register
     fallback_router = Router()
     fallback_router.message.register(handle_message)
     dp.include_router(fallback_router)
+
+    # =========================
+    # 🔥 INIT INFRA
+    # =========================
+    sheets = GoogleSheetsClient()
+
+    if sheets.sheet_id:
+        logger.info("Initializing Google Sheets structure...")
+        sheets.ensure_structure()
+    else:
+        logger.warning("Sheets disabled (no SHEET_ID)")
+
+    # =========================
+    # 🔥 WORKER (BACKGROUND)
+    # =========================
+    worker = SourceSyncWorker(sheets_client=sheets)
+
+    asyncio.create_task(worker.run())
+
+    logger.info("Source sync worker started")
 
     # =========================
     # WEBHOOK
