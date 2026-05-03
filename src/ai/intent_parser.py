@@ -57,6 +57,11 @@ Output format:
         try:
             data = json.loads(response)
 
+            # ✅ safety check for mypy + runtime stability
+            if not isinstance(data, dict):
+                logger.error("❌ AI returned non-dict JSON")
+                raise ValueError("Invalid AI response format")
+
             logger.info(
                 "✅ Parsed AI intent successfully | action=%s type=%s name=%s",
                 data.get("action"),
