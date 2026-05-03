@@ -1,9 +1,11 @@
 # src/google/sheets/writer.py
 # GROUP: google.sheets
-# DESCRIPTION: Production-safe Sheets writer (indexes-only DB model)
+# DESCRIPTION: Schema-driven Sheets writer (relations-ready, production-safe)
 
 import logging
 from datetime import datetime
+
+from src.google.sheets.schema import SHEETS_SCHEMA
 
 logger = logging.getLogger("google.sheets.writer")
 
@@ -17,15 +19,26 @@ class SheetsWriter:
 
         logger.info("📊 SheetsWriter initialized | sheet_id=%s", self.sheet_id)
 
-    def _serialize(self, row: dict) -> list:
-        return [
-            row.get("id"),
-            row.get("type"),
-            row.get("name"),
-            row.get("normalized"),
-            row.get("created_at", datetime.utcnow().isoformat()),
-        ]
+    # =========================
+    # SERIALIZATION (SCHEMA-DRIVEN)
+    # =========================
+    def _serialize(self, sheet: str, row: dict) -> list:
 
+        headers = SHEETS_SCHEMA[sheet]
+
+        serialized = []
+
+        for field in headers:
+            if field == "created_at":
+                serialized.append(row.get(field) or datetime.utcnow().isoformat())
+            else:
+                serialized.append(row.get(field))
+
+        return serialized
+
+    # =========================
+    # APPEND
+    # =========================
     def append_row(self, sheet: str, row: dict):
 
         logger.info(
@@ -35,13 +48,19 @@ class SheetsWriter:
             row.get("name"),
         )
 
+        headers = SHEETS_SCHEMA[sheet]
+
+        # dynamic range (A:G etc.)
+        last_column_letter = chr(ord("A") + len(headers) - 1)
+        range_ = f"{sheet}!A:{last_column_letter}"
+
         try:
             self.service.spreadsheets().values().append(
                 spreadsheetId=self.sheet_id,
-                range="indexes!A:E",
+                range=range_,
                 valueInputOption="RAW",
                 insertDataOption="INSERT_ROWS",
-                body={"values": [self._serialize(row)]},
+                body={"values": [self._serialize(sheet, row)]},
             ).execute()
 
             logger.info("✅ Row inserted | id=%s", row.get("id"))
@@ -50,13 +69,16 @@ class SheetsWriter:
             logger.exception("❌ Append failed")
             raise
 
+    # =========================
+    # DUPLICATE CHECK
+    # =========================
     def find_by_normalized(self, sheet: str, normalized: str):
 
         logger.debug("🔎 Lookup normalized=%s", normalized)
 
         result = self.service.spreadsheets().values().get(
             spreadsheetId=self.sheet_id,
-            range="indexes!A:D",
+            range=f"{sheet}!A:D",
         ).execute()
 
         rows = result.get("values", [])
@@ -68,11 +90,14 @@ class SheetsWriter:
 
         return None
 
+    # =========================
+    # NEXT ID
+    # =========================
     def get_next_id(self, sheet: str) -> int:
 
         result = self.service.spreadsheets().values().get(
             spreadsheetId=self.sheet_id,
-            range="indexes!A:A",
+            range=f"{sheet}!A:A",
         ).execute()
 
         rows = result.get("values", [])
