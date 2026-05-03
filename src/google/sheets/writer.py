@@ -28,8 +28,12 @@ class SheetsWriter:
 
     def append_row(self, sheet: str, row: dict):
 
-        logger.info("✍️ Append → sheet=%s type=%s name=%s",
-                    sheet, row.get("type"), row.get("name"))
+        logger.info(
+            "✍️ Append → sheet=%s type=%s name=%s",
+            sheet,
+            row.get("type"),
+            row.get("name"),
+        )
 
         try:
             self.service.spreadsheets().values().append(
@@ -42,7 +46,7 @@ class SheetsWriter:
 
             logger.info("✅ Row inserted | id=%s", row.get("id"))
 
-        except Exception as e:
+        except Exception:
             logger.exception("❌ Append failed")
             raise
 
