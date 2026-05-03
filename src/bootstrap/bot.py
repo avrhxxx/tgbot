@@ -9,6 +9,7 @@ from aiogram import Bot, Dispatcher, Router
 
 from src.config.config import load_config
 from src.handlers.telegram_handler import handle_message
+from src.handlers.admin_index import router as admin_index_router
 from src.webhook.server import WebhookServer
 from src.webhook.setup import setup_webhook
 
@@ -70,6 +71,14 @@ async def main():
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
+    # =========================
+    # ROUTING (IMPORTANT ORDER)
+    # =========================
+
+    # 1. Admin / index engine FIRST (highest priority)
+    dp.include_router(admin_index_router)
+
+    # 2. Fallback handler LAST
     fallback_router = Router()
     fallback_router.message.register(handle_message)
     dp.include_router(fallback_router)
