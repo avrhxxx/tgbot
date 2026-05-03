@@ -1,6 +1,6 @@
 # src/handlers/admin_index.py
 # GROUP: handlers
-# DESCRIPTION: Admin-only index creation handler (SAFE DI + runtime guards)
+# DESCRIPTION: Admin-only index creation handler (safe DI runtime access)
 
 import logging
 
@@ -20,16 +20,10 @@ config = load_config()
 intent_parser = IntentParser()
 
 
-# =========================
-# ADMIN CHECK
-# =========================
 def is_admin(user_id: int) -> bool:
-    return user_id in getattr(config.telegram, "admin_ids", [])
+    return user_id in config.telegram.admin_ids
 
 
-# =========================
-# HANDLER
-# =========================
 @router.message(F.text.startswith("dodaj"))
 async def handle_add(message: Message):
 
@@ -41,9 +35,9 @@ async def handle_add(message: Message):
 
     logger.info("📩 Admin command received | user=%s | text=%s", user_id, text)
 
-    # -------------------------
+    # =========================
     # AUTH CHECK
-    # -------------------------
+    # =========================
     if not is_admin(user_id):
         logger.warning("⛔ Unauthorized access attempt | user_id=%s", user_id)
         await message.answer("❌ No permission.")
@@ -52,33 +46,27 @@ async def handle_add(message: Message):
     logger.info("🔐 Admin verified")
 
     try:
-        # -------------------------
+        # =========================
         # INTENT PARSE
-        # -------------------------
-        intent = intent_parser.parse(str(text))
+        # =========================
+        intent = intent_parser.parse(text)
 
         logger.info("🧠 Intent parsed | %s", intent)
 
-        # -------------------------
-        # SAFE BOT CONTEXT ACCESS
-        # -------------------------
+        # =========================
+        # SHEETS DEPENDENCY (FIXED)
+        # =========================
         bot = message.bot
-
-        if not bot:
-            logger.error("❌ Bot instance missing in message context")
-            await message.answer("❌ Internal error.")
-            return
-
         sheets_client = getattr(bot, "sheets_client", None)
 
         if not sheets_client:
-            logger.error("❌ Sheets client not found in bot context")
+            logger.error("❌ Sheets client missing in bot context")
             await message.answer("❌ Sheets not initialized.")
             return
 
-        # -------------------------
+        # =========================
         # SERVICE LAYER
-        # -------------------------
+        # =========================
         writer = SheetsWriter(sheets_client)
         service = IndexService(writer)
 
