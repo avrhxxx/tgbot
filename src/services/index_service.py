@@ -1,9 +1,10 @@
 # src/services/index_service.py
 # GROUP: services
-# DESCRIPTION: Unified index ingestion engine (AI → single DB table)
+# DESCRIPTION: Unified index ingestion engine (AI → single DB table + context support)
 
 import logging
 import re
+import json
 from typing import Dict, Any
 
 from src.google.sheets.writer import SheetsWriter
@@ -28,17 +29,16 @@ class IndexService:
 
         name = intent["name"]
 
-        # =========================
-        # NEW UNIFIED FIELD (NO LEGACY TYPE)
-        # =========================
         entity_type = intent.get("entity_type") or intent.get("type") or intent.get("object")
 
         if not entity_type:
             raise ValueError("Missing entity_type in intent")
 
+        context = intent.get("context", {})
+
         normalized = self.normalize(name)
 
-        logger.info("📍 Processing | type=%s name=%s", entity_type, name)
+        logger.info("📍 Processing | type=%s name=%s context=%s", entity_type, name, context)
 
         existing = self.sheets.find_by_normalized("indexes", normalized)
 
@@ -53,6 +53,7 @@ class IndexService:
             "type": entity_type,
             "name": name,
             "normalized": normalized,
+            "context": json.dumps(context) if context else None,
             "created_at": None,
         }
 
