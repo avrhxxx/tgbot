@@ -56,7 +56,7 @@ class SheetsBootstrap:
 
             logger.info("➕ Created sheet: %s", self.SHEET_NAME)
 
-        except HttpError as e:
+        except HttpError:
             logger.exception("❌ Failed to create sheet")
             raise
 
@@ -70,7 +70,7 @@ class SheetsBootstrap:
         ).execute()
 
         if result.get("values"):
-            logger.info("⏭️ Headers already exist")
+            logger.info("⏭️ Headers already exist: %s", self.SHEET_NAME)
             return
 
         self.client.service.spreadsheets().values().update(
@@ -80,4 +80,4 @@ class SheetsBootstrap:
             body={"values": [self.HEADERS]},
         ).execute()
 
-        logger.info("🧾 Headers initialized")
+        logger.info("🧾 Headers initialized: %s", self.HEADERS)
