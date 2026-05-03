@@ -21,6 +21,7 @@ class TelegramConfig:
     token: str
     webhook_secret: str
     webhook_url: str
+    admin_ids: list[int]   # 🔥 FIX: added admin system support
 
 
 # =========================
@@ -50,7 +51,7 @@ class GoogleSearchConfig:
 class GoogleConfig:
     service_account: Optional[dict[str, Any]]
     search: GoogleSearchConfig
-    sheets_id: Optional[str]   # 🔥 FIX ADDED
+    sheets_id: Optional[str]
 
 
 # =========================
@@ -88,6 +89,25 @@ def _parse_json(value: Optional[str]) -> Optional[dict[str, Any]]:
         raise ValueError("Invalid JSON in GOOGLE_SERVICE_ACCOUNT") from err
 
 
+def _parse_admin_ids(value: Optional[str]) -> list[int]:
+    """
+    Converts: "123,456" -> [123, 456]
+    Safe for Railway ENV.
+    """
+    if not value:
+        return []
+
+    try:
+        return [
+            int(x.strip())
+            for x in value.split(",")
+            if x.strip()
+        ]
+    except Exception as err:
+        logger.error("❌ ADMIN_IDS parse failed: %s", err)
+        return []
+
+
 # =========================
 # LOAD CONFIG
 # =========================
@@ -100,6 +120,7 @@ def load_config() -> Config:
             token=getenv("TELEGRAM_TOKEN"),
             webhook_secret=getenv("WEBHOOK_SECRET"),
             webhook_url=getenv("WEBHOOK_URL"),
+            admin_ids=_parse_admin_ids(getenv("ADMIN_IDS", default=None, required=False)),
         ),
         gemini=GeminiConfig(
             api_key=getenv("GEMINI_API_KEY", default=None, required=False),
@@ -112,15 +133,16 @@ def load_config() -> Config:
                 api_key=getenv("GOOGLE_SEARCH_API_KEY", default=None, required=False),
                 cx=getenv("GOOGLE_SEARCH_CX", default=None, required=False),
             ),
-            sheets_id=getenv("GOOGLE_SHEET_ID", default=None, required=False),  # 🔥 FIX
+            sheets_id=getenv("GOOGLE_SHEET_ID", default=None, required=False),
         ),
     )
 
     logger.info(
-        "✅ Config loaded | sheets=%s | gemini=%s | search=%s",
+        "✅ Config loaded | sheets=%s | gemini=%s | search=%s | admins=%s",
         bool(cfg.google.sheets_id),
         bool(cfg.gemini.api_key),
         bool(cfg.google.search.api_key),
+        len(cfg.telegram.admin_ids),
     )
 
     return cfg
