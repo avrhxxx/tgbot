@@ -1,6 +1,6 @@
 # src/google/auth.py
 # GROUP: google
-# DESCRIPTION: Safe Google auth layer (ADC-first, Service Account fallback)
+# DESCRIPTION: Safe Google auth layer (ADC-first, Service Account fallback + strong debug visibility)
 
 import json
 import logging
@@ -13,34 +13,14 @@ from google.oauth2 import service_account
 logger = logging.getLogger("google.auth")
 
 # =========================
-# FULL SCOPES (CRITICAL FIX)
+# FULL SCOPES (CRITICAL)
 # =========================
 SCOPES = [
-    # Core GCP
     "https://www.googleapis.com/auth/cloud-platform",
-
-    # Sheets
     "https://www.googleapis.com/auth/spreadsheets",
-
-    # Drive (files + folders)
     "https://www.googleapis.com/auth/drive",
-
-    # Docs API (THIS WAS MISSING / INCONSISTENT IN PRACTICE)
     "https://www.googleapis.com/auth/documents",
 ]
-
-
-def _normalize_scopes(creds: Any) -> Any:
-    """
-    Ensures credentials are consistently scoped across services.
-    Prevents partial auth edge cases (Drive OK, Docs FAIL).
-    """
-    if hasattr(creds, "with_scopes"):
-        try:
-            return creds.with_scopes(SCOPES)
-        except Exception:
-            return creds
-    return creds
 
 
 def load_google_credentials() -> Any:
@@ -65,10 +45,13 @@ def load_google_credentials() -> Any:
 
         creds, _ = default(scopes=SCOPES)
 
-        creds = _normalize_scopes(creds)
-
+        # =========================
+        # DEBUG FINGERPRINT (IMPORTANT)
+        # =========================
         logger.info("✅ ADC authentication successful")
-        logger.info("📦 scopes=%s", len(SCOPES))
+        logger.info("🔑 AUTH TYPE: %s", type(creds).__name__)
+        logger.info("📧 AUTH EMAIL: %s", getattr(creds, "service_account_email", None))
+        logger.info("📦 SCOPES COUNT: %s", len(SCOPES))
 
         return creds
 
@@ -79,8 +62,6 @@ def load_google_credentials() -> Any:
 
     try:
         data = json.loads(raw)
-        logger.info("🟢 Service account JSON parsed successfully")
-
     except Exception as err:
         logger.error("❌ Failed to parse GOOGLE_SERVICE_ACCOUNT JSON")
         raise ValueError("Invalid GOOGLE_SERVICE_ACCOUNT JSON") from err
@@ -92,20 +73,20 @@ def load_google_credentials() -> Any:
         logger.error("❌ Missing fields in service account: %s", missing)
         raise ValueError(f"Missing fields in service account: {missing}")
 
-    # fix newline encoding
+    # fix private key format
     data["private_key"] = data["private_key"].replace("\\n", "\n")
-
-    logger.info("🔧 Service account normalized")
 
     credentials = service_account.Credentials.from_service_account_info(
         data,
         scopes=SCOPES,
     )
 
-    credentials = _normalize_scopes(credentials)
-
+    # =========================
+    # DEBUG FINGERPRINT (IMPORTANT)
+    # =========================
     logger.info("✅ Service Account authentication successful")
-    logger.info("📧 Authenticated as: %s", data.get("client_email"))
-    logger.info("📦 scopes=%s", len(SCOPES))
+    logger.info("🔑 AUTH TYPE: %s", type(credentials).__name__)
+    logger.info("📧 AUTH EMAIL: %s", data.get("client_email"))
+    logger.info("📦 SCOPES COUNT: %s", len(SCOPES))
 
     return credentials
