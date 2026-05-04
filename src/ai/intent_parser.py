@@ -1,6 +1,6 @@
 # src/ai/intent_parser.py
 # GROUP: ai
-# DESCRIPTION: Semantic intent parser (learning loop + admin-controlled knowledge growth)
+# DESCRIPTION: Semantic intent parser (INDEX + KNOWLEDGE dual system, extended learning)
 
 import logging
 import json
@@ -16,7 +16,7 @@ class IntentParser:
 
     def __init__(self):
         self.client = GeminiClient()
-        logger.info("🧠 IntentParser initialized (learning mode v2)")
+        logger.info("🧠 IntentParser initialized (learning mode v3)")
 
 
     # =========================
@@ -43,11 +43,16 @@ class IntentParser:
         if "action" not in data:
             data["action"] = "query"
 
+        # BACKWARD COMPATIBILITY (OLD SYSTEM)
+        if data.get("action") == "add_definition":
+            # future bridge to knowledge system (optional mapping)
+            data["legacy_mode"] = True
+
         return data
 
 
     # =========================
-    # VALIDATION (FLEXIBLE)
+    # VALIDATION
     # =========================
     def _validate(self, data: Dict[str, Any]) -> None:
 
@@ -55,11 +60,16 @@ class IntentParser:
             "query",
             "check_existence",
             "get_definition",
-            "add_definition"
+            "add_definition",   # 🔴 INDEX SYSTEM (UNCHANGED)
+            "add_knowledge",    # 🟢 NEW KNOWLEDGE SYSTEM
+            "add_tree",         # 🌲 research tree
+            "add_tree_research" # 🌲 add node to tree
         }
 
         if data.get("action") not in allowed_actions:
             raise ValueError(f"Invalid action: {data.get('action')}")
+
+        return None
 
 
     # =========================
@@ -72,52 +82,78 @@ class IntentParser:
         prompt = f"""
 You are a GAME INTELLIGENCE ENGINE.
 
-You do NOT just extract data.
+You handle TWO SYSTEMS:
 
-You decide intent:
+=================================
+1. INDEX SYSTEM (Sheets)
+=================================
+- add_definition → creates game entities
+- includes: hero, skill, building, item
+- ALSO includes extended structures:
+  • research_tree
+  • research_node (inside tree)
 
-========================
-ACTIONS YOU CAN RETURN
-========================
+Rules:
+- index = existence only
+- NEVER describe mechanics here
 
-1. query
-- normal question about game
+EXAMPLES:
 
-2. check_existence
-- user asks if something exists in game (Sheets lookup)
+Input: dodaj drzewko badań technologii
+Output:
+{{"action":"add_definition","object":"research_tree","name":"Technologia"}}
 
-3. get_definition
-- user asks what something means (Firestore lookup)
+Input: dodaj badanie do drzewka Technologia: Laser Upgrade
+Output:
+{{
+  "action":"add_definition",
+  "object":"research_node",
+  "name":"Laser Upgrade",
+  "context":{{"tree":"Technologia"}}
+}}
 
-4. add_definition
-- user is adding missing knowledge
-- ONLY allow if explicitly requested
-- ALWAYS assume admin validation required
+=================================
+2. KNOWLEDGE SYSTEM (Firestore)
+=================================
+- add_knowledge → description layer
+- explains meaning, stats, behavior
 
-========================
+EXAMPLES:
+
+Input: dodaj wiedzę o Fire Strike
+Output:
+{{
+  "action":"add_knowledge",
+  "object":"skill",
+  "name":"Fire Strike",
+  "knowledge_type":"behavior"
+}}
+
+=================================
+3. READ SYSTEM
+=================================
+
+check_existence:
+- verify if entity exists in INDEX
+
+get_definition:
+- retrieve Firestore knowledge
+
+query:
+- normal question
+
+=================================
 RULES
-========================
-- object = hero / skill / building / item
-- name = entity name
-- context = relationships
+=================================
 
-========================
-EXAMPLES
-========================
+- NEVER mix INDEX and KNOWLEDGE
+- INDEX = structure
+- KNOWLEDGE = meaning
+- ALWAYS preserve hierarchy relations
 
-Input: czy istnieje Tarzan
-Output:
-{{"action":"check_existence","object":"hero","name":"Tarzan"}}
-
-Input: co to jest Fire Strike
-Output:
-{{"action":"get_definition","object":"skill","name":"Fire Strike"}}
-
-Input: dodaj definicję Fire Strike to skill Tarzana z opisem ...
-Output:
-{{"action":"add_definition","object":"skill","name":"Fire Strike","context":{{"hero":"Tarzan"}}}}
-
-User:
+=================================
+USER INPUT
+=================================
 {text}
 """
 
