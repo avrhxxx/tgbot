@@ -1,41 +1,52 @@
 # src/google/drive/client.py
 # GROUP: google.drive
-# DESCRIPTION: Google Drive folder manager (for Docs organization)
+# DESCRIPTION: Google Drive abstraction layer (folders + file management)
 
 import logging
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
-from googleapiclient.discovery import build  # type: ignore
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
+
 from src.google.auth import load_google_credentials
 
 logger = logging.getLogger("google.drive")
-
-_executor = ThreadPoolExecutor(max_workers=5)
 
 
 class GoogleDriveClient:
 
     def __init__(self):
-        credentials = load_google_credentials()
+        credentials: Credentials = load_google_credentials()
 
-        self.service = build(
-            "drive",
-            "v3",
-            credentials=credentials,
-            cache_discovery=False,
+        self.service = build("drive", "v3", credentials=credentials)
+
+        logger.info("📦 GoogleDriveClient initialized")
+
+    # =========================
+    # FOLDER HELPERS
+    # =========================
+    async def ensure_folder(self, name: str, parent_id: Optional[str] = None) -> str:
+        """
+        Ensures folder exists, returns folder_id
+        """
+
+        query = (
+            f"name='{name}' and "
+            f"mimeType='application/vnd.google-apps.folder' and "
+            "trashed=false"
         )
 
-        logger.info("📁 Google Drive client initialized")
+        if parent_id:
+            query += f" and '{parent_id}' in parents"
 
-    async def _run(self, func, *args, **kwargs):
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(_executor, lambda: func(*args, **kwargs))
+        result = self.service.files().list(q=query, fields="files(id, name)").execute()
 
-    # =========================
-    # CREATE FOLDER
-    # =========================
-    async def create_folder(self, name: str, parent_id: str | None = None):
+        files = result.get("files", [])
+
+        if files:
+            folder_id = files[0]["id"]
+            logger.info("📁 Folder exists | %s → %s", name, folder_id)
+            return folder_id
 
         metadata = {
             "name": name,
@@ -45,14 +56,31 @@ class GoogleDriveClient:
         if parent_id:
             metadata["parents"] = [parent_id]
 
-        folder = await self._run(
-            self.service.files().create,
-            body=metadata,
-            fields="id",
+        folder = self.service.files().create(body=metadata, fields="id").execute()
+
+        logger.info("📁 Folder created | %s → %s", name, folder["id"])
+
+        return folder["id"]
+
+    # =========================
+    # FILE SEARCH
+    # =========================
+    async def find_file(self, folder_id: str, name: str) -> Optional[str]:
+        """
+        Finds file by name in folder
+        """
+
+        query = (
+            f"name contains '{name}' and "
+            f"'{folder_id}' in parents and "
+            "trashed=false"
         )
 
-        folder_id = folder.get("id")
+        result = self.service.files().list(q=query, fields="files(id, name)").execute()
 
-        logger.info("📁 Folder created | %s -> %s", name, folder_id)
+        files = result.get("files", [])
 
-        return folder_id
+        if not files:
+            return None
+
+        return files[0]["id"]
