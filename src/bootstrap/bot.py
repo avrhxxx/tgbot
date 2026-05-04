@@ -1,6 +1,6 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: Clean Telegram bot entrypoint (SAFE BOOT MODE + Google Auth + Sheets + AI warmup)
+# DESCRIPTION: Clean Telegram bot entrypoint (SAFE BOOT MODE + Google Auth + Sheets + AI + Docs/Drive)
 
 import asyncio
 import logging
@@ -17,8 +17,17 @@ from src.google.auth import load_google_credentials
 from src.google.sheets.client import GoogleSheetsClient
 from src.google.sheets.bootstrap import SheetsBootstrap
 
-# 🔥 AI warmup import
+# =========================
+# AI WARMUP
+# =========================
 from src.ai.gemini import gemini_client
+
+# =========================
+# 🔥 NEW: DRIVE + DOCS LAYER
+# =========================
+from src.google.drive.client import GoogleDriveClient
+from src.google.docs.client import GoogleDocsClient
+from src.services.docs_service import DocsService
 
 
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +42,7 @@ async def main():
     config = load_config()
 
     # =========================
-    # 🤖 AI WARMUP (CRITICAL)
+    # 🤖 AI WARMUP
     # =========================
     logger.info("🧠 Warming up Vertex AI (Gemini)...")
 
@@ -82,13 +91,35 @@ async def main():
         logger.warning("⚠️ Sheets skipped (no valid Google credentials)")
 
     # =========================
+    # 📁 DRIVE + DOCS INIT (NEW)
+    # =========================
+    drive_client = None
+    docs_service = None
+
+    if creds:
+        try:
+            logger.info("📁 Initializing Google Drive + Docs...")
+
+            drive_client = GoogleDriveClient()
+            docs_client = GoogleDocsClient()
+
+            docs_service = DocsService()
+
+            logger.info("✅ Drive + Docs initialized successfully")
+
+        except Exception as e:
+            logger.error("❌ Drive/Docs init failed: %s", e)
+
+    # =========================
     # TELEGRAM BOT
     # =========================
     bot = Bot(token=config.telegram.token)
     dp = Dispatcher()
 
-    # context injection (safe)
+    # context injection (SAFE GLOBAL DEPENDENCIES)
     bot.__dict__["sheets_client"] = sheets_client
+    bot.__dict__["drive_client"] = drive_client
+    bot.__dict__["docs_service"] = docs_service
 
     # =========================
     # ROUTING
@@ -121,10 +152,12 @@ async def main():
     logger.info("🚀 Shadow Bot starting...")
 
     logger.info(
-        "📦 SYSTEM READY STATE | AI=%s | SHEETS=%s | AUTH=%s",
+        "📦 SYSTEM READY STATE | AI=%s | SHEETS=%s | AUTH=%s | DRIVE=%s | DOCS=%s",
         "OK",
         "OK" if sheets_client else "DISABLED",
         "OK" if creds else "FAILED",
+        "OK" if drive_client else "DISABLED",
+        "OK" if docs_service else "DISABLED",
     )
 
     await webhook.run()
