@@ -1,6 +1,6 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: Clean Telegram bot entrypoint (SAFE BOOT MODE + Google Auth + Sheets + AI + Docs/Drive)
+# DESCRIPTION: Clean Telegram bot entrypoint (SAFE BOOT MODE + Google Auth + Sheets + AI + Docs/Drive V2 DI)
 
 import asyncio
 import logging
@@ -27,6 +27,7 @@ from src.ai.gemini import gemini_client
 # =========================
 from src.google.drive.client import GoogleDriveClient
 from src.google.drive.bootstrap import DriveBootstrap
+from src.google.docs.client import GoogleDocsClient
 from src.services.docs_service import DocsService
 
 
@@ -91,9 +92,10 @@ async def main():
         logger.warning("⚠️ Sheets skipped (no valid Google credentials)")
 
     # =========================
-    # 📁 DRIVE + DOCS INIT
+    # 📁 DRIVE + DOCS INIT (V2 DI ARCHITECTURE)
     # =========================
     drive_client = None
+    docs_client = None
     docs_service = None
     drive_bootstrap = None
 
@@ -101,10 +103,18 @@ async def main():
         try:
             logger.info("📁 Initializing Google Drive + Docs...")
 
+            # =========================
+            # DRIVE CLIENT
+            # =========================
             drive_client = GoogleDriveClient()
 
             # =========================
-            # DRIVE BOOTSTRAP (WORLD STRUCTURE)
+            # DOCS CLIENT (NEW V2)
+            # =========================
+            docs_client = GoogleDocsClient()
+
+            # =========================
+            # DRIVE BOOTSTRAP
             # =========================
             logger.info("📁 Running Drive bootstrap...")
 
@@ -119,11 +129,14 @@ async def main():
             logger.info("✅ Drive bootstrap completed successfully")
 
             # =========================
-            # DOCS SERVICE
+            # DOCS SERVICE (V2 DI)
             # =========================
-            docs_service = DocsService()
+            docs_service = DocsService(
+                docs_client=docs_client,
+                drive_client=drive_client,
+            )
 
-            logger.info("📦 DocsService initialized")
+            logger.info("📦 DocsService initialized (V2 DI MODE)")
 
         except Exception as e:
             logger.error("❌ Drive/Docs init failed: %s", e)
