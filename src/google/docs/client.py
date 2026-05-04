@@ -4,7 +4,7 @@
 
 import logging
 import asyncio
-from typing import Optional, Any
+from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
 from googleapiclient.discovery import build  # type: ignore
