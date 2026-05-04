@@ -1,6 +1,6 @@
 # src/handlers/telegram_handler.py
 # GROUP: handlers
-# DESCRIPTION: AI Coach Telegram handler (Smart Index Filtering + Sheets relation aware)
+# DESCRIPTION: AI Coach Telegram handler (Sheets = registry, Firestore = knowledge layer)
 
 import logging
 import asyncio
@@ -16,8 +16,8 @@ logger = logging.getLogger("handlers.telegram")
 # =========================
 def get_game_state(sheets_client, query: str):
     """
-    Returns filtered game state based on query keywords.
-    Prevents dumping full dataset into AI prompt.
+    Returns filtered game registry (ONLY existing game entities).
+    Sheets = source of truth for existence, not mechanics.
     """
     if not sheets_client:
         return [], [], []
@@ -36,31 +36,33 @@ def get_game_state(sheets_client, query: str):
 
         query_lower = query.lower()
 
+        def match(q: str, t: str) -> bool:
+            q_tokens = set(q.lower().split())
+            t_tokens = set(t.lower().split())
+            return len(q_tokens & t_tokens) > 0
+
         for r in rows[1:]:
             if len(r) < 6:
                 continue
 
-            _id = r[0]
             _type = r[1]
             name = r[2]
-            slug = r[3]
-            parent_type = r[4]
             parent_name = r[5]
 
             # =========================
-            # HERO FILTER
+            # HEROES
             # =========================
             if _type == "hero":
-                if query_lower in name.lower():
+                if match(query, name):
                     heroes.append(name)
                 continue
 
             # =========================
-            # SKILL FILTER (HERO RELATION AWARE)
+            # SKILLS (RELATION AWARE)
             # =========================
             if _type == "skill":
-                hero_match = parent_name and query_lower in parent_name.lower()
-                name_match = query_lower in name.lower()
+                hero_match = parent_name and match(query, parent_name)
+                name_match = match(query, name)
 
                 if hero_match or name_match:
                     skills.append({
@@ -70,10 +72,10 @@ def get_game_state(sheets_client, query: str):
                 continue
 
             # =========================
-            # BUILDINGS FILTER
+            # BUILDINGS
             # =========================
             if _type == "building":
-                if query_lower in name.lower():
+                if match(query, name):
                     buildings.append(name)
 
         return heroes, skills, buildings
@@ -84,31 +86,55 @@ def get_game_state(sheets_client, query: str):
 
 
 # =========================
-# PROMPT BUILDER (COACH v2 SMART)
+# PROMPT BUILDER (COACH v3 - DUAL LAYER SYSTEM)
 # =========================
 def build_prompt(user_text: str, state):
     heroes, skills, buildings = state
 
     return f"""
-You are a GAME COACH AI assistant.
+You are an advanced GAME COACH AI.
 
 ========================
-RULES
+GAME DATA MODEL (CRITICAL)
 ========================
-- Respond in the same language as the user
-- Use ONLY provided filtered game data
-- Do NOT invent mechanics or stats
-- If data is missing, say it is not documented yet
-- Be concise like a game wiki assistant
+
+You operate on TWO-LAYER SYSTEM:
+
+1. INDEX LAYER (Sheets)
+- defines what EXISTS in the game
+- includes heroes, skills, buildings
+- includes relationships (skill → hero)
+- DOES NOT contain mechanics or explanations
+
+2. KNOWLEDGE LAYER (Firestore)
+- contains definitions of indexes
+- explains what things do
+- may be EMPTY for now
+- if missing → explicitly say:
+  "This exists in the game, but it is not documented yet."
 
 ========================
-FILTERED GAME DATA
+IMPORTANT RULE
+========================
+- NEVER invent mechanics or stats
+- INDEX = existence only
+- FIRESTORE = meaning only
+
+========================
+RELATIONSHIP RULE
+========================
+- Each skill belongs to exactly one hero
+- Use this relation when answering questions
+- Skills are NOT global pool
+
+========================
+FILTERED GAME DATA (INDEX LAYER)
 ========================
 
 HEROES:
 {heroes}
 
-RELATED SKILLS (already filtered by hero relation):
+RELATED SKILLS:
 {skills}
 
 BUILDINGS:
@@ -118,13 +144,6 @@ BUILDINGS:
 USER QUESTION
 ========================
 {user_text}
-
-========================
-IMPORTANT NOTE
-========================
-Skills list is pre-filtered.
-Do NOT assume full global skill database.
-Only use what is provided above.
 """
 
 
@@ -145,7 +164,7 @@ async def handle_message(message: Message):
 
     sheets_client = message.bot.__dict__.get("sheets_client")
 
-    # SMART FILTERED STATE (IMPORTANT CHANGE)
+    # get ONLY relevant game registry
     state = get_game_state(sheets_client, text)
 
     prompt = build_prompt(text, state)
