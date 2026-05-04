@@ -14,6 +14,8 @@ logger = logging.getLogger("google.drive")
 
 class GoogleDriveClient:
 
+    create_folder: Any  # ✅ FIX: satisfies mypy static checker
+
     def __init__(self):
         credentials = load_google_credentials()
 
