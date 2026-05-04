@@ -99,6 +99,22 @@ class IntentParser:
 
             data["knowledge"] = knowledge
 
+        # =========================================================
+        # 🔥 RESEARCH TREE FIX (NON-DESTRUCTIVE ADD-ON)
+        # =========================================================
+        obj = data.get("object")
+
+        if obj == "research_node":
+            context = data.setdefault("context", {})
+
+            # standardization layer (DO NOT overwrite AI output)
+            if "parent_type" not in context:
+                context["parent_type"] = "research_tree"
+
+            # only set if missing (AI may already provide it)
+            if "parent_name" not in context:
+                context["parent_name"] = None
+
         return data
 
     # =========================
@@ -170,36 +186,36 @@ ACTION TYPES
 INDEX SYSTEM
 =================================
 
-{{
+{
   "action": "add_definition",
   "object": "hero | skill | item | building | research_tree | research_node",
   "name": "string",
-  "context": {{}}
-}}
+  "context": {}
+}
 
 =================================
 KNOWLEDGE SYSTEM
 =================================
 
-{{
+{
   "action": "add_knowledge",
   "object": "hero | skill | item | building",
   "name": "string",
-  "knowledge": {{
+  "knowledge": {
     "lore": "string",
-    "gameplay": {{
+    "gameplay": {
       "type": "passive | active | auto_attack | talent",
       "behavior": "string",
       "cooldown": 0,
       "levels": 0
-    }},
-    "stats": {{
+    },
+    "stats": {
       "damage": 0,
       "scaling": "string",
       "duration": 0
-    }}
-  }}
-}}
+    }
+  }
+}
 
 =================================
 DOCS INTENT (GENERIC)
@@ -209,11 +225,11 @@ This does NOT create files directly.
 
 It only requests backend action:
 
-{{
+{
   "action": "create_document",
   "object": "hero | building | item | skill",
   "name": "string"
-}}
+}
 
 =================================
 RULES
