@@ -1,6 +1,6 @@
 # src/google/docs/client.py
 # GROUP: google.docs
-# DESCRIPTION: Google Docs API client (async-safe, minimal writer)
+# DESCRIPTION: Google Docs API client (async-safe, singleton-auth aware)
 
 import logging
 import asyncio
@@ -16,8 +16,12 @@ _executor = ThreadPoolExecutor(max_workers=5)
 
 
 class GoogleDocsClient:
+
     def __init__(self):
         credentials = load_google_credentials()
+
+        logger.info("📄 Docs AUTH EMAIL: %s", getattr(credentials, "service_account_email", None))
+        logger.info("📄 Docs AUTH TYPE: %s", type(credentials).__name__)
 
         self.service = build(
             "docs",
@@ -26,28 +30,15 @@ class GoogleDocsClient:
             cache_discovery=False,
         )
 
+        self._credentials = credentials
+
         logger.info("📄 Google Docs client initialized")
 
-    # =========================
-    # ASYNC WRAPPER
-    # =========================
     async def _run(self, func, *args, **kwargs):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(_executor, lambda: func(*args, **kwargs))
 
-    # =========================
-    # CREATE DOCUMENT
-    # =========================
-    async def create_document(
-        self,
-        title: str,
-        content: str,
-        folder_id: Optional[str] = None,
-    ) -> str:
-        """
-        Creates a Google Doc and writes full content.
-        Optionally can be linked to Drive folder (via move step).
-        """
+    async def create_document(self, title: str, content: str, folder_id: Optional[str] = None):
 
         request = self.service.documents().create(body={"title": title})
         doc = await self._run(request.execute)
@@ -60,16 +51,11 @@ class GoogleDocsClient:
 
         await self._write_content(doc_id, content)
 
-        # NOTE: folder handling is done via Drive API (optional hook)
         if folder_id:
-            logger.info("📁 Linking doc to folder | doc=%s folder=%s", doc_id, folder_id)
-            # future: drive move operation (kept intentionally decoupled)
+            logger.info("📁 Folder link requested (ignored in Docs API natively) | %s", folder_id)
 
         return str(doc_id)
 
-    # =========================
-    # WRITE CONTENT
-    # =========================
     async def _write_content(self, doc_id: str, content: str):
 
         requests = [
