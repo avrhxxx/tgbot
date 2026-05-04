@@ -19,12 +19,13 @@ class KnowledgeService:
         return await firestore.get_definition(object_type, name)
 
     # =========================
-    # WRITE KNOWLEDGE (CONTROLLED)
+    # WRITE KNOWLEDGE (NEW LAYER)
     # =========================
     async def create_or_update(self, object_type: str, name: str, definition: dict):
-        logger.info("🧠 Saving definition | %s:%s", object_type, name)
+        logger.info("🧠 Saving KNOWLEDGE | %s:%s", object_type, name)
 
-        return await firestore.set_definition(
+        # 🔥 IMPORTANT: separate namespace from INDEX system
+        return await firestore.set_knowledge(
             object_type,
             name,
             definition
@@ -34,4 +35,4 @@ class KnowledgeService:
     # CHECK KNOWLEDGE
     # =========================
     async def exists(self, object_type: str, name: str):
-        return await firestore.exists(object_type, name)
+        return await firestore.get_definition(object_type, name) is not None
