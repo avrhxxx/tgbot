@@ -1,6 +1,6 @@
 # src/handlers/admin_index.py
 # GROUP: handlers
-# DESCRIPTION: Admin-only index + knowledge creation handler (Sheets + Firestore dual system)
+# DESCRIPTION: Admin-only index + knowledge + docs creation handler (Sheets + Firestore + Docs)
 
 import logging
 
@@ -11,6 +11,7 @@ from src.config.config import load_config
 from src.ai.intent_parser import IntentParser
 from src.services.index_service import IndexService
 from src.services.knowledge_service import KnowledgeService
+from src.services.docs_service import DocsService
 from src.google.sheets.writer import SheetsWriter
 
 logger = logging.getLogger("handlers.admin_index")
@@ -69,20 +70,35 @@ async def handle_add(message: Message):
 
         index_service = IndexService(writer)
         knowledge_service = KnowledgeService()
+        docs_service = DocsService()
 
         # =========================
         # ROUTING LAYER
         # =========================
         action = intent.get("action")
 
+        # -------------------------
+        # INDEX SYSTEM (Sheets)
+        # -------------------------
         if action == "add_definition":
             result = index_service.handle(intent)
 
+        # -------------------------
+        # KNOWLEDGE SYSTEM (Firestore)
+        # -------------------------
         elif action == "add_knowledge":
             result = await knowledge_service.create_or_update(
                 intent["object"],
                 intent["name"],
-                intent.get("context", intent),
+                intent.get("knowledge", intent.get("context", {})),
+            )
+
+        # -------------------------
+        # DOCS SYSTEM (Google Docs)
+        # -------------------------
+        elif action == "create_hero_document":
+            result = await docs_service.create_hero_document(
+                intent["name"]
             )
 
         else:
