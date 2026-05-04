@@ -41,7 +41,7 @@ class GeminiClient:
         logger.info("📦 Gemini project_id: %s", self.project_id)
 
         # =========================
-        # SERVICE ACCOUNT CREDS (🔥 FIX)
+        # SERVICE ACCOUNT CREDS
         # =========================
         self.credentials = service_account.Credentials.from_service_account_info(
             cred_dict,
@@ -100,7 +100,7 @@ class GeminiClient:
 
             logger.info("✅ Vertex AI OK")
 
-        except Exception as e:
+        except Exception:
             logger.warning("⚠️ Health check failed, trying fallback region...")
 
             # fallback region
