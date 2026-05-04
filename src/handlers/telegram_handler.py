@@ -34,8 +34,6 @@ def get_game_state(sheets_client, query: str):
         skills = []
         buildings = []
 
-        query_lower = query.lower()
-
         def match(q: str, t: str) -> bool:
             q_tokens = set(q.lower().split())
             t_tokens = set(t.lower().split())
