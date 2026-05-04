@@ -23,9 +23,10 @@ from src.google.sheets.bootstrap import SheetsBootstrap
 from src.ai.gemini import gemini_client
 
 # =========================
-# 🔥 NEW: DRIVE + DOCS LAYER
+# DRIVE + DOCS
 # =========================
 from src.google.drive.client import GoogleDriveClient
+from src.google.drive.bootstrap import DriveBootstrap
 from src.services.docs_service import DocsService
 
 
@@ -66,7 +67,7 @@ async def main():
         creds = None
 
     # =========================
-    # 📊 GOOGLE SHEETS INIT
+    # 📊 SHEETS INIT
     # =========================
     sheets_client = None
 
@@ -90,10 +91,11 @@ async def main():
         logger.warning("⚠️ Sheets skipped (no valid Google credentials)")
 
     # =========================
-    # 📁 DRIVE + DOCS INIT (NEW)
+    # 📁 DRIVE + DOCS INIT
     # =========================
     drive_client = None
     docs_service = None
+    drive_bootstrap = None
 
     if creds:
         try:
@@ -101,9 +103,27 @@ async def main():
 
             drive_client = GoogleDriveClient()
 
+            # =========================
+            # DRIVE BOOTSTRAP (WORLD STRUCTURE)
+            # =========================
+            logger.info("📁 Running Drive bootstrap...")
+
+            drive_bootstrap = DriveBootstrap()
+            drive_structure = await drive_bootstrap.ensure_structure()
+
+            logger.info("📂 Drive structure initialized:")
+
+            for name, folder_id in drive_structure.items():
+                logger.info("   - %s → %s", name, folder_id)
+
+            logger.info("✅ Drive bootstrap completed successfully")
+
+            # =========================
+            # DOCS SERVICE
+            # =========================
             docs_service = DocsService()
 
-            logger.info("✅ Drive + Docs initialized successfully")
+            logger.info("📦 DocsService initialized")
 
         except Exception as e:
             logger.error("❌ Drive/Docs init failed: %s", e)
