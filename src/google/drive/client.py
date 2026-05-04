@@ -9,6 +9,7 @@ from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from google.oauth2.credentials import Credentials
 
 from src.google.auth import load_google_credentials
+from src.config.config import load_config
 
 logger = logging.getLogger("google.drive")
 
@@ -20,6 +21,12 @@ class GoogleDriveClient:
 
         self.service = build("drive", "v3", credentials=credentials)
 
+        # =========================
+        # ROOT FOLDER CONFIG
+        # =========================
+        config = load_config()
+        self.root_folder_id = config.google.drive_root_folder_id
+
         logger.info("📦 GoogleDriveClient initialized")
 
     # =========================
@@ -29,6 +36,12 @@ class GoogleDriveClient:
         """
         Ensures folder exists, returns folder_id
         """
+
+        # =========================
+        # ROOT FALLBACK
+        # =========================
+        if parent_id is None:
+            parent_id = self.root_folder_id
 
         query = (
             f"name='{name}' and "
