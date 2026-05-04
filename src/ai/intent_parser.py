@@ -1,11 +1,11 @@
 # src/ai/intent_parser.py
 # GROUP: ai
-# DESCRIPTION: Semantic intent parser (INDEX + KNOWLEDGE + DOCS intent compiler)
+# DESCRIPTION: STRICT DSL Intent Parser v2 (Admin AI Engine - deterministic, schema-based)
 
 import logging
 import json
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from src.ai.gemini import GeminiClient
 
@@ -13,257 +13,251 @@ logger = logging.getLogger("ai.intent_parser")
 
 
 class IntentParser:
+    """
+    DSL ENGINE v2
+
+    Rules:
+    - NO semantic guessing
+    - STRICT token parsing
+    - quoted strings = entities
+    - unquoted tokens = actions / fields / values
+    """
+
+    # =========================
+    # ALLOWED DSL CONFIG
+    # =========================
+
+    ALLOWED_ACTIONS = {
+        "create",
+        "update",
+        "define",
+        "add",
+        "link",
+        "show",
+        "exists",
+        "missing_fields",
+        "schema",
+    }
+
+    ALLOWED_ENTITIES = {
+        "hero",
+        "skill",
+        "item",
+        "building",
+        "research_tree",
+        "research_node",
+    }
+
+    ALLOWED_FIELDS = {
+        # HERO CORE
+        "hero_attack",
+        "hero_defense",
+        "hero_health",
+        "march_capacity",
+        "star_level",
+        "faction",
+        "troop_type",
+        "lore",
+
+        # SKILL
+        "skill_damage",
+        "skill_cooldown",
+        "skill_level",
+        "description",
+
+        # GENERIC
+        "value",
+    }
+
+    RELATION_KEYWORDS = {"of", "to", "to_hero", "to_tree", "to_building"}
+
+    # =========================
+    # INIT
+    # =========================
 
     def __init__(self):
         self.client = GeminiClient()
-        logger.info("🧠 IntentParser initialized (strict intent compiler mode)")
+        logger.info("🧠 IntentParser v2 (DSL ENGINE) initialized")
 
     # =========================
-    # JSON EXTRACTION
+    # UTIL: QUOTES EXTRACT
     # =========================
-    def _extract_json(self, text: str) -> str:
-        match = re.search(r"\{[\s\S]*\}", text)
-        if not match:
-            raise ValueError("No JSON found in AI response")
-        return match.group(0)
+
+    def _extract_quoted(self, text: str) -> list:
+        return re.findall(r'"([^"]+)"', text)
+
+    def _strip_quotes(self, text: str) -> str:
+        return text.replace('"', "")
 
     # =========================
-    # FALLBACK (CRITICAL)
+    # TOKENIZER
     # =========================
-    def _fallback_parse(self, text: str) -> Dict[str, Any]:
-        text_lower = text.lower()
 
-        # ===== CREATE DOCUMENT =====
-        if "dokument" in text_lower or "document" in text_lower:
-            name = text.split()[-1]
+    def _tokenize(self, text: str) -> list:
+        """
+        Converts DSL string into tokens while preserving quoted strings.
+        """
+        quoted = self._extract_quoted(text)
+        temp = re.sub(r'"[^"]+"', " __Q__ ", text)
+        tokens = temp.split()
 
-            if "bohater" in text_lower or "hero" in text_lower:
-                return {
-                    "action": "create_document",
-                    "object": "hero",
-                    "name": name,
-                    "context": {}
-                }
+        result = []
+        q_index = 0
 
-            if "item" in text_lower:
-                return {
-                    "action": "create_document",
-                    "object": "item",
-                    "name": name,
-                    "context": {}
-                }
+        for t in tokens:
+            if t == "__Q__":
+                result.append(quoted[q_index])
+                q_index += 1
+            else:
+                result.append(t)
 
-        # ===== ADD INDEX =====
-        if "dodaj bohater" in text_lower:
-            name = text.split()[-1]
-            return {
-                "action": "add_definition",
-                "object": "hero",
-                "name": name,
-                "context": {}
-            }
+        return result
 
-        return {
-            "action": "query",
-            "object": None,
+    # =========================
+    # PARSER CORE
+    # =========================
+
+    def _parse_tokens(self, tokens: list) -> Dict[str, Any]:
+
+        if not tokens:
+            raise ValueError("Empty DSL input")
+
+        action = tokens[0]
+
+        if action not in self.ALLOWED_ACTIONS:
+            raise ValueError(f"Invalid action: {action}")
+
+        result = {
+            "action": action,
+            "entity": None,
             "name": None,
-            "context": {}
+            "field": None,
+            "value": None,
+            "target": None,
         }
 
-    # =========================
-    # NORMALIZATION
-    # =========================
-    def _normalize_schema(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        # =========================
+        # CREATE / DEFINE / ADD
+        # =========================
 
-        if "object" not in data and "type" in data:
-            data["object"] = data["type"]
+        if action in {"create", "define", "add"}:
+            if len(tokens) < 3:
+                raise ValueError("Invalid create/define/add syntax")
 
-        if "context" not in data or data["context"] is None:
-            data["context"] = {}
+            result["entity"] = tokens[1]
+            result["name"] = tokens[2]
 
-        if "action" not in data:
-            data["action"] = "query"
+            # optional field/value
+            if "field" in tokens:
+                idx = tokens.index("field")
+                if idx + 2 < len(tokens):
+                    result["field"] = tokens[idx + 1]
+                    result["value"] = tokens[idx + 2]
+
+            # relation handling
+            for i, t in enumerate(tokens):
+                if t in self.RELATION_KEYWORDS and i + 2 < len(tokens):
+                    result["target"] = {
+                        "type": tokens[i + 1],
+                        "name": tokens[i + 2],
+                    }
+
+            return result
 
         # =========================
-        # KNOWLEDGE SAFETY DEFAULTS
+        # UPDATE
         # =========================
-        if data.get("action") == "add_knowledge":
-            knowledge = data.get("knowledge", {})
 
-            knowledge.setdefault("lore", "")
-            knowledge.setdefault("gameplay", {
-                "type": None,
-                "behavior": None
-            })
-            knowledge.setdefault("stats", {})
+        if action == "update":
+            if len(tokens) < 4:
+                raise ValueError("Invalid update syntax")
 
-            data["knowledge"] = knowledge
+            result["entity"] = tokens[1]
+            result["name"] = tokens[2]
 
-        # =========================================================
-        # 🔥 RESEARCH TREE FIX (NON-DESTRUCTIVE ADD-ON)
-        # =========================================================
-        obj = data.get("object")
+            # pattern: field X value Y
+            if "field" in tokens:
+                idx = tokens.index("field")
+                if idx + 2 < len(tokens):
+                    field = tokens[idx + 1]
+                    value = tokens[idx + 2]
 
-        if obj == "research_node":
-            context = data.setdefault("context", {})
+                    if field not in self.ALLOWED_FIELDS:
+                        raise ValueError(f"Invalid field: {field}")
 
-            # standardization layer (DO NOT overwrite AI output)
-            if "parent_type" not in context:
-                context["parent_type"] = "research_tree"
+                    result["field"] = field
+                    result["value"] = value
 
-            # only set if missing (AI may already provide it)
-            if "parent_name" not in context:
-                context["parent_name"] = None
+            # relation: update skill "X" of hero "Y"
+            if "of" in tokens:
+                idx = tokens.index("of")
+                if idx + 2 < len(tokens):
+                    result["target"] = {
+                        "type": tokens[idx + 1],
+                        "name": tokens[idx + 2],
+                    }
 
-        return data
+            return result
+
+        # =========================
+        # LINK
+        # =========================
+
+        if action == "link":
+            result["entity"] = tokens[1]
+            result["name"] = tokens[2]
+
+            if "to" in tokens:
+                idx = tokens.index("to")
+                if idx + 2 < len(tokens):
+                    result["target"] = {
+                        "type": tokens[idx + 1],
+                        "name": tokens[idx + 2],
+                    }
+
+            return result
+
+        # =========================
+        # SHOW / EXISTS / SCHEMA
+        # =========================
+
+        if action in {"show", "exists", "schema", "missing_fields"}:
+            result["entity"] = tokens[1] if len(tokens) > 1 else None
+            result["name"] = tokens[2] if len(tokens) > 2 else None
+            return result
+
+        return result
 
     # =========================
-    # VALIDATION
+    # PUBLIC API
     # =========================
-    def _validate(self, data: Dict[str, Any]) -> None:
 
-        allowed_actions = {
-            "query",
-            "check_existence",
-            "get_definition",
-
-            # INDEX SYSTEM
-            "add_definition",
-
-            # KNOWLEDGE SYSTEM
-            "add_knowledge",
-
-            # TREE SYSTEM
-            "add_tree",
-            "add_tree_research",
-
-            # DOCS (UPDATED)
-            "create_document",
-        }
-
-        if data.get("action") not in allowed_actions:
-            raise ValueError(f"Invalid action: {data.get('action')}")
-
-    # =========================
-    # MAIN PARSE
-    # =========================
     def parse(self, text: str) -> Dict[str, Any]:
-
-        logger.info("📩 Incoming text | %s", text)
-
-        prompt = f"""
-You are a STRICT INTENT COMPILER.
-
-You convert user input into CLEAN JSON ACTIONS.
-
-You DO NOT execute anything.
-You DO NOT know APIs.
-You ONLY output intent.
-
-=================================
-OUTPUT RULES (HARD CONSTRAINT)
-=================================
-
-- Output MUST be valid JSON ONLY
-- NO markdown
-- NO explanation
-- NO extra keys
-- NO guessing fields
-- ALWAYS full schema compliance
-
-=================================
-ACTION TYPES
-=================================
-
-1. add_definition (INDEX SYSTEM)
-2. add_knowledge (KNOWLEDGE SYSTEM)
-3. check_existence
-4. get_definition
-5. query
-6. create_document (DOCS INTENT)
-
-=================================
-INDEX SYSTEM
-=================================
-
-{
-  "action": "add_definition",
-  "object": "hero | skill | item | building | research_tree | research_node",
-  "name": "string",
-  "context": {}
-}
-
-=================================
-KNOWLEDGE SYSTEM
-=================================
-
-{
-  "action": "add_knowledge",
-  "object": "hero | skill | item | building",
-  "name": "string",
-  "knowledge": {
-    "lore": "string",
-    "gameplay": {
-      "type": "passive | active | auto_attack | talent",
-      "behavior": "string",
-      "cooldown": 0,
-      "levels": 0
-    },
-    "stats": {
-      "damage": 0,
-      "scaling": "string",
-      "duration": 0
-    }
-  }
-}
-
-=================================
-DOCS INTENT (GENERIC)
-=================================
-
-This does NOT create files directly.
-
-It only requests backend action:
-
-{
-  "action": "create_document",
-  "object": "hero | building | item | skill",
-  "name": "string"
-}
-
-=================================
-RULES
-=================================
-
-- NEVER output API calls
-- NEVER mention Google Drive or Docs
-- NEVER change schema dynamically
-- ALWAYS prefer fixed enum values
-
-=================================
-USER INPUT
-=================================
-{text}
-"""
+        logger.info("📩 DSL INPUT | %s", text)
 
         try:
-            response = self.client.generate(prompt)
-
-            raw_json = self._extract_json(response)
-            data = json.loads(raw_json)
+            tokens = self._tokenize(text)
+            data = self._parse_tokens(tokens)
 
         except Exception as e:
-            logger.warning("⚠️ AI failed, using fallback | %s", e)
-            data = self._fallback_parse(text)
+            logger.warning("⚠️ DSL parse failed | %s", e)
 
-        data = self._normalize_schema(data)
-        self._validate(data)
+            return {
+                "action": "query",
+                "entity": None,
+                "name": None,
+                "field": None,
+                "value": None,
+                "target": None,
+                "error": str(e),
+            }
 
         logger.info(
-            "✅ Intent | action=%s object=%s name=%s",
+            "✅ Parsed | action=%s entity=%s name=%s field=%s",
             data.get("action"),
-            data.get("object"),
+            data.get("entity"),
             data.get("name"),
+            data.get("field"),
         )
 
         return data
