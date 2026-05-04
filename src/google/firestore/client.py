@@ -5,6 +5,7 @@
 import logging
 from google.cloud import firestore
 from concurrent.futures import ThreadPoolExecutor
+from src.google.auth import load_service_account
 
 logger = logging.getLogger("google.firestore")
 
@@ -13,8 +14,11 @@ _executor = ThreadPoolExecutor(max_workers=5)
 
 class FirestoreClient:
     def __init__(self):
-        self.db = firestore.Client()
-        logger.info("🔥 Firestore client initialized")
+        # ✅ FIX: explicit credentials (stable across CI/Docker/local)
+        credentials = load_service_account()
+        self.db = firestore.Client(credentials=credentials)
+
+        logger.info("🔥 Firestore client initialized (service account mode)")
 
     # =========================
     # INTERNAL ASYNC WRAPPER
