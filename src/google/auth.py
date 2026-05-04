@@ -15,6 +15,7 @@ logger = logging.getLogger("google.auth")
 SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive",  # ✅ FIX: required for Drive + Docs folder operations
 ]
 
 
