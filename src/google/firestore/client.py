@@ -29,7 +29,7 @@ class FirestoreClient:
         return await loop.run_in_executor(_executor, lambda: func(*args, **kwargs))
 
     # =========================
-    # GET DEFINITION
+    # INDEX LAYER (EXISTENCE SYSTEM)
     # =========================
     async def get_definition(self, object_type: str, name: str):
         doc_id = f"{object_type}/{name.lower().replace(' ', '_')}"
@@ -42,9 +42,6 @@ class FirestoreClient:
 
         return doc.to_dict()
 
-    # =========================
-    # SET DEFINITION
-    # =========================
     async def set_definition(self, object_type: str, name: str, data: dict):
         doc_id = f"{object_type}/{name.lower().replace(' ', '_')}"
         ref = self.db.document(doc_id)
@@ -57,7 +54,29 @@ class FirestoreClient:
 
         await self._run(ref.set, payload, merge=True)
 
-        logger.info("🔥 Firestore saved | %s", doc_id)
+        logger.info("🔥 INDEX saved | %s", doc_id)
+        return True
+
+    # =========================
+    # 🧠 KNOWLEDGE LAYER (NEW)
+    # =========================
+    async def set_knowledge(self, object_type: str, name: str, data: dict):
+        """
+        Separate namespace for semantic knowledge (NOT game index)
+        """
+
+        doc_id = f"knowledge/{object_type}/{name.lower().replace(' ', '_')}"
+        ref = self.db.document(doc_id)
+
+        payload = {
+            **data,
+            "name": name,
+            "type": object_type,
+        }
+
+        await self._run(ref.set, payload, merge=True)
+
+        logger.info("🧠 KNOWLEDGE saved | %s", doc_id)
         return True
 
     # =========================
