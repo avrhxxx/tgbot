@@ -94,12 +94,29 @@ async def handle_add(message: Message):
             )
 
         # -------------------------
-        # DOCS SYSTEM (Google Docs)
+        # DOCS SYSTEM (OLD - backward compatibility)
         # -------------------------
         elif action == "create_hero_document":
             result = await docs_service.create_hero_document(
                 intent["name"]
             )
+
+        # -------------------------
+        # DOCS SYSTEM (NEW GENERIC)
+        # -------------------------
+        elif action == "create_document":
+
+            obj = intent.get("object")
+
+            # MVP: only hero supported (safe fallback)
+            if obj == "hero":
+                result = await docs_service.create_hero_document(
+                    intent["name"]
+                )
+            else:
+                logger.error("❌ Unsupported document object: %s", obj)
+                await message.answer(f"❌ Unsupported document type: {obj}")
+                return
 
         else:
             logger.error("❌ Unsupported action: %s", action)
