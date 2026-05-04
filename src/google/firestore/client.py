@@ -1,86 +1,56 @@
 # src/google/firestore/client.py
 # GROUP: google.firestore
-# DESCRIPTION: Firestore GCP client wrapper (async-safe, minimal, production-ready)
+# DESCRIPTION: Firestore low-level client (CRUD for AI Admin system)
 
 import logging
+from typing import Any, Dict
+
 from google.cloud import firestore
-from concurrent.futures import ThreadPoolExecutor
-from src.google.auth import load_google_credentials
 
-logger = logging.getLogger("google.firestore")
-
-_executor = ThreadPoolExecutor(max_workers=5)
+logger = logging.getLogger("google.firestore.client")
 
 
 class FirestoreClient:
+    """
+    Thin wrapper over Firestore.
+
+    Used ONLY by IndexService.
+    No business logic here.
+    """
+
     def __init__(self):
-        # ✅ FIX: unified auth layer (ADC + Service Account fallback)
-        credentials = load_google_credentials()
-
-        self.db = firestore.Client(credentials=credentials)
-
-        logger.info("🔥 Firestore client initialized (auth v2 mode)")
+        self.db = firestore.Client()
+        logger.info("🔥 FirestoreClient initialized")
 
     # =========================
-    # INTERNAL ASYNC WRAPPER
+    # SET / CREATE
     # =========================
-    async def _run(self, func, *args, **kwargs):
-        loop = __import__("asyncio").get_event_loop()
-        return await loop.run_in_executor(_executor, lambda: func(*args, **kwargs))
+    def set_document(self, collection: str, doc_id: str, data: Dict[str, Any]):
+        logger.info("🟢 SET | %s/%s", collection, doc_id)
+        self.db.collection(collection).document(doc_id).set(data)
 
     # =========================
-    # INDEX LAYER (EXISTENCE SYSTEM)
+    # UPDATE (partial)
     # =========================
-    async def get_definition(self, object_type: str, name: str):
-        doc_id = f"{object_type}/{name.lower().replace(' ', '_')}"
-        ref = self.db.document(doc_id)
+    def update_document(self, collection: str, doc_id: str, update: Dict[str, Any]):
+        logger.info("🟡 UPDATE | %s/%s", collection, doc_id)
+        self.db.collection(collection).document(doc_id).update(update)
 
-        doc = await self._run(ref.get)
+    # =========================
+    # GET
+    # =========================
+    def get_document(self, collection: str, doc_id: str):
+        logger.info("🔵 GET | %s/%s", collection, doc_id)
+        doc = self.db.collection(collection).document(doc_id).get()
 
         if not doc.exists:
             return None
 
         return doc.to_dict()
 
-    async def set_definition(self, object_type: str, name: str, data: dict):
-        doc_id = f"{object_type}/{name.lower().replace(' ', '_')}"
-        ref = self.db.document(doc_id)
-
-        payload = {
-            **data,
-            "name": name,
-            "type": object_type,
-        }
-
-        await self._run(ref.set, payload, merge=True)
-
-        logger.info("🔥 INDEX saved | %s", doc_id)
-        return True
-
     # =========================
-    # 🧠 KNOWLEDGE LAYER (NEW)
+    # EXISTS
     # =========================
-    async def set_knowledge(self, object_type: str, name: str, data: dict):
-        """
-        Separate namespace for semantic knowledge (NOT game index)
-        """
-
-        doc_id = f"knowledge/{object_type}/{name.lower().replace(' ', '_')}"
-        ref = self.db.document(doc_id)
-
-        payload = {
-            **data,
-            "name": name,
-            "type": object_type,
-        }
-
-        await self._run(ref.set, payload, merge=True)
-
-        logger.info("🧠 KNOWLEDGE saved | %s", doc_id)
-        return True
-
-    # =========================
-    # EXISTS CHECK
-    # =========================
-    async def exists(self, object_type: str, name: str) -> bool:
-        return await self.get_definition(object_type, name) is not None
+    def exists(self, collection: str, doc_id: str) -> bool:
+        doc = self.db.collection(collection).document(doc_id).get()
+        return doc.exists
