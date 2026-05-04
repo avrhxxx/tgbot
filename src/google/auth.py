@@ -5,7 +5,7 @@
 import json
 import logging
 import os
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 from google.auth import default
 from google.oauth2 import service_account
