@@ -22,7 +22,11 @@ class IntentParser:
     # JSON EXTRACTION
     # =========================
     def _extract_json(self, text: str) -> str:
-        match = re.search(r"\{.*\}", text, re.DOTALL)
+        """
+        Extracts JSON block from LLM response.
+        More robust than greedy regex.
+        """
+        match = re.search(r"\{[\s\S]*\}", text)
         if not match:
             raise ValueError("No JSON found in AI response")
         return match.group(0)
@@ -48,9 +52,15 @@ class IntentParser:
             if "knowledge" not in data:
                 data["knowledge"] = {}
 
-            data["knowledge"].setdefault("lore", {})
-            data["knowledge"].setdefault("gameplay", {})
-            data["knowledge"].setdefault("stats", {})
+            knowledge = data["knowledge"]
+
+            # Safe defaults (NO dict-in-string bugs)
+            knowledge.setdefault("lore", "")
+            knowledge.setdefault("gameplay", {
+                "type": None,
+                "behavior": None
+            })
+            knowledge.setdefault("stats", {})
 
         return data
 
@@ -65,7 +75,7 @@ class IntentParser:
             "get_definition",
             "add_definition",   # INDEX SYSTEM
             "add_knowledge",    # KNOWLEDGE SYSTEM
-            "add_tree",         # research tree
+            "add_tree",
             "add_tree_research"
         }
 
@@ -97,30 +107,18 @@ RULE:
 - INDEX = existence only
 - NEVER include mechanics or behavior
 
-EXAMPLE:
-
-Input: dodaj badanie Laser Upgrade do drzewka Technologia
-
-Output:
-{{
-  "action":"add_definition",
-  "object":"research_node",
-  "name":"Laser Upgrade",
-  "context":{{"tree":"Technologia"}}
-}}
-
 =================================
 2. KNOWLEDGE SYSTEM (Firestore)
 =================================
 - add_knowledge = structured game intelligence
 
-MUST FOLLOW THIS STRUCTURE:
+MUST FOLLOW STRUCTURE:
 
 {{
-  "lore": "text description of what it is",
+  "lore": "string",
   "gameplay": {{
     "type": "passive | active | auto_attack | talent",
-    "behavior": "what it does",
+    "behavior": "string",
     "cooldown": optional,
     "levels": optional
   }},
@@ -131,43 +129,20 @@ MUST FOLLOW THIS STRUCTURE:
   }}
 }}
 
-EXAMPLE:
-
-Input: Fire Strike to pasywny skill, obrażenia co 3 sekundy, 5 leveli
-
-Output:
-{{
-  "action":"add_knowledge",
-  "object":"skill",
-  "name":"Fire Strike",
-  "knowledge":{{
-    "lore":"Burning damage skill",
-    "gameplay":{{
-      "type":"passive",
-      "behavior":"damage_over_time",
-      "tick_rate":3,
-      "levels":5
-    }},
-    "stats":{{
-      "damage":"scaling"
-    }}
-  }}
-}}
-
 =================================
 3. READ SYSTEM
 =================================
-- check_existence → verify INDEX
-- get_definition → fetch KNOWLEDGE
-- query → normal question
+- check_existence
+- get_definition
+- query
 
 =================================
 RULES
 =================================
 - NEVER mix INDEX and KNOWLEDGE
 - INDEX = structure of game
-- KNOWLEDGE = behavior + meaning
-- ALWAYS preserve hierarchy
+- KNOWLEDGE = meaning + behavior
+- ALWAYS return valid JSON ONLY
 
 =================================
 USER INPUT
