@@ -26,7 +26,6 @@ from src.ai.gemini import gemini_client
 # 🔥 NEW: DRIVE + DOCS LAYER
 # =========================
 from src.google.drive.client import GoogleDriveClient
-from src.google.docs.client import GoogleDocsClient
 from src.services.docs_service import DocsService
 
 
@@ -101,7 +100,6 @@ async def main():
             logger.info("📁 Initializing Google Drive + Docs...")
 
             drive_client = GoogleDriveClient()
-            docs_client = GoogleDocsClient()
 
             docs_service = DocsService()
 
