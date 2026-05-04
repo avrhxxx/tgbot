@@ -18,7 +18,6 @@ class IntentParser:
         self.client = GeminiClient()
         logger.info("🧠 IntentParser initialized (learning mode v3)")
 
-
     # =========================
     # JSON EXTRACTION
     # =========================
@@ -27,7 +26,6 @@ class IntentParser:
         if not match:
             raise ValueError("No JSON found in AI response")
         return match.group(0)
-
 
     # =========================
     # NORMALIZATION
@@ -43,13 +41,18 @@ class IntentParser:
         if "action" not in data:
             data["action"] = "query"
 
-        # BACKWARD COMPATIBILITY (OLD SYSTEM)
-        if data.get("action") == "add_definition":
-            # future bridge to knowledge system (optional mapping)
-            data["legacy_mode"] = True
+        # =========================
+        # KNOWLEDGE STRUCTURE ENFORCEMENT
+        # =========================
+        if data.get("action") == "add_knowledge":
+            if "knowledge" not in data:
+                data["knowledge"] = {}
+
+            data["knowledge"].setdefault("lore", {})
+            data["knowledge"].setdefault("gameplay", {})
+            data["knowledge"].setdefault("stats", {})
 
         return data
-
 
     # =========================
     # VALIDATION
@@ -60,17 +63,14 @@ class IntentParser:
             "query",
             "check_existence",
             "get_definition",
-            "add_definition",   # 🔴 INDEX SYSTEM (UNCHANGED)
-            "add_knowledge",    # 🟢 NEW KNOWLEDGE SYSTEM
-            "add_tree",         # 🌲 research tree
-            "add_tree_research" # 🌲 add node to tree
+            "add_definition",   # INDEX SYSTEM
+            "add_knowledge",    # KNOWLEDGE SYSTEM
+            "add_tree",         # research tree
+            "add_tree_research"
         }
 
         if data.get("action") not in allowed_actions:
             raise ValueError(f"Invalid action: {data.get('action')}")
-
-        return None
-
 
     # =========================
     # MAIN PARSE
@@ -89,21 +89,18 @@ You handle TWO SYSTEMS:
 =================================
 - add_definition → creates game entities
 - includes: hero, skill, building, item
-- ALSO includes extended structures:
+- ALSO includes:
   • research_tree
-  • research_node (inside tree)
+  • research_node
 
-Rules:
-- index = existence only
-- NEVER describe mechanics here
+RULE:
+- INDEX = existence only
+- NEVER include mechanics or behavior
 
-EXAMPLES:
+EXAMPLE:
 
-Input: dodaj drzewko badań technologii
-Output:
-{{"action":"add_definition","object":"research_tree","name":"Technologia"}}
+Input: dodaj badanie Laser Upgrade do drzewka Technologia
 
-Input: dodaj badanie do drzewka Technologia: Laser Upgrade
 Output:
 {{
   "action":"add_definition",
@@ -115,41 +112,62 @@ Output:
 =================================
 2. KNOWLEDGE SYSTEM (Firestore)
 =================================
-- add_knowledge → description layer
-- explains meaning, stats, behavior
+- add_knowledge = structured game intelligence
 
-EXAMPLES:
+MUST FOLLOW THIS STRUCTURE:
 
-Input: dodaj wiedzę o Fire Strike
+{{
+  "lore": "text description of what it is",
+  "gameplay": {{
+    "type": "passive | active | auto_attack | talent",
+    "behavior": "what it does",
+    "cooldown": optional,
+    "levels": optional
+  }},
+  "stats": {{
+    "damage": optional,
+    "scaling": optional,
+    "duration": optional
+  }}
+}}
+
+EXAMPLE:
+
+Input: Fire Strike to pasywny skill, obrażenia co 3 sekundy, 5 leveli
+
 Output:
 {{
   "action":"add_knowledge",
   "object":"skill",
   "name":"Fire Strike",
-  "knowledge_type":"behavior"
+  "knowledge":{{
+    "lore":"Burning damage skill",
+    "gameplay":{{
+      "type":"passive",
+      "behavior":"damage_over_time",
+      "tick_rate":3,
+      "levels":5
+    }},
+    "stats":{{
+      "damage":"scaling"
+    }}
+  }}
 }}
 
 =================================
 3. READ SYSTEM
 =================================
-
-check_existence:
-- verify if entity exists in INDEX
-
-get_definition:
-- retrieve Firestore knowledge
-
-query:
-- normal question
+- check_existence → verify INDEX
+- get_definition → fetch KNOWLEDGE
+- query → normal question
 
 =================================
 RULES
 =================================
-
 - NEVER mix INDEX and KNOWLEDGE
-- INDEX = structure
-- KNOWLEDGE = meaning
-- ALWAYS preserve hierarchy relations
+- INDEX = structure of game
+- KNOWLEDGE = behavior + meaning
+- ALWAYS preserve hierarchy
 
 =================================
 USER INPUT
