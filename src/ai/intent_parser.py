@@ -22,13 +22,53 @@ class IntentParser:
     # JSON EXTRACTION
     # =========================
     def _extract_json(self, text: str) -> str:
-        """
-        Extract JSON block from LLM response.
-        """
         match = re.search(r"\{[\s\S]*\}", text)
         if not match:
             raise ValueError("No JSON found in AI response")
         return match.group(0)
+
+    # =========================
+    # FALLBACK (CRITICAL)
+    # =========================
+    def _fallback_parse(self, text: str) -> Dict[str, Any]:
+        text_lower = text.lower()
+
+        # ===== CREATE DOCUMENT =====
+        if "dokument" in text_lower or "document" in text_lower:
+            name = text.split()[-1]
+
+            if "bohater" in text_lower or "hero" in text_lower:
+                return {
+                    "action": "create_document",
+                    "object": "hero",
+                    "name": name,
+                    "context": {}
+                }
+
+            if "item" in text_lower:
+                return {
+                    "action": "create_document",
+                    "object": "item",
+                    "name": name,
+                    "context": {}
+                }
+
+        # ===== ADD INDEX =====
+        if "dodaj bohater" in text_lower:
+            name = text.split()[-1]
+            return {
+                "action": "add_definition",
+                "object": "hero",
+                "name": name,
+                "context": {}
+            }
+
+        return {
+            "action": "query",
+            "object": None,
+            "name": None,
+            "context": {}
+        }
 
     # =========================
     # NORMALIZATION
@@ -81,8 +121,8 @@ class IntentParser:
             "add_tree",
             "add_tree_research",
 
-            # 📄 DOCS / DRIVE INTENT (NO IMPLEMENTATION DETAILS)
-            "create_hero_document"
+            # DOCS (UPDATED)
+            "create_document",
         }
 
         if data.get("action") not in allowed_actions:
@@ -124,7 +164,7 @@ ACTION TYPES
 3. check_existence
 4. get_definition
 5. query
-6. create_hero_document (DOCS INTENT)
+6. create_document (DOCS INTENT)
 
 =================================
 INDEX SYSTEM
@@ -162,7 +202,7 @@ KNOWLEDGE SYSTEM
 }}
 
 =================================
-DOCS INTENT (DO NOT EXECUTE)
+DOCS INTENT (GENERIC)
 =================================
 
 This does NOT create files directly.
@@ -170,15 +210,10 @@ This does NOT create files directly.
 It only requests backend action:
 
 {{
-  "action": "create_hero_document",
-  "object": "hero",
+  "action": "create_document",
+  "object": "hero | building | item | skill",
   "name": "string"
 }}
-
-Backend will decide:
-- Drive folder
-- Docs creation
-- Template structure
 
 =================================
 RULES
@@ -195,25 +230,24 @@ USER INPUT
 {text}
 """
 
-        response = self.client.generate(prompt)
-
         try:
+            response = self.client.generate(prompt)
+
             raw_json = self._extract_json(response)
             data = json.loads(raw_json)
 
-            data = self._normalize_schema(data)
-            self._validate(data)
-
-            logger.info(
-                "✅ Intent | action=%s object=%s name=%s",
-                data.get("action"),
-                data.get("object"),
-                data.get("name"),
-            )
-
-            return data
-
         except Exception as e:
-            logger.error("❌ Intent parse failed: %s", e)
-            logger.error("RAW: %s", response)
-            raise
+            logger.warning("⚠️ AI failed, using fallback | %s", e)
+            data = self._fallback_parse(text)
+
+        data = self._normalize_schema(data)
+        self._validate(data)
+
+        logger.info(
+            "✅ Intent | action=%s object=%s name=%s",
+            data.get("action"),
+            data.get("object"),
+            data.get("name"),
+        )
+
+        return data
