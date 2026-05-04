@@ -10,6 +10,31 @@ from src.ai.gemini import gemini_client
 
 logger = logging.getLogger("handlers.telegram")
 
+TELEGRAM_LIMIT = 4096
+
+
+# =========================
+# MESSAGE CHUNKER (FIX)
+# =========================
+def split_message(text: str, limit: int = TELEGRAM_LIMIT) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+
+    chunks = []
+    current = ""
+
+    for line in text.split("\n"):
+        if len(current) + len(line) + 1 > limit:
+            chunks.append(current)
+            current = line
+        else:
+            current += "\n" + line if current else line
+
+    if current:
+        chunks.append(current)
+
+    return chunks
+
 
 # =========================
 # READ FROM SHEETS (FULL REGISTRY, NO LOSS)
@@ -145,7 +170,9 @@ async def handle_message(message: Message):
             await message.answer("No response from AI.")
             return
 
-        await message.answer(response)
+        # 🔥 FIX: Telegram 4096 limit protection
+        for chunk in split_message(response):
+            await message.answer(chunk)
 
     except Exception as e:
         logger.exception("❌ AI coach error")
