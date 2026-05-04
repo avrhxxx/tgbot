@@ -12,12 +12,12 @@ logger = logging.getLogger("handlers.telegram")
 
 
 # =========================
-# READ FROM SHEETS (SMART FILTER)
+# READ FROM SHEETS (FULL REGISTRY, NO LOSS)
 # =========================
-def get_game_state(sheets_client, query: str):
+def get_game_state(sheets_client):
     """
-    Returns filtered game registry (ONLY existing game entities).
-    Sheets = source of truth for existence, not mechanics.
+    Sheets = SOURCE OF TRUTH (no filtering here!)
+    We pass full graph to AI for semantic reasoning.
     """
     if not sheets_client:
         return [], [], []
@@ -34,11 +34,6 @@ def get_game_state(sheets_client, query: str):
         skills = []
         buildings = []
 
-        def match(q: str, t: str) -> bool:
-            q_tokens = set(q.lower().split())
-            t_tokens = set(t.lower().split())
-            return len(q_tokens & t_tokens) > 0
-
         for r in rows[1:]:
             if len(r) < 6:
                 continue
@@ -47,34 +42,17 @@ def get_game_state(sheets_client, query: str):
             name = r[2]
             parent_name = r[5]
 
-            # =========================
-            # HEROES
-            # =========================
             if _type == "hero":
-                if match(query, name):
-                    heroes.append(name)
-                continue
+                heroes.append(name)
 
-            # =========================
-            # SKILLS (RELATION AWARE)
-            # =========================
-            if _type == "skill":
-                hero_match = parent_name and match(query, parent_name)
-                name_match = match(query, name)
+            elif _type == "skill":
+                skills.append({
+                    "name": name,
+                    "hero": parent_name
+                })
 
-                if hero_match or name_match:
-                    skills.append({
-                        "name": name,
-                        "hero": parent_name
-                    })
-                continue
-
-            # =========================
-            # BUILDINGS
-            # =========================
-            if _type == "building":
-                if match(query, name):
-                    buildings.append(name)
+            elif _type == "building":
+                buildings.append(name)
 
         return heroes, skills, buildings
 
@@ -84,7 +62,7 @@ def get_game_state(sheets_client, query: str):
 
 
 # =========================
-# PROMPT BUILDER (COACH v3 - DUAL LAYER SYSTEM)
+# PROMPT BUILDER (COACH v3 - CLEAN GRAPH MODE)
 # =========================
 def build_prompt(user_text: str, state):
     heroes, skills, buildings = state
@@ -93,46 +71,36 @@ def build_prompt(user_text: str, state):
 You are an advanced GAME COACH AI.
 
 ========================
-GAME DATA MODEL (CRITICAL)
+SYSTEM DESIGN
 ========================
 
-You operate on TWO-LAYER SYSTEM:
+You operate on structured game registry:
 
-1. INDEX LAYER (Sheets)
-- defines what EXISTS in the game
-- includes heroes, skills, buildings
-- includes relationships (skill → hero)
-- DOES NOT contain mechanics or explanations
+- HEROES = characters in game
+- SKILLS = abilities linked to heroes
+- BUILDINGS = world structures
 
-2. KNOWLEDGE LAYER (Firestore)
-- contains definitions of indexes
-- explains what things do
-- may be EMPTY for now
-- if missing → explicitly say:
-  "This exists in the game, but it is not documented yet."
+You must use relationship data:
+- skill.hero defines ownership
 
 ========================
-IMPORTANT RULE
+IMPORTANT RULES
 ========================
-- NEVER invent mechanics or stats
-- INDEX = existence only
-- FIRESTORE = meaning only
+
+- NEVER hallucinate missing data
+- If mechanics are unknown → say:
+  "This exists in the game, but is not documented yet."
+- Use relationships to group skills under heroes
+- Do NOT assume global skill pool
 
 ========================
-RELATIONSHIP RULE
-========================
-- Each skill belongs to exactly one hero
-- Use this relation when answering questions
-- Skills are NOT global pool
-
-========================
-FILTERED GAME DATA (INDEX LAYER)
+GAME REGISTRY
 ========================
 
 HEROES:
 {heroes}
 
-RELATED SKILLS:
+SKILLS:
 {skills}
 
 BUILDINGS:
@@ -162,8 +130,8 @@ async def handle_message(message: Message):
 
     sheets_client = message.bot.__dict__.get("sheets_client")
 
-    # get ONLY relevant game registry
-    state = get_game_state(sheets_client, text)
+    # FULL GRAPH (no filtering)
+    state = get_game_state(sheets_client)
 
     prompt = build_prompt(text, state)
 
