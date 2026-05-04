@@ -34,13 +34,14 @@ class GeminiConfig:
 
 
 # =========================
-# GOOGLE SHEETS + AUTH
+# GOOGLE SHEETS + AUTH + DRIVE
 # =========================
 
 @dataclass
 class GoogleConfig:
     service_account: dict[str, Any] | None
     sheets_id: str | None
+    drive_root_folder_id: str | None   # ✅ NEW
 
 
 # =========================
@@ -112,13 +113,15 @@ def load_config() -> Config:
                 getenv("GOOGLE_SERVICE_ACCOUNT", required=False)
             ),
             sheets_id=getenv("GOOGLE_SHEET_ID", required=False),
+            drive_root_folder_id=getenv("GOOGLE_DRIVE_ROOT_FOLDER_ID", required=False),  # ✅ NEW
         ),
     )
 
     logger.info(
-        "✅ Config loaded | sheets=%s | gemini=%s | admins=%s",
+        "✅ Config loaded | sheets=%s | gemini=%s | drive=%s | admins=%s",
         bool(cfg.google.sheets_id),
         bool(cfg.gemini.api_key),
+        bool(cfg.google.drive_root_folder_id),
         len(cfg.telegram.admin_ids),
     )
 
