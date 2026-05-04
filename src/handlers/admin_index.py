@@ -11,7 +11,6 @@ from src.config.config import load_config
 from src.ai.intent_parser import IntentParser
 from src.services.index_service import IndexService
 from src.services.knowledge_service import KnowledgeService
-from src.services.docs_service import DocsService
 from src.google.sheets.writer import SheetsWriter
 
 logger = logging.getLogger("handlers.admin_index")
@@ -56,21 +55,28 @@ async def handle_add(message: Message):
         logger.info("🧠 Intent parsed | %s", intent)
 
         # =========================
-        # DEPENDENCIES
+        # DEPENDENCIES (BOT CONTEXT - SINGLETON SAFE)
         # =========================
         bot = message.bot
+
         sheets_client = getattr(bot, "sheets_client", None)
+        drive_client = getattr(bot, "drive_client", None)
+        docs_service = getattr(bot, "docs_service", None)
 
         if not sheets_client:
             logger.error("❌ Sheets client missing in bot context")
             await message.answer("❌ Sheets not initialized.")
             return
 
+        if not docs_service:
+            logger.error("❌ Docs service missing in bot context")
+            await message.answer("❌ Docs not initialized.")
+            return
+
         writer = SheetsWriter(sheets_client)
 
         index_service = IndexService(writer)
         knowledge_service = KnowledgeService()
-        docs_service = DocsService()
 
         # =========================
         # ROUTING LAYER
@@ -94,7 +100,7 @@ async def handle_add(message: Message):
             )
 
         # -------------------------
-        # DOCS SYSTEM (OLD - backward compatibility)
+        # DOCS SYSTEM (OLD)
         # -------------------------
         elif action == "create_hero_document":
             result = await docs_service.create_hero_document(
@@ -108,7 +114,6 @@ async def handle_add(message: Message):
 
             obj = intent.get("object")
 
-            # MVP: only hero supported (safe fallback)
             if obj == "hero":
                 result = await docs_service.create_hero_document(
                     intent["name"]
