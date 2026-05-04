@@ -5,7 +5,7 @@
 import logging
 from typing import Optional, Any
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import build  # type: ignore[import-untyped]
 from google.oauth2.credentials import Credentials
 
 from src.google.auth import load_google_credentials
@@ -51,7 +51,6 @@ class GoogleDriveClient:
             logger.info("📁 Folder exists | %s → %s", name, folder_id)
             return folder_id
 
-        # FIX: explicit Any dict (mypy-safe for Google API)
         metadata: dict[str, Any] = {
             "name": name,
             "mimeType": "application/vnd.google-apps.folder",
