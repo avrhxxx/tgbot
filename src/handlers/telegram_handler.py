@@ -5,7 +5,7 @@
 import logging
 from aiogram import types
 
-from src.wiki.service import answer_wiki_question
+from ..wiki.service import answer_wiki_question
 
 logger = logging.getLogger("handlers.telegram")
 
