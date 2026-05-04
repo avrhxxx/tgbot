@@ -1,6 +1,6 @@
 # src/google/auth.py
 # GROUP: google
-# DESCRIPTION: Safe Google auth layer (ADC-first, Service Account fallback + full identity debug tracing)
+# DESCRIPTION: Safe Google auth layer (ADC-first, Service Account fallback + TRUE singleton + full identity debug tracing)
 
 import json
 import logging
@@ -22,40 +22,36 @@ SCOPES = [
     "https://www.googleapis.com/auth/documents",
 ]
 
+# =========================
+# 🔥 SINGLETON CACHE (FIX)
+# =========================
+_CACHED_CREDENTIALS: Any = None
+
 
 # =========================
-# DEBUG CORE (IMPORTANT)
+# DEBUG CORE
 # =========================
 def _debug_credentials(creds: Any, label: str = "CREDS") -> None:
-    """
-    Hard identity dump for debugging Google auth issues.
-    """
-
     logger.info("🧪 ===== GOOGLE AUTH DEBUG [%s] =====", label)
     logger.info("TYPE: %s", type(creds))
 
-    # identity signals
     logger.info("SERVICE ACCOUNT EMAIL: %s", getattr(creds, "service_account_email", None))
     logger.info("CLIENT EMAIL: %s", getattr(creds, "client_email", None))
     logger.info("PROJECT ID: %s", getattr(creds, "project_id", None))
 
-    # capability signals
     logger.info("HAS TOKEN: %s", hasattr(creds, "token"))
     logger.info("HAS WITH_SCOPES: %s", hasattr(creds, "with_scopes"))
 
-    # scopes (critical for Docs API)
     logger.info("SCOPES: %s", getattr(creds, "scopes", None))
-
-    # ADC hint
     logger.info("ADC DETECTED: %s", creds.__class__.__name__.lower().find("default") != -1)
 
     logger.info("======================================")
 
 
+# =========================
+# SCOPE NORMALIZATION
+# =========================
 def _normalize_scopes(creds: Any) -> Any:
-    """
-    Ensures consistent scopes across all credential types.
-    """
     if hasattr(creds, "with_scopes"):
         try:
             return creds.with_scopes(SCOPES)
@@ -65,18 +61,22 @@ def _normalize_scopes(creds: Any) -> Any:
 
 
 # =========================
-# MAIN AUTH ENTRYPOINT
+# SINGLE ENTRYPOINT (FIXED)
 # =========================
 def load_google_credentials() -> Any:
     """
-    Google authentication layer.
-
-    Priority:
-    1. ADC (Vertex / GCP / Railway recommended)
-    2. Service Account JSON fallback
+    TRUE SINGLETON:
+    - One identity per runtime
+    - Prevents Drive/Docs mismatch auth bugs
     """
 
-    logger.info("🔐 Google auth init started")
+    global _CACHED_CREDENTIALS
+
+    if _CACHED_CREDENTIALS is not None:
+        logger.info("♻️ Returning cached Google credentials (SINGLETON HIT)")
+        return _CACHED_CREDENTIALS
+
+    logger.info("🔐 Google auth init started (FIRST INIT ONLY)")
 
     raw = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
@@ -84,15 +84,15 @@ def load_google_credentials() -> Any:
     # 1. ADC MODE
     # =========================
     if not raw:
-        logger.info("🔵 ADC mode detected (no SERVICE ACCOUNT JSON)")
+        logger.info("🔵 ADC mode detected")
 
         creds, _ = default(scopes=SCOPES)
         creds = _normalize_scopes(creds)
 
         logger.info("✅ ADC authentication successful")
-
         _debug_credentials(creds, "ADC")
 
+        _CACHED_CREDENTIALS = creds
         return creds
 
     # =========================
@@ -115,15 +115,15 @@ def load_google_credentials() -> Any:
 
     data["private_key"] = data["private_key"].replace("\\n", "\n")
 
-    credentials = service_account.Credentials.from_service_account_info(
+    creds = service_account.Credentials.from_service_account_info(
         data,
         scopes=SCOPES,
     )
 
-    credentials = _normalize_scopes(credentials)
+    creds = _normalize_scopes(creds)
 
     logger.info("✅ Service Account authentication successful")
+    _debug_credentials(creds, "SERVICE_ACCOUNT")
 
-    _debug_credentials(credentials, "SERVICE_ACCOUNT")
-
-    return credentials
+    _CACHED_CREDENTIALS = creds
+    return creds
