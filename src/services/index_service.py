@@ -1,79 +1,178 @@
 # src/services/index_service.py
 # GROUP: services
-# DESCRIPTION: Unified index ingestion engine (relational context mapping)
+# DESCRIPTION: Core AI Admin Orchestrator (DSL → Firestore → Sheets sync layer)
 
 import logging
-import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-from src.google.sheets.writer import SheetsWriter
+from src.google.firestore.client import FirestoreClient
+from src.google.sheets.client import SheetsClient
 
-logger = logging.getLogger("services.index")
+logger = logging.getLogger("services.index_service")
 
 
 class IndexService:
+    """
+    AI ADMIN CORE SYSTEM
 
-    def __init__(self, sheets: SheetsWriter):
-        self.sheets = sheets
-        logger.info("📦 IndexService initialized")
+    Responsibility:
+    - Executes IntentParser DSL commands
+    - Writes to Firestore (source of truth)
+    - Syncs lightweight index metadata to Google Sheets
+    - Manages entity relationships (link system)
+    """
 
-    def normalize(self, name: str) -> str:
-        normalized = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
-        return normalized
+    def __init__(self):
+        self.firestore = FirestoreClient()
+        self.sheets = SheetsClient()
 
-    def handle(self, intent: Dict[str, Any]):
+        logger.info("🧠 IndexService initialized (AI Admin Core Online)")
 
-        logger.info("⚙️ Intent received: %s", intent)
+    # =========================
+    # ENTRY POINT
+    # =========================
+    def execute(self, intent: Dict[str, Any]) -> Dict[str, Any]:
 
-        name = intent["name"]
+        action = intent.get("action")
+        obj = intent.get("object")
+        name = intent.get("name")
+        context = intent.get("context", {})
 
-        entity_type = intent.get("object") or intent.get("type")
-        if not entity_type:
-            raise ValueError("Missing entity_type in intent")
+        logger.info("⚙️ EXECUTE | action=%s object=%s name=%s", action, obj, name)
 
-        context = intent.get("context", {}) or {}
+        # ROUTING
+        if action == "add_definition":
+            return self._create_entity(obj, name, context)
 
-        # =========================
-        # RELATION EXTRACTION
-        # =========================
-        parent_name = None
-        parent_type = None
+        if action == "add_knowledge":
+            return self._add_knowledge(obj, name, intent.get("knowledge", {}))
 
-        if "hero" in context:
-            parent_name = context["hero"]
-            parent_type = "hero"
+        if action == "check_existence":
+            return self._exists(obj, name)
 
-        normalized = self.normalize(name)
+        if action == "get_definition":
+            return self._get(obj, name)
 
-        logger.info(
-            "📍 Processing | type=%s name=%s parent=%s",
-            entity_type,
-            name,
-            parent_name,
-        )
+        if action == "query":
+            return {"status": "noop", "message": "No operation executed"}
 
-        existing = self.sheets.find_by_normalized("indexes", normalized)
+        raise ValueError(f"Unknown action: {action}")
 
-        if existing:
-            logger.warning("⚠️ Duplicate skipped: %s", normalized)
-            return existing
+    # =========================
+    # CREATE ENTITY (CORE)
+    # =========================
+    def _create_entity(self, obj: str, name: str, context: Dict[str, Any]):
 
-        new_id = self.sheets.get_next_id("indexes")
+        doc_id = name.lower().replace(" ", "_")
 
-        row = {
-            "id": new_id,
-            "type": entity_type,
+        data = {
+            "id": doc_id,
+            "type": obj,
             "name": name,
-            "normalized": normalized,
-            "parent_type": parent_type,
-            "parent_name": parent_name,
-            "created_at": None,
+            "normalized": doc_id,
+            "context": context,
+            "lore": "",
+            "fields": {},
+            "links": {},
         }
 
-        logger.info("📝 Writing row: %s", row)
+        # FIRESTORE (SOURCE OF TRUTH)
+        self.firestore.set_document(collection=obj + "s", doc_id=doc_id, data=data)
 
-        self.sheets.append_row("indexes", row)
+        # SHEETS (INDEX REGISTER)
+        self.sheets.writer.append_row({
+            "id": doc_id,
+            "type": obj,
+            "name": name,
+            "normalized": doc_id,
+            "parent_type": context.get("parent_type"),
+            "parent_name": context.get("parent_name"),
+        })
 
-        logger.info("✅ Inserted successfully | id=%s", new_id)
+        logger.info("✅ CREATED ENTITY | %s (%s)", name, obj)
 
-        return row
+        return {
+            "status": "created",
+            "id": doc_id,
+            "type": obj,
+            "name": name
+        }
+
+    # =========================
+    # KNOWLEDGE UPDATE
+    # =========================
+    def _add_knowledge(self, obj: str, name: str, knowledge: Dict[str, Any]):
+
+        doc_id = name.lower().replace(" ", "_")
+
+        self.firestore.update_document(
+            collection=obj + "s",
+            doc_id=doc_id,
+            update={
+                "lore": knowledge.get("lore", ""),
+                "gameplay": knowledge.get("gameplay", {}),
+                "stats": knowledge.get("stats", {}),
+            }
+        )
+
+        logger.info("📚 UPDATED KNOWLEDGE | %s", name)
+
+        return {
+            "status": "updated_knowledge",
+            "id": doc_id
+        }
+
+    # =========================
+    # EXISTS CHECK
+    # =========================
+    def _exists(self, obj: str, name: str):
+
+        doc_id = name.lower().replace(" ", "_")
+
+        exists = self.firestore.exists(obj + "s", doc_id)
+
+        return {
+            "exists": exists,
+            "id": doc_id
+        }
+
+    # =========================
+    # GET ENTITY
+    # =========================
+    def _get(self, obj: str, name: str):
+
+        doc_id = name.lower().replace(" ", "_")
+
+        data = self.firestore.get_document(obj + "s", doc_id)
+
+        return {
+            "data": data
+        }
+
+    # =========================
+    # LINK SYSTEM (NEXT PHASE READY)
+    # =========================
+    def link(self, source_type: str, source: str, relation: str, target_type: str, target: str):
+
+        src_id = source.lower().replace(" ", "_")
+        tgt_id = target.lower().replace(" ", "_")
+
+        self.firestore.update_document(
+            collection=source_type + "s",
+            doc_id=src_id,
+            update={
+                f"links.{relation}": {
+                    "type": target_type,
+                    "id": tgt_id
+                }
+            }
+        )
+
+        logger.info("🔗 LINK CREATED | %s -> %s (%s)", source, target, relation)
+
+        return {
+            "status": "linked",
+            "source": src_id,
+            "target": tgt_id,
+            "relation": relation
+        }
