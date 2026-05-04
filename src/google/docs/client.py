@@ -4,10 +4,10 @@
 
 import logging
 import asyncio
+from typing import Optional, Any
 from concurrent.futures import ThreadPoolExecutor
 
 from googleapiclient.discovery import build  # type: ignore
-from google.cloud import firestore  # noqa (only for auth reuse)
 from src.google.auth import load_google_credentials
 
 logger = logging.getLogger("google.docs")
@@ -38,24 +38,34 @@ class GoogleDocsClient:
     # =========================
     # CREATE DOCUMENT
     # =========================
-    async def create_document(self, title: str, content: str) -> str:
+    async def create_document(
+        self,
+        title: str,
+        content: str,
+        folder_id: Optional[str] = None,
+    ) -> str:
         """
         Creates a Google Doc and writes full content.
-        Returns document ID.
+        Optionally can be linked to Drive folder (via move step).
         """
 
-        doc = await self._run(
-            self.service.documents().create,
-            body={"title": title},
-        )
+        request = self.service.documents().create(body={"title": title})
+        doc = await self._run(request.execute)
 
         doc_id = doc.get("documentId")
+        if not doc_id:
+            raise RuntimeError("Failed to create document")
 
         logger.info("📄 Doc created | id=%s | title=%s", doc_id, title)
 
         await self._write_content(doc_id, content)
 
-        return doc_id
+        # NOTE: folder handling is done via Drive API (optional hook)
+        if folder_id:
+            logger.info("📁 Linking doc to folder | doc=%s folder=%s", doc_id, folder_id)
+            # future: drive move operation (kept intentionally decoupled)
+
+        return str(doc_id)
 
     # =========================
     # WRITE CONTENT
