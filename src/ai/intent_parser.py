@@ -1,31 +1,18 @@
 # src/ai/intent_parser.py
 # GROUP: ai
-# DESCRIPTION: STRICT DSL Intent Parser v2 (Admin AI Engine - deterministic, schema-based)
+# DESCRIPTION: STRICT DSL Intent Parser v2 → AST compiler (Command output)
 
 import logging
-import json
 import re
-from typing import Dict, Any, Optional
+from typing import Any
 
 from src.ai.gemini import GeminiClient
+from src.core.commands.command_model import Command
 
 logger = logging.getLogger("ai.intent_parser")
 
 
 class IntentParser:
-    """
-    DSL ENGINE v2
-
-    Rules:
-    - NO semantic guessing
-    - STRICT token parsing
-    - quoted strings = entities
-    - unquoted tokens = actions / fields / values
-    """
-
-    # =========================
-    # ALLOWED DSL CONFIG
-    # =========================
 
     ALLOWED_ACTIONS = {
         "create",
@@ -39,64 +26,20 @@ class IntentParser:
         "schema",
     }
 
-    ALLOWED_ENTITIES = {
-        "hero",
-        "skill",
-        "item",
-        "building",
-        "research_tree",
-        "research_node",
-    }
-
-    ALLOWED_FIELDS = {
-        # HERO CORE
-        "hero_attack",
-        "hero_defense",
-        "hero_health",
-        "march_capacity",
-        "star_level",
-        "faction",
-        "troop_type",
-        "lore",
-
-        # SKILL
-        "skill_damage",
-        "skill_cooldown",
-        "skill_level",
-        "description",
-
-        # GENERIC
-        "value",
-    }
-
     RELATION_KEYWORDS = {"of", "to", "to_hero", "to_tree", "to_building"}
-
-    # =========================
-    # INIT
-    # =========================
 
     def __init__(self):
         self.client = GeminiClient()
-        logger.info("🧠 IntentParser v2 (DSL ENGINE) initialized")
+        logger.info("🧠 IntentParser v2 (AST MODE) initialized")
 
     # =========================
-    # UTIL: QUOTES EXTRACT
+    # UTIL
     # =========================
 
-    def _extract_quoted(self, text: str) -> list:
+    def _extract_quoted(self, text: str):
         return re.findall(r'"([^"]+)"', text)
 
-    def _strip_quotes(self, text: str) -> str:
-        return text.replace('"', "")
-
-    # =========================
-    # TOKENIZER
-    # =========================
-
-    def _tokenize(self, text: str) -> list:
-        """
-        Converts DSL string into tokens while preserving quoted strings.
-        """
+    def _tokenize(self, text: str):
         quoted = self._extract_quoted(text)
         temp = re.sub(r'"[^"]+"', " __Q__ ", text)
         tokens = temp.split()
@@ -114,10 +57,10 @@ class IntentParser:
         return result
 
     # =========================
-    # PARSER CORE
+    # AST COMPILER
     # =========================
 
-    def _parse_tokens(self, tokens: list) -> Dict[str, Any]:
+    def _to_command(self, tokens: list) -> Command:
 
         if not tokens:
             raise ValueError("Empty DSL input")
@@ -127,137 +70,127 @@ class IntentParser:
         if action not in self.ALLOWED_ACTIONS:
             raise ValueError(f"Invalid action: {action}")
 
-        result = {
-            "action": action,
-            "entity": None,
-            "name": None,
-            "field": None,
-            "value": None,
-            "target": None,
-        }
+        entity = None
+        name = None
+        field = None
+        value = None
+        target = None
+        relation = None
 
         # =========================
         # CREATE / DEFINE / ADD
         # =========================
 
         if action in {"create", "define", "add"}:
-            if len(tokens) < 3:
-                raise ValueError("Invalid create/define/add syntax")
+            entity = tokens[1] if len(tokens) > 1 else None
+            name = tokens[2] if len(tokens) > 2 else None
 
-            result["entity"] = tokens[1]
-            result["name"] = tokens[2]
-
-            # optional field/value
+            # field/value (optional)
             if "field" in tokens:
-                idx = tokens.index("field")
-                if idx + 2 < len(tokens):
-                    result["field"] = tokens[idx + 1]
-                    result["value"] = tokens[idx + 2]
+                i = tokens.index("field")
+                if i + 2 < len(tokens):
+                    field = tokens[i + 1]
+                    value = tokens[i + 2]
 
-            # relation handling
+            # relation
             for i, t in enumerate(tokens):
                 if t in self.RELATION_KEYWORDS and i + 2 < len(tokens):
-                    result["target"] = {
+                    relation = {
                         "type": tokens[i + 1],
                         "name": tokens[i + 2],
                     }
-
-            return result
 
         # =========================
         # UPDATE
         # =========================
 
-        if action == "update":
-            if len(tokens) < 4:
-                raise ValueError("Invalid update syntax")
+        elif action == "update":
+            entity = tokens[1] if len(tokens) > 1 else None
+            name = tokens[2] if len(tokens) > 2 else None
 
-            result["entity"] = tokens[1]
-            result["name"] = tokens[2]
-
-            # pattern: field X value Y
             if "field" in tokens:
-                idx = tokens.index("field")
-                if idx + 2 < len(tokens):
-                    field = tokens[idx + 1]
-                    value = tokens[idx + 2]
+                i = tokens.index("field")
+                if i + 2 < len(tokens):
+                    field = tokens[i + 1]
+                    value = tokens[i + 2]
 
-                    if field not in self.ALLOWED_FIELDS:
-                        raise ValueError(f"Invalid field: {field}")
-
-                    result["field"] = field
-                    result["value"] = value
-
-            # relation: update skill "X" of hero "Y"
             if "of" in tokens:
-                idx = tokens.index("of")
-                if idx + 2 < len(tokens):
-                    result["target"] = {
-                        "type": tokens[idx + 1],
-                        "name": tokens[idx + 2],
+                i = tokens.index("of")
+                if i + 2 < len(tokens):
+                    target = {
+                        "type": tokens[i + 1],
+                        "name": tokens[i + 2],
                     }
-
-            return result
 
         # =========================
         # LINK
         # =========================
 
-        if action == "link":
-            result["entity"] = tokens[1]
-            result["name"] = tokens[2]
+        elif action == "link":
+            entity = tokens[1] if len(tokens) > 1 else None
+            name = tokens[2] if len(tokens) > 2 else None
 
             if "to" in tokens:
-                idx = tokens.index("to")
-                if idx + 2 < len(tokens):
-                    result["target"] = {
-                        "type": tokens[idx + 1],
-                        "name": tokens[idx + 2],
+                i = tokens.index("to")
+                if i + 2 < len(tokens):
+                    target = {
+                        "type": tokens[i + 1],
+                        "name": tokens[i + 2],
                     }
 
-            return result
-
         # =========================
-        # SHOW / EXISTS / SCHEMA
+        # QUERY OPS
         # =========================
 
-        if action in {"show", "exists", "schema", "missing_fields"}:
-            result["entity"] = tokens[1] if len(tokens) > 1 else None
-            result["name"] = tokens[2] if len(tokens) > 2 else None
-            return result
+        elif action in {"show", "exists", "schema", "missing_fields"}:
+            entity = tokens[1] if len(tokens) > 1 else None
+            name = tokens[2] if len(tokens) > 2 else None
 
-        return result
+        # =========================
+        # FINAL AST OBJECT
+        # =========================
+
+        return Command(
+            action=action,
+            entity=entity,
+            target=name,
+            field=field,
+            value=value,
+            relation=relation,
+            context={
+                "raw_tokens": tokens
+            }
+        )
 
     # =========================
     # PUBLIC API
     # =========================
 
-    def parse(self, text: str) -> Dict[str, Any]:
+    def parse(self, text: str) -> Command:
         logger.info("📩 DSL INPUT | %s", text)
 
         try:
             tokens = self._tokenize(text)
-            data = self._parse_tokens(tokens)
+            command = self._to_command(tokens)
 
         except Exception as e:
-            logger.warning("⚠️ DSL parse failed | %s", e)
+            logger.warning("⚠️ Parse failed | %s", e)
 
-            return {
-                "action": "query",
-                "entity": None,
-                "name": None,
-                "field": None,
-                "value": None,
-                "target": None,
-                "error": str(e),
-            }
+            return Command(
+                action="query",
+                entity=None,
+                target=None,
+                field=None,
+                value=None,
+                relation=None,
+                context={"error": str(e)}
+            )
 
         logger.info(
-            "✅ Parsed | action=%s entity=%s name=%s field=%s",
-            data.get("action"),
-            data.get("entity"),
-            data.get("name"),
-            data.get("field"),
+            "✅ AST | action=%s entity=%s target=%s",
+            command.action,
+            command.entity,
+            command.target
         )
 
-        return data
+        return command
