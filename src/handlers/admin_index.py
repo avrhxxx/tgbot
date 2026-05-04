@@ -1,6 +1,6 @@
 # src/handlers/admin_index.py
 # GROUP: handlers
-# DESCRIPTION: Admin-only index creation handler (safe DI runtime access)
+# DESCRIPTION: Admin-only index + knowledge creation handler (Sheets + Firestore dual system)
 
 import logging
 
@@ -10,6 +10,7 @@ from aiogram.types import Message
 from src.config.config import load_config
 from src.ai.intent_parser import IntentParser
 from src.services.index_service import IndexService
+from src.services.knowledge_service import KnowledgeService
 from src.google.sheets.writer import SheetsWriter
 
 logger = logging.getLogger("handlers.admin_index")
@@ -54,7 +55,7 @@ async def handle_add(message: Message):
         logger.info("🧠 Intent parsed | %s", intent)
 
         # =========================
-        # SHEETS DEPENDENCY (FIXED)
+        # DEPENDENCIES
         # =========================
         bot = message.bot
         sheets_client = getattr(bot, "sheets_client", None)
@@ -64,17 +65,36 @@ async def handle_add(message: Message):
             await message.answer("❌ Sheets not initialized.")
             return
 
-        # =========================
-        # SERVICE LAYER
-        # =========================
         writer = SheetsWriter(sheets_client)
-        service = IndexService(writer)
 
-        result = service.handle(intent)
+        index_service = IndexService(writer)
+        knowledge_service = KnowledgeService()
 
-        logger.info("🎯 Index stored successfully | %s", result)
+        # =========================
+        # ROUTING LAYER
+        # =========================
+        action = intent.get("action")
 
-        await message.answer(f"✅ Added: {result}")
+        if action == "add_definition":
+            result = index_service.handle(intent)
+
+        elif action == "add_knowledge":
+            result = await knowledge_service.create_or_update(
+                intent["object"],
+                intent["name"],
+                intent.get("context", intent),
+            )
+
+        else:
+            logger.error("❌ Unsupported action: %s", action)
+            await message.answer(f"❌ Unsupported action: {action}")
+            return
+
+        # =========================
+        # RESPONSE
+        # =========================
+        logger.info("🎯 Operation successful | %s", result)
+        await message.answer(f"✅ Success: {result}")
 
     except Exception:
         logger.exception("❌ Handler failed")
