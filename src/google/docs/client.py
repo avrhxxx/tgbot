@@ -7,6 +7,7 @@ import asyncio
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor
 
+import google.auth  # 🔥 DEBUG ADD
 from googleapiclient.discovery import build  # type: ignore
 from src.google.auth import load_google_credentials
 
@@ -20,8 +21,26 @@ class GoogleDocsClient:
     def __init__(self):
         credentials = load_google_credentials()
 
-        logger.info("📄 Docs AUTH EMAIL: %s", getattr(credentials, "service_account_email", None))
+        # =========================
+        # 🔍 BASIC IDENTITY DEBUG
+        # =========================
+        logger.info("📄 Docs AUTH EMAIL: %s",
+                    getattr(credentials, "service_account_email", None)
+                    or getattr(credentials, "client_email", None))
+
         logger.info("📄 Docs AUTH TYPE: %s", type(credentials).__name__)
+        logger.info("📄 Docs CREDS OBJECT ID: %s", id(credentials))
+
+        # =========================
+        # 🔍 ADC / PROJECT DEBUG
+        # =========================
+        try:
+            _, project = google.auth.default()
+            logger.info("📄 ADC PROJECT: %s", project)
+        except Exception as e:
+            logger.warning("📄 ADC PROJECT CHECK FAILED: %s", e)
+
+        logger.info("📄 Google Docs client initialized")
 
         self.service = build(
             "docs",
@@ -32,7 +51,7 @@ class GoogleDocsClient:
 
         self._credentials = credentials
 
-        logger.info("📄 Google Docs client initialized")
+        logger.info("📄 Docs SERVICE READY")
 
     async def _run(self, func, *args, **kwargs):
         loop = asyncio.get_event_loop()
