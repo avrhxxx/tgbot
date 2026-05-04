@@ -3,7 +3,7 @@
 # DESCRIPTION: Google Drive abstraction layer (folders + file management)
 
 import logging
-from typing import Optional, cast, Any
+from typing import Optional, Any
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -39,7 +39,7 @@ class GoogleDriveClient:
         if parent_id:
             query += f" and '{parent_id}' in parents"
 
-        result: dict[str, Any] = self.service.files().list(
+        result = self.service.files().list(
             q=query,
             fields="files(id, name)"
         ).execute()
@@ -47,17 +47,18 @@ class GoogleDriveClient:
         files = result.get("files", [])
 
         if files:
-            folder_id = str(files[0]["id"])
+            folder_id: str = str(files[0]["id"])
             logger.info("📁 Folder exists | %s → %s", name, folder_id)
             return folder_id
 
-        metadata = {
+        # FIX: explicit Any dict (mypy-safe for Google API)
+        metadata: dict[str, Any] = {
             "name": name,
             "mimeType": "application/vnd.google-apps.folder",
         }
 
         if parent_id:
-            metadata["parents"] = [parent_id]
+            metadata["parents"] = [str(parent_id)]
 
         folder = self.service.files().create(
             body=metadata,
@@ -71,7 +72,7 @@ class GoogleDriveClient:
         return folder_id
 
     # =========================
-    # COMPAT LAYER (FIX FOR BOOTSTRAP EXPECTATION)
+    # COMPAT LAYER (BOOTSTRAP SAFE)
     # =========================
     async def create_folder(self, name: str, parent_id: Optional[str] = None) -> str:
         """
@@ -93,7 +94,7 @@ class GoogleDriveClient:
             "trashed=false"
         )
 
-        result: dict[str, Any] = self.service.files().list(
+        result = self.service.files().list(
             q=query,
             fields="files(id, name)"
         ).execute()
@@ -103,4 +104,4 @@ class GoogleDriveClient:
         if not files:
             return None
 
-        return cast(str, files[0]["id"])
+        return str(files[0]["id"])
