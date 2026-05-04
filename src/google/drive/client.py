@@ -1,81 +1,58 @@
 # src/google/drive/client.py
 # GROUP: google.drive
-# DESCRIPTION: Google Drive client (GAME_DATA root + document creation layer)
+# DESCRIPTION: Google Drive folder manager (for Docs organization)
 
 import logging
-from typing import Optional
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaInMemoryUpload
-from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build  # type: ignore
+from src.google.auth import load_google_credentials
 
 logger = logging.getLogger("google.drive")
 
+_executor = ThreadPoolExecutor(max_workers=5)
 
-class DriveClient:
-    """
-    Minimal Drive layer:
-    - ensures root folder exists (provided via env)
-    - creates documents inside GAME_DATA
-    """
 
-    def __init__(self, credentials: Credentials, root_folder_id: str):
-        self.service = build("drive", "v3", credentials=credentials)
-        self.root_folder_id = root_folder_id
+class GoogleDriveClient:
 
-        logger.info("📁 DriveClient initialized | root=%s", root_folder_id)
+    def __init__(self):
+        credentials = load_google_credentials()
+
+        self.service = build(
+            "drive",
+            "v3",
+            credentials=credentials,
+            cache_discovery=False,
+        )
+
+        logger.info("📁 Google Drive client initialized")
+
+    async def _run(self, func, *args, **kwargs):
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(_executor, lambda: func(*args, **kwargs))
 
     # =========================
-    # CREATE DOCUMENT
+    # CREATE FOLDER
     # =========================
-    def create_document(self, name: str, content: str, parent_id: Optional[str] = None):
-        """
-        Creates a Google Doc inside Drive.
+    async def create_folder(self, name: str, parent_id: str | None = None):
 
-        If parent_id not provided → uses GAME_DATA root.
-        """
-
-        folder_id = parent_id or self.root_folder_id
-
-        file_metadata = {
+        metadata = {
             "name": name,
-            "mimeType": "application/vnd.google-apps.document",
-            "parents": [folder_id],
+            "mimeType": "application/vnd.google-apps.folder",
         }
 
-        media = MediaInMemoryUpload(
-            content.encode("utf-8"),
-            mimetype="text/plain",
+        if parent_id:
+            metadata["parents"] = [parent_id]
+
+        folder = await self._run(
+            self.service.files().create,
+            body=metadata,
+            fields="id",
         )
 
-        file = (
-            self.service.files()
-            .create(
-                body=file_metadata,
-                media_body=media,
-                fields="id, name",
-            )
-            .execute()
-        )
+        folder_id = folder.get("id")
 
-        logger.info("📄 Document created | name=%s id=%s", name, file["id"])
+        logger.info("📁 Folder created | %s -> %s", name, folder_id)
 
-        return file
-
-    # =========================
-    # FIND FOLDER BY NAME (optional utility later)
-    # =========================
-    def list_children(self, folder_id: str):
-        """
-        Debug helper: lists files in folder.
-        """
-        res = (
-            self.service.files()
-            .list(
-                q=f"'{folder_id}' in parents",
-                fields="files(id, name, mimeType)",
-            )
-            .execute()
-        )
-
-        return res.get("files", [])
+        return folder_id
