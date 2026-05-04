@@ -1,6 +1,6 @@
 # src/ai/intent_parser.py
 # GROUP: ai
-# DESCRIPTION: Semantic intent parser (INDEX + KNOWLEDGE dual system, extended learning)
+# DESCRIPTION: Semantic intent parser (INDEX + KNOWLEDGE + DOCS intent compiler)
 
 import logging
 import json
@@ -16,15 +16,14 @@ class IntentParser:
 
     def __init__(self):
         self.client = GeminiClient()
-        logger.info("🧠 IntentParser initialized (learning mode v3)")
+        logger.info("🧠 IntentParser initialized (strict intent compiler mode)")
 
     # =========================
     # JSON EXTRACTION
     # =========================
     def _extract_json(self, text: str) -> str:
         """
-        Extracts JSON block from LLM response.
-        More robust than greedy regex.
+        Extract JSON block from LLM response.
         """
         match = re.search(r"\{[\s\S]*\}", text)
         if not match:
@@ -46,21 +45,19 @@ class IntentParser:
             data["action"] = "query"
 
         # =========================
-        # KNOWLEDGE STRUCTURE ENFORCEMENT
+        # KNOWLEDGE SAFETY DEFAULTS
         # =========================
         if data.get("action") == "add_knowledge":
-            if "knowledge" not in data:
-                data["knowledge"] = {}
+            knowledge = data.get("knowledge", {})
 
-            knowledge = data["knowledge"]
-
-            # Safe defaults (NO dict-in-string bugs)
             knowledge.setdefault("lore", "")
             knowledge.setdefault("gameplay", {
                 "type": None,
                 "behavior": None
             })
             knowledge.setdefault("stats", {})
+
+            data["knowledge"] = knowledge
 
         return data
 
@@ -73,10 +70,19 @@ class IntentParser:
             "query",
             "check_existence",
             "get_definition",
-            "add_definition",   # INDEX SYSTEM
-            "add_knowledge",    # KNOWLEDGE SYSTEM
+
+            # INDEX SYSTEM
+            "add_definition",
+
+            # KNOWLEDGE SYSTEM
+            "add_knowledge",
+
+            # TREE SYSTEM
             "add_tree",
-            "add_tree_research"
+            "add_tree_research",
+
+            # 📄 DOCS / DRIVE INTENT (NO IMPLEMENTATION DETAILS)
+            "create_hero_document"
         }
 
         if data.get("action") not in allowed_actions:
@@ -90,59 +96,98 @@ class IntentParser:
         logger.info("📩 Incoming text | %s", text)
 
         prompt = f"""
-You are a GAME INTELLIGENCE ENGINE.
+You are a STRICT INTENT COMPILER.
 
-You handle TWO SYSTEMS:
+You convert user input into CLEAN JSON ACTIONS.
 
-=================================
-1. INDEX SYSTEM (Sheets)
-=================================
-- add_definition → creates game entities
-- includes: hero, skill, building, item
-- ALSO includes:
-  • research_tree
-  • research_node
-
-RULE:
-- INDEX = existence only
-- NEVER include mechanics or behavior
+You DO NOT execute anything.
+You DO NOT know APIs.
+You ONLY output intent.
 
 =================================
-2. KNOWLEDGE SYSTEM (Firestore)
+OUTPUT RULES (HARD CONSTRAINT)
 =================================
-- add_knowledge = structured game intelligence
 
-MUST FOLLOW STRUCTURE:
+- Output MUST be valid JSON ONLY
+- NO markdown
+- NO explanation
+- NO extra keys
+- NO guessing fields
+- ALWAYS full schema compliance
+
+=================================
+ACTION TYPES
+=================================
+
+1. add_definition (INDEX SYSTEM)
+2. add_knowledge (KNOWLEDGE SYSTEM)
+3. check_existence
+4. get_definition
+5. query
+6. create_hero_document (DOCS INTENT)
+
+=================================
+INDEX SYSTEM
+=================================
 
 {{
-  "lore": "string",
-  "gameplay": {{
-    "type": "passive | active | auto_attack | talent",
-    "behavior": "string",
-    "cooldown": optional,
-    "levels": optional
-  }},
-  "stats": {{
-    "damage": optional,
-    "scaling": optional,
-    "duration": optional
+  "action": "add_definition",
+  "object": "hero | skill | item | building | research_tree | research_node",
+  "name": "string",
+  "context": {{}}
+}}
+
+=================================
+KNOWLEDGE SYSTEM
+=================================
+
+{{
+  "action": "add_knowledge",
+  "object": "hero | skill | item | building",
+  "name": "string",
+  "knowledge": {{
+    "lore": "string",
+    "gameplay": {{
+      "type": "passive | active | auto_attack | talent",
+      "behavior": "string",
+      "cooldown": 0,
+      "levels": 0
+    }},
+    "stats": {{
+      "damage": 0,
+      "scaling": "string",
+      "duration": 0
+    }}
   }}
 }}
 
 =================================
-3. READ SYSTEM
+DOCS INTENT (DO NOT EXECUTE)
 =================================
-- check_existence
-- get_definition
-- query
+
+This does NOT create files directly.
+
+It only requests backend action:
+
+{{
+  "action": "create_hero_document",
+  "object": "hero",
+  "name": "string"
+}}
+
+Backend will decide:
+- Drive folder
+- Docs creation
+- Template structure
 
 =================================
 RULES
 =================================
-- NEVER mix INDEX and KNOWLEDGE
-- INDEX = structure of game
-- KNOWLEDGE = meaning + behavior
-- ALWAYS return valid JSON ONLY
+
+- NEVER output API calls
+- NEVER mention Google Drive or Docs
+- NEVER change schema dynamically
+- ALWAYS prefer fixed enum values
 
 =================================
 USER INPUT
