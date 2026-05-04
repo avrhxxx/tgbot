@@ -5,6 +5,7 @@
 import logging
 from typing import Optional, Any
 
+import google.auth  # 🔥 DEBUG ADD
 from googleapiclient.discovery import build  # type: ignore
 from src.google.auth import load_google_credentials
 from src.config.config import load_config
@@ -19,9 +20,31 @@ class GoogleDriveClient:
     def __init__(self):
         credentials = load_google_credentials()
 
-        logger.info("📁 Drive AUTH EMAIL: %s", getattr(credentials, "service_account_email", None))
+        # =========================
+        # 🔍 IDENTITY DEBUG (CRITICAL)
+        # =========================
+        logger.info("📁 Drive AUTH EMAIL: %s",
+                    getattr(credentials, "service_account_email", None)
+                    or getattr(credentials, "client_email", None))
 
-        self.service = build("drive", "v3", credentials=credentials, cache_discovery=False)
+        logger.info("📁 Drive AUTH TYPE: %s", type(credentials).__name__)
+        logger.info("📁 Drive CREDS OBJECT ID: %s", id(credentials))
+
+        # =========================
+        # 🔍 ADC PROJECT DEBUG
+        # =========================
+        try:
+            _, project = google.auth.default()
+            logger.info("📁 ADC PROJECT: %s", project)
+        except Exception as e:
+            logger.warning("📁 ADC PROJECT CHECK FAILED: %s", e)
+
+        self.service = build(
+            "drive",
+            "v3",
+            credentials=credentials,
+            cache_discovery=False,
+        )
 
         config = load_config()
         self.root_folder_id = config.google.drive_root_folder_id
@@ -43,6 +66,8 @@ class GoogleDriveClient:
         if parent_id:
             query += f" and '{parent_id}' in parents"
 
+        logger.info("📁 DRIVE QUERY: %s", query)
+
         result = self.service.files().list(
             q=query,
             fields="files(id, name)"
@@ -63,6 +88,8 @@ class GoogleDriveClient:
         if parent_id:
             metadata["parents"] = [str(parent_id)]
 
+        logger.info("📁 CREATING FOLDER | name=%s parent=%s", name, parent_id)
+
         folder = self.service.files().create(
             body=metadata,
             fields="id"
@@ -82,6 +109,8 @@ class GoogleDriveClient:
             "trashed=false"
         )
 
+        logger.info("📄 FILE SEARCH QUERY: %s", query)
+
         result = self.service.files().list(
             q=query,
             fields="files(id, name)"
@@ -90,6 +119,11 @@ class GoogleDriveClient:
         files = result.get("files", [])
 
         if not files:
+            logger.info("📄 FILE NOT FOUND | %s", name)
             return None
 
-        return str(files[0]["id"])
+        file_id = str(files[0]["id"])
+
+        logger.info("📄 FILE FOUND | %s → %s", name, file_id)
+
+        return file_id
