@@ -1,20 +1,17 @@
 # src/google/auth.py
 # GROUP: google
-# DESCRIPTION: Safe Google auth layer (ADC-first, Service Account fallback + TRUE singleton + full identity debug tracing)
+# DESCRIPTION: Singleton-safe Google auth (ADC-first, stable scoped identity)
 
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, Optional
 
 from google.auth import default
 from google.oauth2 import service_account
 
 logger = logging.getLogger("google.auth")
 
-# =========================
-# FULL SCOPES (CRITICAL)
-# =========================
 SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -23,96 +20,45 @@ SCOPES = [
 ]
 
 # =========================
-# 🔥 SINGLETON CACHE (FIX)
+# SINGLETON CACHE (🔥 FIX)
 # =========================
-_CACHED_CREDENTIALS: Any = None
+_CACHED_CREDS: Optional[Any] = None
 
 
-# =========================
-# DEBUG CORE
-# =========================
-def _debug_credentials(creds: Any, label: str = "CREDS") -> None:
-    logger.info("🧪 ===== GOOGLE AUTH DEBUG [%s] =====", label)
+def _debug(creds: Any) -> None:
+    logger.info("🧪 AUTH DEBUG")
     logger.info("TYPE: %s", type(creds))
-
-    logger.info("SERVICE ACCOUNT EMAIL: %s", getattr(creds, "service_account_email", None))
-    logger.info("CLIENT EMAIL: %s", getattr(creds, "client_email", None))
-    logger.info("PROJECT ID: %s", getattr(creds, "project_id", None))
-
-    logger.info("HAS TOKEN: %s", hasattr(creds, "token"))
-    logger.info("HAS WITH_SCOPES: %s", hasattr(creds, "with_scopes"))
-
+    logger.info("EMAIL: %s", getattr(creds, "service_account_email", None) or getattr(creds, "client_email", None))
     logger.info("SCOPES: %s", getattr(creds, "scopes", None))
-    logger.info("ADC DETECTED: %s", creds.__class__.__name__.lower().find("default") != -1)
-
-    logger.info("======================================")
 
 
-# =========================
-# SCOPE NORMALIZATION
-# =========================
-def _normalize_scopes(creds: Any) -> Any:
-    if hasattr(creds, "with_scopes"):
-        try:
-            return creds.with_scopes(SCOPES)
-        except Exception as e:
-            logger.warning("⚠️ Failed to normalize scopes: %s", e)
-    return creds
-
-
-# =========================
-# SINGLE ENTRYPOINT (FIXED)
-# =========================
 def load_google_credentials() -> Any:
-    """
-    TRUE SINGLETON:
-    - One identity per runtime
-    - Prevents Drive/Docs mismatch auth bugs
-    """
+    global _CACHED_CREDS
 
-    global _CACHED_CREDENTIALS
+    if _CACHED_CREDS:
+        logger.info("♻️ Reusing cached Google credentials")
+        return _CACHED_CREDS
 
-    if _CACHED_CREDENTIALS is not None:
-        logger.info("♻️ Returning cached Google credentials (SINGLETON HIT)")
-        return _CACHED_CREDENTIALS
-
-    logger.info("🔐 Google auth init started (FIRST INIT ONLY)")
+    logger.info("🔐 Building Google credentials (FIRST INIT ONLY)")
 
     raw = os.getenv("GOOGLE_SERVICE_ACCOUNT")
 
     # =========================
-    # 1. ADC MODE
+    # ADC
     # =========================
     if not raw:
-        logger.info("🔵 ADC mode detected")
-
         creds, _ = default(scopes=SCOPES)
-        creds = _normalize_scopes(creds)
+        _CACHED_CREDS = creds
 
-        logger.info("✅ ADC authentication successful")
-        _debug_credentials(creds, "ADC")
+        logger.info("✅ ADC credentials loaded")
+        _debug(creds)
 
-        _CACHED_CREDENTIALS = creds
         return creds
 
     # =========================
-    # 2. SERVICE ACCOUNT MODE
+    # SERVICE ACCOUNT
     # =========================
-    logger.info("🟡 Service Account mode detected")
-
-    try:
-        data = json.loads(raw)
-    except Exception as err:
-        logger.error("❌ Failed to parse GOOGLE_SERVICE_ACCOUNT JSON")
-        raise ValueError("Invalid GOOGLE_SERVICE_ACCOUNT JSON") from err
-
-    required_fields = ["client_email", "private_key", "project_id"]
-    missing = [f for f in required_fields if f not in data]
-
-    if missing:
-        logger.error("❌ Missing fields in service account: %s", missing)
-        raise ValueError(f"Missing fields in service account: {missing}")
-
+    data = json.loads(raw)
     data["private_key"] = data["private_key"].replace("\\n", "\n")
 
     creds = service_account.Credentials.from_service_account_info(
@@ -120,10 +66,9 @@ def load_google_credentials() -> Any:
         scopes=SCOPES,
     )
 
-    creds = _normalize_scopes(creds)
+    _CACHED_CREDS = creds
 
-    logger.info("✅ Service Account authentication successful")
-    _debug_credentials(creds, "SERVICE_ACCOUNT")
+    logger.info("✅ Service account credentials loaded")
+    _debug(creds)
 
-    _CACHED_CREDENTIALS = creds
     return creds
