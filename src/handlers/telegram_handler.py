@@ -1,66 +1,167 @@
 # src/handlers/telegram_handler.py
 # GROUP: handlers
-# DESCRIPTION: Main Telegram message handler (AI Wiki entrypoint)
+# DESCRIPTION: AI Coach Telegram handler (Smart Index Filtering + Sheets relation aware)
 
 import logging
-from aiogram import types
+import asyncio
+from aiogram.types import Message
 
-from src.wiki.service import answer_wiki_question
+from src.ai.gemini import gemini_client
 
 logger = logging.getLogger("handlers.telegram")
 
-TELEGRAM_LIMIT = 4096
+
+# =========================
+# READ FROM SHEETS (SMART FILTER)
+# =========================
+def get_game_state(sheets_client, query: str):
+    """
+    Returns filtered game state based on query keywords.
+    Prevents dumping full dataset into AI prompt.
+    """
+    if not sheets_client:
+        return [], [], []
+
+    try:
+        result = sheets_client.service.spreadsheets().values().get(
+            spreadsheetId=sheets_client.sheet_id,
+            range="indexes!A:F",
+        ).execute()
+
+        rows = result.get("values", [])
+
+        heroes = []
+        skills = []
+        buildings = []
+
+        query_lower = query.lower()
+
+        for r in rows[1:]:
+            if len(r) < 6:
+                continue
+
+            _id = r[0]
+            _type = r[1]
+            name = r[2]
+            slug = r[3]
+            parent_type = r[4]
+            parent_name = r[5]
+
+            # =========================
+            # HERO FILTER
+            # =========================
+            if _type == "hero":
+                if query_lower in name.lower():
+                    heroes.append(name)
+                continue
+
+            # =========================
+            # SKILL FILTER (HERO RELATION AWARE)
+            # =========================
+            if _type == "skill":
+                hero_match = parent_name and query_lower in parent_name.lower()
+                name_match = query_lower in name.lower()
+
+                if hero_match or name_match:
+                    skills.append({
+                        "name": name,
+                        "hero": parent_name
+                    })
+                continue
+
+            # =========================
+            # BUILDINGS FILTER
+            # =========================
+            if _type == "building":
+                if query_lower in name.lower():
+                    buildings.append(name)
+
+        return heroes, skills, buildings
+
+    except Exception as e:
+        logger.exception("❌ Sheets read error: %s", e)
+        return [], [], []
 
 
 # =========================
-# MESSAGE CHUNKER
+# PROMPT BUILDER (COACH v2 SMART)
 # =========================
-def split_message(text: str, limit: int = TELEGRAM_LIMIT) -> list[str]:
-    if len(text) <= limit:
-        return [text]
+def build_prompt(user_text: str, state):
+    heroes, skills, buildings = state
 
-    chunks = []
-    current = ""
+    return f"""
+You are a GAME COACH AI assistant.
 
-    for line in text.split("\n"):
-        if len(current) + len(line) + 1 > limit:
-            chunks.append(current)
-            current = line
-        else:
-            current += "\n" + line if current else line
+========================
+RULES
+========================
+- Respond in the same language as the user
+- Use ONLY provided filtered game data
+- Do NOT invent mechanics or stats
+- If data is missing, say it is not documented yet
+- Be concise like a game wiki assistant
 
-    if current:
-        chunks.append(current)
+========================
+FILTERED GAME DATA
+========================
 
-    return chunks
+HEROES:
+{heroes}
+
+RELATED SKILLS (already filtered by hero relation):
+{skills}
+
+BUILDINGS:
+{buildings}
+
+========================
+USER QUESTION
+========================
+{user_text}
+
+========================
+IMPORTANT NOTE
+========================
+Skills list is pre-filtered.
+Do NOT assume full global skill database.
+Only use what is provided above.
+"""
 
 
 # =========================
 # HANDLER
 # =========================
-async def handle_message(message: types.Message):
-    user_text = message.text
+async def handle_message(message: Message):
+    text = message.text or ""
 
-    logger.info("Incoming message: %s", user_text)
+    logger.info("📩 USER QUERY: %s", text)
 
-    if not user_text:
-        await message.answer("Send me a question.")
+    if not text:
+        await message.answer("Send a question.")
         return
 
-    # 🔥 IMPORTANT: block all commands from AI layer
-    if user_text.startswith("/"):
+    if text.startswith("/"):
         return
+
+    sheets_client = message.bot.__dict__.get("sheets_client")
+
+    # SMART FILTERED STATE (IMPORTANT CHANGE)
+    state = get_game_state(sheets_client, text)
+
+    prompt = build_prompt(text, state)
 
     try:
-        response = await answer_wiki_question(user_text)
+        response = await asyncio.to_thread(
+            gemini_client.generate,
+            prompt
+        )
 
         if not response:
             await message.answer("No response from AI.")
             return
 
-        for chunk in split_message(response):
-            await message.answer(chunk)
+        await message.answer(response)
 
-    except Exception:
-        logger.exception("Handler error")
-        await message.answer("Error processing request.")
+    except Exception as e:
+        logger.exception("❌ AI coach error")
+        await message.answer(f"AI error: {e}")
