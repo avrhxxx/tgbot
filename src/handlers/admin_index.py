@@ -60,7 +60,7 @@ async def handle_add(message: Message):
         bot = message.bot
 
         sheets_client = getattr(bot, "sheets_client", None)
-        drive_client = getattr(bot, "drive_client", None)
+        _ = getattr(bot, "drive_client", None)  # reserved (unused but kept for DI consistency)
         docs_service = getattr(bot, "docs_service", None)
 
         if not sheets_client:
