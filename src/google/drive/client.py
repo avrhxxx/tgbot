@@ -3,7 +3,7 @@
 # DESCRIPTION: Google Drive abstraction layer (folders + file management)
 
 import logging
-from typing import Optional
+from typing import Optional, cast, Any
 
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
@@ -23,7 +23,7 @@ class GoogleDriveClient:
         logger.info("📦 GoogleDriveClient initialized")
 
     # =========================
-    # FOLDER HELPERS
+    # FOLDER HELPERS (CORE)
     # =========================
     async def ensure_folder(self, name: str, parent_id: Optional[str] = None) -> str:
         """
@@ -39,12 +39,15 @@ class GoogleDriveClient:
         if parent_id:
             query += f" and '{parent_id}' in parents"
 
-        result = self.service.files().list(q=query, fields="files(id, name)").execute()
+        result: dict[str, Any] = self.service.files().list(
+            q=query,
+            fields="files(id, name)"
+        ).execute()
 
         files = result.get("files", [])
 
         if files:
-            folder_id = files[0]["id"]
+            folder_id = str(files[0]["id"])
             logger.info("📁 Folder exists | %s → %s", name, folder_id)
             return folder_id
 
@@ -56,11 +59,25 @@ class GoogleDriveClient:
         if parent_id:
             metadata["parents"] = [parent_id]
 
-        folder = self.service.files().create(body=metadata, fields="id").execute()
+        folder = self.service.files().create(
+            body=metadata,
+            fields="id"
+        ).execute()
 
-        logger.info("📁 Folder created | %s → %s", name, folder["id"])
+        folder_id = str(folder.get("id"))
 
-        return folder["id"]
+        logger.info("📁 Folder created | %s → %s", name, folder_id)
+
+        return folder_id
+
+    # =========================
+    # COMPAT LAYER (FIX FOR BOOTSTRAP EXPECTATION)
+    # =========================
+    async def create_folder(self, name: str, parent_id: Optional[str] = None) -> str:
+        """
+        Alias for ensure_folder (backward compatibility)
+        """
+        return await self.ensure_folder(name, parent_id)
 
     # =========================
     # FILE SEARCH
@@ -76,11 +93,14 @@ class GoogleDriveClient:
             "trashed=false"
         )
 
-        result = self.service.files().list(q=query, fields="files(id, name)").execute()
+        result: dict[str, Any] = self.service.files().list(
+            q=query,
+            fields="files(id, name)"
+        ).execute()
 
         files = result.get("files", [])
 
         if not files:
             return None
 
-        return files[0]["id"]
+        return cast(str, files[0]["id"])
