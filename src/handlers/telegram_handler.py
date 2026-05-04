@@ -5,16 +5,13 @@
 import logging
 from aiogram import types
 
-from ..wiki.service import answer_wiki_question
+from src.wiki.service import answer_wiki_question
 
 logger = logging.getLogger("handlers.telegram")
 
 TELEGRAM_LIMIT = 4096
 
 
-# =========================
-# MESSAGE CHUNKER
-# =========================
 def split_message(text: str, limit: int = TELEGRAM_LIMIT) -> list[str]:
     if len(text) <= limit:
         return [text]
@@ -35,9 +32,6 @@ def split_message(text: str, limit: int = TELEGRAM_LIMIT) -> list[str]:
     return chunks
 
 
-# =========================
-# HANDLER
-# =========================
 async def handle_message(message: types.Message):
     user_text = message.text
 
@@ -47,7 +41,6 @@ async def handle_message(message: types.Message):
         await message.answer("Send me a question.")
         return
 
-    # 🔥 IMPORTANT: block all commands from AI layer
     if user_text.startswith("/"):
         return
 
