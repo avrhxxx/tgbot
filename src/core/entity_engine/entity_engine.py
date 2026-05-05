@@ -1,9 +1,9 @@
 # src/core/entity_engine/entity_engine.py
 # GROUP: core.entity_engine
-# DESCRIPTION: Core Entity Engine (validation + schema enforcement + field resolution)
+# DESCRIPTION: Core Entity Engine (validation + schema enforcement + attr resolution)
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.core.entity_engine.entity_schema import ENTITY_SCHEMAS
 from src.core.commands.command_model import Command
@@ -43,7 +43,6 @@ class EntityEngine:
         if not schema:
             raise ValueError(f"No schema found for entity: {command.entity}")
 
-        # ROUTE BY ACTION
         if command.action == "create":
             return self._validate_create(command, schema)
 
@@ -56,7 +55,6 @@ class EntityEngine:
         if command.action == "link":
             return self._validate_link(command, schema)
 
-        # fallback
         return command
 
     # =========================
@@ -70,53 +68,47 @@ class EntityEngine:
     # CREATE VALIDATION
     # =========================
 
-    def _validate_create(self, command: Command, schema):
-
-        # enforce known entity type
+    def _validate_create(self, command: Command, schema: Any) -> Command:
         if command.entity not in ENTITY_SCHEMAS:
             raise ValueError(f"Invalid entity type: {command.entity}")
 
         logger.info("✔ CREATE validated for %s", command.entity)
-
         return command
 
     # =========================
-    # UPDATE VALIDATION (CORE LOGIC)
+    # UPDATE VALIDATION
     # =========================
 
-    def _validate_update(self, command: Command, schema):
+    def _validate_update(self, command: Command, schema: Any) -> Command:
 
-        if not command.field:
-            logger.warning("⚠ update without field - allowed but unsafe")
+        # attr is now canonical (NOT field)
+        if not command.attr:
+            logger.warning("⚠ update without attr - allowed but unsafe")
 
-        if command.field and command.field not in schema.fields:
+        if command.attr and command.attr not in schema.fields:
             raise ValueError(
-                f"Field '{command.field}' not valid for entity '{command.entity}'"
+                f"Attr '{command.attr}' not valid for entity '{command.entity}'"
             )
 
         # type normalization
-        if command.field:
-            field_schema = schema.fields[command.field]
+        if command.attr:
+            field_schema = schema.fields[command.attr]
 
             command.value = self._normalize_value(
                 command.value,
-                field_schema.type
+                field_schema.type,
             )
 
-            # constraints
             self._apply_constraints(command, field_schema)
 
         logger.info("✔ UPDATE validated for %s", command.entity)
-
         return command
 
     # =========================
     # DEFINE VALIDATION
     # =========================
 
-    def _validate_define(self, command: Command, schema):
-
-        # treat like update but relaxed rules
+    def _validate_define(self, command: Command, schema: Any) -> Command:
         logger.info("✔ DEFINE validated for %s", command.entity)
         return command
 
@@ -124,7 +116,7 @@ class EntityEngine:
     # LINK VALIDATION
     # =========================
 
-    def _validate_link(self, command: Command, schema):
+    def _validate_link(self, command: Command, schema: Any) -> Command:
 
         if not command.relation:
             logger.warning("⚠ link without relation payload")
@@ -151,8 +143,10 @@ class EntityEngine:
             if expected_type == "float":
                 return float(value)
 
-        except Exception as e:
-            raise ValueError(f"Type conversion failed: {value} → {expected_type}")
+        except Exception:
+            raise ValueError(
+                f"Type conversion failed: {value} → {expected_type}"
+            ) from None
 
         return value
 
@@ -160,7 +154,7 @@ class EntityEngine:
     # CONSTRAINTS ENGINE
     # =========================
 
-    def _apply_constraints(self, command: Command, field_schema):
+    def _apply_constraints(self, command: Command, field_schema: Any):
 
         if field_schema.min_value is not None:
             if command.value < field_schema.min_value:
