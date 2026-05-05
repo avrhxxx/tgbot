@@ -1,6 +1,6 @@
 # src/handlers/admin_index.py
 # GROUP: handlers
-# DESCRIPTION: Admin AI terminal (CLEAN ARCHITECTURE)
+# DESCRIPTION: Admin AI terminal (DSL → Command → Engine → Execution)
 
 import logging
 
@@ -16,17 +16,16 @@ from src.services.index_service import IndexService
 logger = logging.getLogger("handlers.admin_index")
 
 router = Router()
+
 config = load_config()
 
 # =========================
-# CORE SYSTEM (SINGLETONS)
+# CORE SYSTEM INIT
 # =========================
 intent_parser = IntentParser()
-
 entity_engine = EntityEngine()
 index_service = IndexService()
-
-command_router = CommandRouter(entity_engine, index_service)
+command_router = CommandRouter(index_service)
 
 
 def is_admin(user_id: int) -> bool:
@@ -44,29 +43,29 @@ async def handle_admin(message: Message):
 
     logger.info("📩 Admin command | user=%s | text=%s", user_id, text)
 
-    # =========================
     # AUTH
-    # =========================
     if not is_admin(user_id):
         await message.answer("❌ No permission.")
         return
 
     try:
-        # =========================
         # 1. DSL → COMMAND (AST)
-        # =========================
         command = intent_parser.parse(text)
 
-        logger.info("🧠 Parsed Command | %s", command)
+        logger.info(
+            "🧠 Command parsed | action=%s entity=%s target=%s",
+            command.action,
+            command.entity,
+            command.target
+        )
 
-        # =========================
-        # 2. EXECUTION
-        # =========================
+        # 2. (OPTIONAL NOW) entity validation layer
+        command = entity_engine.process(command)
+
+        # 3. EXECUTION
         result = command_router.route(command)
 
-        # =========================
-        # 3. RESPONSE
-        # =========================
+        # RESPONSE
         await message.answer(f"✅ {result}")
 
     except Exception as e:
