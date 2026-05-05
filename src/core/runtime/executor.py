@@ -1,10 +1,15 @@
 # src/core/runtime/executor.py
 # GROUP: core.runtime
-# DESCRIPTION: Execution layer (STATE + GRAPH CI-safe version)
+# DESCRIPTION: Execution layer (STATE + GRAPH normalized)
 
 from src.core.command.model import Command
 from src.core.state.state_manager import StateManager
 from src.core.graph.relation_store import RelationStore
+from src.core.graph.relation_types import (
+    HAS_SKILL,
+    LINK_TO_FACTION,
+    GENERIC_LINK,
+)
 from src.shared.logging import get_logger
 
 logger = get_logger("Executor")
@@ -69,8 +74,23 @@ class Executor:
         return self._update(cmd)
 
     # =========================
-    # GRAPH (SAFE VERSION)
+    # GRAPH (NORMALIZED)
     # =========================
+
+    def _resolve_relation(self, cmd: Command):
+        """
+        SINGLE SOURCE OF TRUTH for mapping DSL → Graph semantics
+        """
+
+        if cmd.action == "add":
+            # skill attachment
+            return HAS_SKILL
+
+        if cmd.action == "link":
+            # faction / entity linking
+            return LINK_TO_FACTION
+
+        return GENERIC_LINK
 
     def _add_relation(self, cmd: Command):
         target = cmd.target or {}
@@ -82,16 +102,15 @@ class Executor:
 
         to_entity = (to_type, to_name)
 
-        # SAFE fallback (bo nie ufamy RelationType API jeszcze)
-        relation = cmd.action.upper()
+        relation = self._resolve_relation(cmd)
 
         logger.info(
-            f"[GRAPH] {from_entity} --{relation}--> {to_entity}"
+            f"[GRAPH] {from_entity} --{relation.name}--> {to_entity}"
         )
 
         self.graph.add_relation(
             from_entity=from_entity,
-            relation=relation,   # string-safe
+            relation=relation,
             to_entity=to_entity
         )
 
@@ -99,5 +118,5 @@ class Executor:
             "status": "linked",
             "from": from_entity,
             "to": to_entity,
-            "relation": relation
+            "relation": relation.name
         }
