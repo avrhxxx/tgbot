@@ -10,17 +10,12 @@ from aiogram.types import Update
 from src.adapters.telegram.handler import handle_telegram_text
 from src.shared.logging import get_logger
 
-# 🔥 TRACE SYSTEM
-from src.shared.trace import ensure_trace_id, set_trace_id
+from src.shared.trace import ensure_trace_id, set_trace_id, get_trace_id
 
 logger = get_logger("TelegramWebhook")
 
 
 class TelegramWebhookServer:
-    """
-    Thin transport layer:
-    Telegram Update → extract text → send to CORE → return OK
-    """
 
     def __init__(self, bot: Bot, dp: Dispatcher, secret: str):
         self.bot = bot
@@ -29,25 +24,30 @@ class TelegramWebhookServer:
 
     async def handle_update(self, request: web.Request):
         try:
-            # 🔥 INIT TRACE PER REQUEST (CRITICAL FIX)
+            # =========================
+            # TRACE INIT
+            # =========================
             trace_id = ensure_trace_id()
             set_trace_id(trace_id)
+
+            # 🔥 LOG WITH TRACE CONTEXT
+            logger.info(f"[trace={get_trace_id()}] Incoming update")
 
             data = await request.json()
             update = Update(**data)
 
             message = update.message
             if not message or not message.text:
-                logger.info("Ignored update (no text message)")
+                logger.info(f"[trace={get_trace_id()}] Ignored update")
                 return web.Response(text="ignored")
 
             text = message.text
 
-            logger.info(f"Incoming Telegram message: {text}")
+            logger.info(f"[trace={get_trace_id()}] Incoming Telegram message: {text}")
 
             result = await handle_telegram_text(text)
 
-            logger.info(f"Response generated: {result}")
+            logger.info(f"[trace={get_trace_id()}] Response generated: {result}")
 
             return web.Response(text="ok")
 
