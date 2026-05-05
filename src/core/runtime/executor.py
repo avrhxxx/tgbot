@@ -1,12 +1,11 @@
 # src/core/runtime/executor.py
 # GROUP: core.runtime
-# DESCRIPTION: Execution layer (now unified STATE + GRAPH routing)
-
-from typing import Any
+# DESCRIPTION: Execution layer (STATE + GRAPH aligned with real API)
 
 from src.core.command.model import Command
 from src.core.state.state_manager import StateManager
 from src.core.graph.relation_store import RelationStore
+from src.core.graph.relation_types import RelationType
 from src.shared.logging import get_logger
 
 logger = get_logger("Executor")
@@ -30,22 +29,18 @@ class Executor:
         if cmd.action == "define":
             return self._define(cmd)
 
-        if cmd.action == "add":
-            return self._add_relation(cmd)
-
-        if cmd.action == "link":
+        if cmd.action in ("add", "link"):
             return self._add_relation(cmd)
 
         logger.warning(f"Unknown action: {cmd.action}")
         return None
 
     # =========================
-    # STATE OPERATIONS
+    # STATE
     # =========================
 
     def _create(self, cmd: Command):
         logger.info(f"Creating {cmd.entity_type}: {cmd.name}")
-
         self.state.create(cmd.entity_type, cmd.name)
 
         return {
@@ -60,10 +55,6 @@ class Executor:
 
         if cmd.value is None:
             return {"status": "error", "reason": "missing_value"}
-
-        logger.info(
-            f"Updating {cmd.entity_type} {cmd.name} {cmd.field}={cmd.value}"
-        )
 
         ok = self.state.update(
             cmd.entity_type,
@@ -80,41 +71,42 @@ class Executor:
         }
 
     def _define(self, cmd: Command):
-        """
-        Define = semantic sugar for field update
-        """
-        logger.info(f"Defining {cmd.entity_type}:{cmd.name} {cmd.field}={cmd.value}")
-
+        logger.info(f"Define (alias update) {cmd.name}")
         return self._update(cmd)
 
     # =========================
-    # GRAPH OPERATIONS
+    # GRAPH
     # =========================
 
     def _add_relation(self, cmd: Command):
-        """
-        add/link → graph relation
-        """
-
         target = cmd.target or {}
 
-        logger.info(
-            f"Adding relation: {cmd.entity_type}:{cmd.name} -> {target}"
+        from_entity = (cmd.entity_type, cmd.name)
+        to_entity = (
+            target.get("entity_type"),
+            target.get("name")
         )
 
-        self.graph.add(
-            from_type=cmd.entity_type,
-            from_name=cmd.name,
-            to_type=target.get("entity_type"),
-            to_name=target.get("name"),
-            relation=cmd.action
+        # SAFE DEFAULT mapping (no guessing domain logic yet)
+        relation = (
+            RelationType.HAS_SKILL
+            if cmd.action == "add"
+            else RelationType.LINK_TO
+        )
+
+        logger.info(
+            f"[GRAPH] {from_entity} --{relation.name}--> {to_entity}"
+        )
+
+        self.graph.add_relation(
+            from_entity=from_entity,
+            relation=relation,
+            to_entity=to_entity
         )
 
         return {
             "status": "linked",
-            "from": {
-                "type": cmd.entity_type,
-                "name": cmd.name
-            },
-            "to": target
+            "from": from_entity,
+            "to": to_entity,
+            "relation": relation.name
         }
