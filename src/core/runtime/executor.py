@@ -74,13 +74,14 @@ class Executor:
         return self._update(cmd)
 
     # =========================
-    # GRAPH (FIXED - TYPE SAFE)
+    # GRAPH (STRING-BASED FIXED)
     # =========================
 
     def _resolve_relation(self, cmd: Command):
         """
-        Normalizacja relacji na RelationType (NO STRINGS IN GRAPH)
+        Normalizacja relacji (string registry → fallback logic)
         """
+
         if cmd.action == "add":
             if cmd.entity_type == "skill":
                 return HAS_SKILL
@@ -104,7 +105,7 @@ class Executor:
         relation = self._resolve_relation(cmd)
 
         logger.info(
-            f"[GRAPH] {from_entity} --{relation.name}--> {to_entity}"
+            f"[GRAPH] {from_entity} --{relation}--> {to_entity}"
         )
 
         self.graph.add_relation(
@@ -117,5 +118,5 @@ class Executor:
             "status": "linked",
             "from": from_entity,
             "to": to_entity,
-            "relation": relation.name
+            "relation": relation
         }
