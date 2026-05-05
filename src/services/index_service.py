@@ -1,178 +1,166 @@
 # src/services/index_service.py
 # GROUP: services
-# DESCRIPTION: Core AI Admin Orchestrator (DSL → Firestore → Sheets sync layer)
+# DESCRIPTION: Execution layer (Firestore + Sheets) for validated commands
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from src.google.firestore.client import FirestoreClient
 from src.google.sheets.client import SheetsClient
+from src.core.commands.command_model import Command
 
 logger = logging.getLogger("services.index_service")
 
 
 class IndexService:
     """
-    AI ADMIN CORE SYSTEM
+    EXECUTION LAYER ONLY
 
-    Responsibility:
-    - Executes IntentParser DSL commands
-    - Writes to Firestore (source of truth)
-    - Syncs lightweight index metadata to Google Sheets
-    - Manages entity relationships (link system)
+    Responsibilities:
+    - Persist validated Command into Firestore
+    - Sync index metadata to Sheets
+
+    NO validation
+    NO DSL parsing
+    NO business logic
     """
 
     def __init__(self):
         self.firestore = FirestoreClient()
         self.sheets = SheetsClient()
 
-        logger.info("🧠 IndexService initialized (AI Admin Core Online)")
+        logger.info("⚙️ IndexService initialized (EXECUTION MODE)")
 
     # =========================
-    # ENTRY POINT
+    # CREATE
     # =========================
-    def execute(self, intent: Dict[str, Any]) -> Dict[str, Any]:
+    def create(self, command: Command) -> Dict[str, Any]:
 
-        action = intent.get("action")
-        obj = intent.get("object")
-        name = intent.get("name")
-        context = intent.get("context", {})
-
-        logger.info("⚙️ EXECUTE | action=%s object=%s name=%s", action, obj, name)
-
-        # ROUTING
-        if action == "add_definition":
-            return self._create_entity(obj, name, context)
-
-        if action == "add_knowledge":
-            return self._add_knowledge(obj, name, intent.get("knowledge", {}))
-
-        if action == "check_existence":
-            return self._exists(obj, name)
-
-        if action == "get_definition":
-            return self._get(obj, name)
-
-        if action == "query":
-            return {"status": "noop", "message": "No operation executed"}
-
-        raise ValueError(f"Unknown action: {action}")
-
-    # =========================
-    # CREATE ENTITY (CORE)
-    # =========================
-    def _create_entity(self, obj: str, name: str, context: Dict[str, Any]):
-
-        doc_id = name.lower().replace(" ", "_")
+        doc_id = self._normalize_id(command.target)
 
         data = {
             "id": doc_id,
-            "type": obj,
-            "name": name,
+            "type": command.entity,
+            "name": command.target,
             "normalized": doc_id,
-            "context": context,
-            "lore": "",
             "fields": {},
+            "stats": {},
             "links": {},
         }
 
-        # FIRESTORE (SOURCE OF TRUTH)
-        self.firestore.set_document(collection=obj + "s", doc_id=doc_id, data=data)
+        self.firestore.set_document(
+            collection=command.entity + "s",
+            doc_id=doc_id,
+            data=data
+        )
 
-        # SHEETS (INDEX REGISTER)
         self.sheets.writer.append_row({
             "id": doc_id,
-            "type": obj,
-            "name": name,
+            "type": command.entity,
+            "name": command.target,
             "normalized": doc_id,
-            "parent_type": context.get("parent_type"),
-            "parent_name": context.get("parent_name"),
+            "parent_type": command.context.get("parent_type"),
+            "parent_name": command.context.get("parent_name"),
         })
 
-        logger.info("✅ CREATED ENTITY | %s (%s)", name, obj)
+        logger.info("✅ CREATE | %s (%s)", command.target, command.entity)
 
         return {
             "status": "created",
-            "id": doc_id,
-            "type": obj,
-            "name": name
+            "id": doc_id
         }
 
     # =========================
-    # KNOWLEDGE UPDATE
+    # UPDATE
     # =========================
-    def _add_knowledge(self, obj: str, name: str, knowledge: Dict[str, Any]):
+    def update(self, command: Command) -> Dict[str, Any]:
 
-        doc_id = name.lower().replace(" ", "_")
+        doc_id = self._normalize_id(command.target)
+
+        update_payload = {
+            f"fields.{command.field}": command.value
+        }
 
         self.firestore.update_document(
-            collection=obj + "s",
+            collection=command.entity + "s",
+            doc_id=doc_id,
+            update=update_payload
+        )
+
+        logger.info(
+            "🟡 UPDATE | %s.%s = %s",
+            command.target,
+            command.field,
+            command.value
+        )
+
+        return {
+            "status": "updated",
+            "id": doc_id
+        }
+
+    # =========================
+    # DEFINE (alias update)
+    # =========================
+    def define(self, command: Command) -> Dict[str, Any]:
+
+        return self.update(command)
+
+    # =========================
+    # LINK
+    # =========================
+    def link(self, command: Command) -> Dict[str, Any]:
+
+        doc_id = self._normalize_id(command.target)
+
+        relation = command.relation or command.context.get("target")
+
+        if not relation:
+            raise ValueError("Missing relation data for link")
+
+        target_id = self._normalize_id(relation["name"])
+
+        self.firestore.update_document(
+            collection=command.entity + "s",
             doc_id=doc_id,
             update={
-                "lore": knowledge.get("lore", ""),
-                "gameplay": knowledge.get("gameplay", {}),
-                "stats": knowledge.get("stats", {}),
+                f"links.{relation['type']}": {
+                    "type": relation["type"],
+                    "id": target_id
+                }
             }
         )
 
-        logger.info("📚 UPDATED KNOWLEDGE | %s", name)
+        logger.info(
+            "🔗 LINK | %s -> %s",
+            command.target,
+            relation["name"]
+        )
 
         return {
-            "status": "updated_knowledge",
-            "id": doc_id
+            "status": "linked",
+            "source": doc_id,
+            "target": target_id
         }
 
     # =========================
-    # EXISTS CHECK
+    # QUERY
     # =========================
-    def _exists(self, obj: str, name: str):
+    def query(self, command: Command) -> Dict[str, Any]:
 
-        doc_id = name.lower().replace(" ", "_")
+        doc_id = self._normalize_id(command.target)
 
-        exists = self.firestore.exists(obj + "s", doc_id)
-
-        return {
-            "exists": exists,
-            "id": doc_id
-        }
-
-    # =========================
-    # GET ENTITY
-    # =========================
-    def _get(self, obj: str, name: str):
-
-        doc_id = name.lower().replace(" ", "_")
-
-        data = self.firestore.get_document(obj + "s", doc_id)
+        data = self.firestore.get_document(
+            collection=command.entity + "s",
+            doc_id=doc_id
+        )
 
         return {
             "data": data
         }
 
     # =========================
-    # LINK SYSTEM (NEXT PHASE READY)
+    # UTILS
     # =========================
-    def link(self, source_type: str, source: str, relation: str, target_type: str, target: str):
-
-        src_id = source.lower().replace(" ", "_")
-        tgt_id = target.lower().replace(" ", "_")
-
-        self.firestore.update_document(
-            collection=source_type + "s",
-            doc_id=src_id,
-            update={
-                f"links.{relation}": {
-                    "type": target_type,
-                    "id": tgt_id
-                }
-            }
-        )
-
-        logger.info("🔗 LINK CREATED | %s -> %s (%s)", source, target, relation)
-
-        return {
-            "status": "linked",
-            "source": src_id,
-            "target": tgt_id,
-            "relation": relation
-        }
+    def _normalize_id(self, name: str) -> str:
+        return name.lower().replace(" ", "_")
