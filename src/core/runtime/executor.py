@@ -1,6 +1,6 @@
 # src/core/runtime/executor.py
 # GROUP: core.runtime
-# DESCRIPTION: Execution layer (STATE + GRAPH CI-safe version)
+# DESCRIPTION: Execution layer (STATE + GRAPH CI-safe version + DSL v2 queries)
 
 from src.core.command.model import Command
 from src.core.state.state_manager import StateManager
@@ -24,6 +24,9 @@ class Executor:
     def execute(self, cmd: Command):
         logger.info(f"Executing command: {cmd}")
 
+        # =========================
+        # STATE
+        # =========================
         if cmd.action == "create":
             return self._create(cmd)
 
@@ -33,11 +36,29 @@ class Executor:
         if cmd.action == "define":
             return self._define(cmd)
 
+        # =========================
+        # GRAPH
+        # =========================
         if cmd.action in ("add", "link"):
             return self._add_relation(cmd)
 
+        # =========================
+        # QUERY LAYER (DSL v2)
+        # =========================
+        if cmd.action == "show":
+            return self._show(cmd)
+
+        if cmd.action == "exists":
+            return self._exists(cmd)
+
+        if cmd.action == "schema":
+            return self._schema(cmd)
+
+        if cmd.action == "missing_fields":
+            return self._missing_fields(cmd)
+
         logger.warning(f"Unknown action: {cmd.action}")
-        return None
+        return {"status": "error", "reason": "unknown_action"}
 
     # =========================
     # STATE
@@ -74,13 +95,10 @@ class Executor:
         return self._update(cmd)
 
     # =========================
-    # GRAPH (STRING-BASED FIXED)
+    # GRAPH
     # =========================
 
     def _resolve_relation(self, cmd: Command):
-        """
-        Normalizacja relacji (string registry → fallback logic)
-        """
 
         if cmd.action == "add":
             if cmd.entity_type == "skill":
@@ -119,4 +137,40 @@ class Executor:
             "from": from_entity,
             "to": to_entity,
             "relation": relation
+        }
+
+    # =========================
+    # QUERY LAYER (MVP STUBS)
+    # =========================
+
+    def _show(self, cmd: Command):
+        data = self.state.get(cmd.entity_type, cmd.name)
+        return {
+            "status": "ok",
+            "entity": cmd.name,
+            "data": data
+        }
+
+    def _exists(self, cmd: Command):
+        exists = self.state.exists(cmd.entity_type, cmd.name)
+        return {
+            "status": "ok",
+            "exists": exists,
+            "entity": cmd.name
+        }
+
+    def _schema(self, cmd: Command):
+        return {
+            "status": "ok",
+            "entity_type": cmd.entity_type,
+            "schema": self.state.schema(cmd.entity_type)
+        }
+
+    def _missing_fields(self, cmd: Command):
+        missing = self.state.missing_fields(cmd.entity_type, cmd.name)
+
+        return {
+            "status": "ok",
+            "entity": cmd.name,
+            "missing_fields": missing
         }
