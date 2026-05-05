@@ -7,9 +7,8 @@ import logging
 
 from aiogram import Bot, Dispatcher
 
-from src.core.runtime.pipeline import Pipeline
-from src.shared.logging import get_logger
 from src.adapters.telegram.webhook_server import TelegramWebhookServer
+from src.shared.logging import get_logger
 
 logger = get_logger("bootstrap")
 
