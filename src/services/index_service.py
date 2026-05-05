@@ -20,16 +20,11 @@ class IndexService:
     Responsibilities:
     - Persist validated Command into Firestore
     - Sync index metadata to Sheets
-
-    NO validation
-    NO DSL parsing
-    NO business logic
     """
 
     def __init__(self):
         self.firestore = FirestoreClient()
 
-        # 🔥 FIX: correct Sheets init
         self.sheets_client = GoogleSheetsClient()
         self.writer = SheetsWriter(self.sheets_client)
 
@@ -85,13 +80,16 @@ class IndexService:
         if not command.target:
             raise ValueError("Missing target for update")
 
-        if not command.attr:
+        # 🔥 COMPAT LAYER: attr is canonical, field legacy-safe
+        attr = command.attr or getattr(command, "field", None)
+
+        if not attr:
             raise ValueError("Missing attribute for update")
 
         doc_id = self._normalize_id(command.target)
 
         update_payload = {
-            f"fields.{command.attr}": command.value
+            f"fields.{attr}": command.value
         }
 
         self.firestore.update_document(
@@ -103,7 +101,7 @@ class IndexService:
         logger.info(
             "🟡 UPDATE | %s.%s = %s",
             command.target,
-            command.attr,
+            attr,
             command.value
         )
 
@@ -113,7 +111,7 @@ class IndexService:
         }
 
     # =========================
-    # DEFINE (alias update)
+    # DEFINE
     # =========================
     def define(self, command: Command) -> Dict[str, Any]:
         return self.update(command)
