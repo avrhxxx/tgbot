@@ -1,8 +1,20 @@
 # src/shared/logging.py
 # GROUP: shared
-# DESCRIPTION: Centralized logging utility for full system traceability
+# DESCRIPTION: Centralized logging utility with trace support
 
 import logging
+
+from src.shared.trace import get_trace_id
+
+
+class TraceFilter(logging.Filter):
+    """
+    Injects trace_id into every log record
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.trace_id = get_trace_id() or "no-trace"
+        return True
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -17,10 +29,14 @@ def get_logger(name: str) -> logging.Logger:
         handler = logging.StreamHandler()
 
         formatter = logging.Formatter(
-            "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s"
+            "[%(asctime)s] [trace=%(trace_id)s] [%(levelname)s] [%(name)s] %(message)s"
         )
 
         handler.setFormatter(formatter)
+
+        # 🔥 TRACE INJECTION
+        logger.addFilter(TraceFilter())
+
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
 
