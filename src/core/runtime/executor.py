@@ -1,6 +1,6 @@
 # src/core/runtime/executor.py
 # GROUP: core.runtime
-# DESCRIPTION: Execution layer (STATE + GRAPH normalized)
+# DESCRIPTION: Execution layer (STATE + GRAPH CI-safe version)
 
 from src.core.command.model import Command
 from src.core.state.state_manager import StateManager
@@ -74,20 +74,19 @@ class Executor:
         return self._update(cmd)
 
     # =========================
-    # GRAPH (NORMALIZED)
+    # GRAPH (FIXED - TYPE SAFE)
     # =========================
 
     def _resolve_relation(self, cmd: Command):
         """
-        SINGLE SOURCE OF TRUTH for mapping DSL → Graph semantics
+        Normalizacja relacji na RelationType (NO STRINGS IN GRAPH)
         """
-
         if cmd.action == "add":
-            # skill attachment
-            return HAS_SKILL
+            if cmd.entity_type == "skill":
+                return HAS_SKILL
+            return GENERIC_LINK
 
         if cmd.action == "link":
-            # faction / entity linking
             return LINK_TO_FACTION
 
         return GENERIC_LINK
