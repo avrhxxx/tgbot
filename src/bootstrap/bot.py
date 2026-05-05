@@ -1,26 +1,34 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: CORE-only runtime entrypoint (no external dependencies)
+# DESCRIPTION: CORE + Telegram runtime launcher (Railway entrypoint)
 
 import asyncio
+import logging
+
+from aiogram import Bot, Dispatcher
+
 from src.core.runtime.pipeline import Pipeline
 from src.shared.logging import get_logger
+from src.adapters.telegram.webhook_server import TelegramWebhookServer
 
 logger = get_logger("bootstrap")
 
 
 async def main():
-    logger.info("🧠 CORE SYSTEM START")
+    logger.info("🧠 SYSTEM STARTING (CORE + TELEGRAM)")
 
-    pipeline = Pipeline()
+    bot = Bot(token="DUMMY")  # Railway env later
+    dp = Dispatcher()
 
-    test_input = 'create hero "TestHero"'
-    result = pipeline.handle(test_input)
+    server = TelegramWebhookServer(
+        bot=bot,
+        dp=dp,
+        secret="DUMMY_SECRET"
+    )
 
-    logger.info(f"CORE RESULT: {result}")
+    logger.info("🔌 Starting Telegram webhook layer...")
 
-    while True:
-        await asyncio.sleep(3600)
+    await server.run()
 
 
 if __name__ == "__main__":
