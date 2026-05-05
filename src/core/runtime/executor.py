@@ -15,10 +15,6 @@ class Executor:
         self.state = StateManager()
 
     def execute(self, cmd: Command):
-        """
-        Executes validated command.
-        """
-
         logger.info(f"Executing command: {cmd}")
 
         if cmd.action == "create":
@@ -33,7 +29,6 @@ class Executor:
     def _create(self, cmd: Command):
         logger.info(f"Creating {cmd.entity_type}: {cmd.name}")
 
-        # STATE WRITE (NEW)
         self.state.create(cmd.entity_type, cmd.name)
 
         return {
@@ -43,7 +38,17 @@ class Executor:
         }
 
     def _update(self, cmd: Command):
-        logger.info(f"Updating {cmd.entity_type} {cmd.name} field={cmd.field} value={cmd.value}")
+        if cmd.field is None:
+            logger.warning("Missing field in update command")
+            return {
+                "status": "error",
+                "reason": "missing_field",
+                "name": cmd.name
+            }
+
+        logger.info(
+            f"Updating {cmd.entity_type} {cmd.name} field={cmd.field} value={cmd.value}"
+        )
 
         success = self.state.update(
             cmd.entity_type,
