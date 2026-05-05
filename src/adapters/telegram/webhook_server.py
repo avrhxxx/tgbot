@@ -2,15 +2,15 @@
 # GROUP: adapters.telegram
 # DESCRIPTION: Production-ready Telegram webhook entrypoint (Railway-safe)
 
-import logging
-import asyncio  # FIX: missing import
+import asyncio
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.types import Update
 
 from src.adapters.telegram.handler import handle_telegram_text
+from src.shared.logging import get_logger
 
-logger = logging.getLogger("TelegramWebhook")
+logger = get_logger("TelegramWebhook")
 
 
 class TelegramWebhookServer:
@@ -31,6 +31,7 @@ class TelegramWebhookServer:
 
             message = update.message
             if not message or not message.text:
+                logger.info("Ignored update (no text message)")
                 return web.Response(text="ignored")
 
             text = message.text
@@ -50,7 +51,7 @@ class TelegramWebhookServer:
     def setup(self, app: web.Application):
         app.router.add_post("/webhook", self.handle_update)
 
-    async def run(self, host="0.0.0.0", port=8080):
+    async def run(self, host: str = "0.0.0.0", port: int = 8080):
         app = web.Application()
         self.setup(app)
 
@@ -63,4 +64,4 @@ class TelegramWebhookServer:
         logger.info("Telegram webhook server running")
 
         while True:
-            await asyncio.sleep(3600)  # FIXED import
+            await asyncio.sleep(3600)
