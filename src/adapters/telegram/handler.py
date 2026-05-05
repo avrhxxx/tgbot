@@ -7,18 +7,34 @@ from src.shared.logging import get_logger
 
 logger = get_logger("TelegramAdapter")
 
-pipeline = Pipeline()
+
+class TelegramHandler:
+    """
+    Adapter layer:
+    ONLY responsibility = pass data into CORE pipeline
+    """
+
+    def __init__(self):
+        self.pipeline = Pipeline()
+
+    async def handle_text(self, text: str) -> str:
+        """
+        Entry point for Telegram messages
+        """
+
+        logger.info(f"[Telegram] input: {text}")
+
+        # CORE is sync → safe call (for now)
+        result = self.pipeline.handle(text)
+
+        logger.info(f"[Telegram] output: {result}")
+
+        return str(result)
+
+
+# singleton instance (safe for now, replace later with DI container)
+handler = TelegramHandler()
 
 
 async def handle_telegram_text(text: str) -> str:
-    """
-    ONLY responsibility:
-    pass Telegram message into CORE system
-    """
-    logger.info(f"[Telegram] input: {text}")
-
-    result = pipeline.handle(text)
-
-    logger.info(f"[Telegram] output: {result}")
-
-    return str(result)
+    return await handler.handle_text(text)
