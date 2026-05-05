@@ -2,7 +2,7 @@
 # GROUP: ai
 # DESCRIPTION: Runtime Action Contract for Natural DSL → Backend Execution
 
-from typing import Dict, Any, Literal, Optional
+from typing import Dict, Any, Literal
 
 
 # =========================
@@ -25,7 +25,7 @@ EntityType = Literal[
 
 
 # =========================
-# ACTION TYPES (DSL CORE)
+# ACTION TYPES
 # =========================
 ActionType = Literal[
     "create",
@@ -41,26 +41,26 @@ ActionType = Literal[
 
 
 # =========================
-# INTERNAL NORMALIZED ACTION
+# NORMALIZATION → AST ALIGNMENT
 # =========================
 def normalize_action(raw: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Converts DSL parser output → unified backend format
+    DSL parser output → Command AST compatible format
     """
 
     return {
         "action": raw.get("action"),
-        "entity_type": raw.get("entity_type"),
-        "name": raw.get("name"),
-        "target": raw.get("target", {}),
-        "field": raw.get("field"),
+        "entity": raw.get("entity"),
+        "target": raw.get("target"),
+        "attr": raw.get("attr"),
         "value": raw.get("value"),
+        "relation": raw.get("relation"),
         "context": raw.get("context", {}),
     }
 
 
 # =========================
-# DSL RULES (IMPORTANT)
+# DSL RULES (REFERENCE ONLY)
 # =========================
 """
 SYNTAX RULES:
@@ -74,7 +74,7 @@ SYNTAX RULES:
 3. One command = one operation
 
 4. Nested relations use "of":
-   update skill "Rage Slam" of hero "Tarzan" field damage 1200
+   update skill "Rage Slam" of hero "Tarzan" attr damage 1200
 
 5. Linking:
    add skill "X" to hero "Y"
@@ -82,16 +82,15 @@ SYNTAX RULES:
 
 
 # =========================
-# EXAMPLES (REFERENCE)
+# EXAMPLES
 # =========================
-
 EXAMPLES = {
 
     "create": 'create hero "Tarzan"',
 
-    "update_field": 'update hero "Tarzan" field tier SSR',
+    "update_field": 'update hero "Tarzan" attr tier SSR',
 
-    "update_nested": 'update skill "Rage Slam" of hero "Tarzan" field damage 1200',
+    "update_nested": 'update skill "Rage Slam" of hero "Tarzan" attr damage 1200',
 
     "define_lore": 'define hero "Tarzan" lore "blood rage fighter..."',
 
