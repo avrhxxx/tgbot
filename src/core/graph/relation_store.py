@@ -21,15 +21,15 @@ class RelationStore:
     def add_relation(
         self,
         from_entity: Tuple[str, str],
-        relation: RelationType,
+        relation: str,
         to_entity: Tuple[str, str],
     ):
         src = self._key(*from_entity)
         dst = self._key(*to_entity)
 
-        self._graph[src].append((relation.name, dst))
+        self._graph[src].append((relation, dst))
 
-        logger.info(f"[GRAPH] {src} --{relation.name}--> {dst}")
+        logger.info(f"[GRAPH] {src} --{relation}--> {dst}")
 
     def get_relations(self, entity_type: str, name: str):
         return self._graph.get(self._key(entity_type, name), [])
