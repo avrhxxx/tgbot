@@ -2,7 +2,6 @@ from collections import defaultdict
 from typing import Dict, Any, List, Tuple
 
 from src.shared.logging import get_logger
-from src.core.graph.relation_types import RelationType
 
 logger = get_logger("RelationStore")
 
