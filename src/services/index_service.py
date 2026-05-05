@@ -6,7 +6,8 @@ import logging
 from typing import Dict, Any
 
 from src.google.firestore.client import FirestoreClient
-from src.google.sheets.client import SheetsClient
+from src.google.sheets.client import GoogleSheetsClient
+from src.google.sheets.writer import SheetsWriter
 from src.core.commands.command_model import Command
 
 logger = logging.getLogger("services.index_service")
@@ -27,7 +28,10 @@ class IndexService:
 
     def __init__(self):
         self.firestore = FirestoreClient()
-        self.sheets = SheetsClient()
+
+        # 🔥 FIX: correct Sheets init
+        self.sheets_client = GoogleSheetsClient()
+        self.writer = SheetsWriter(self.sheets_client)
 
         logger.info("⚙️ IndexService initialized (EXECUTION MODE)")
 
@@ -35,6 +39,9 @@ class IndexService:
     # CREATE
     # =========================
     def create(self, command: Command) -> Dict[str, Any]:
+
+        if not command.target:
+            raise ValueError("Missing target for create")
 
         doc_id = self._normalize_id(command.target)
 
@@ -54,7 +61,7 @@ class IndexService:
             data=data
         )
 
-        self.sheets.writer.append_row({
+        self.writer.append_row({
             "id": doc_id,
             "type": command.entity,
             "name": command.target,
@@ -75,10 +82,16 @@ class IndexService:
     # =========================
     def update(self, command: Command) -> Dict[str, Any]:
 
+        if not command.target:
+            raise ValueError("Missing target for update")
+
+        if not command.attr:
+            raise ValueError("Missing attribute for update")
+
         doc_id = self._normalize_id(command.target)
 
         update_payload = {
-            f"fields.{command.field}": command.value
+            f"fields.{command.attr}": command.value
         }
 
         self.firestore.update_document(
@@ -90,7 +103,7 @@ class IndexService:
         logger.info(
             "🟡 UPDATE | %s.%s = %s",
             command.target,
-            command.field,
+            command.attr,
             command.value
         )
 
@@ -103,21 +116,22 @@ class IndexService:
     # DEFINE (alias update)
     # =========================
     def define(self, command: Command) -> Dict[str, Any]:
-
         return self.update(command)
 
     # =========================
     # LINK
     # =========================
-    def link(self, command: Command) -> Dict[str, Any]:
+    def link_command(self, command: Command) -> Dict[str, Any]:
 
-        doc_id = self._normalize_id(command.target)
+        if not command.target:
+            raise ValueError("Missing source for link")
 
         relation = command.relation or command.context.get("target")
 
         if not relation:
             raise ValueError("Missing relation data for link")
 
+        doc_id = self._normalize_id(command.target)
         target_id = self._normalize_id(relation["name"])
 
         self.firestore.update_document(
@@ -147,6 +161,9 @@ class IndexService:
     # QUERY
     # =========================
     def query(self, command: Command) -> Dict[str, Any]:
+
+        if not command.target:
+            raise ValueError("Missing target for query")
 
         doc_id = self._normalize_id(command.target)
 
