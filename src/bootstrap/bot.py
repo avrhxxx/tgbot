@@ -3,7 +3,6 @@
 # DESCRIPTION: CORE + Telegram runtime launcher (Railway entrypoint)
 
 import asyncio
-import logging
 
 from aiogram import Bot, Dispatcher
 
