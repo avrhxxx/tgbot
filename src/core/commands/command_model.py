@@ -2,7 +2,7 @@
 # GROUP: core.commands
 # DESCRIPTION: Core AST model for DSL command system (single source of truth)
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dc_field
 from typing import Any, Optional, Dict
 
 
@@ -16,10 +16,10 @@ class Command:
     action: str                 # create | update | link | define | show | exists | add | missing_fields | schema
     entity: str                 # hero | skill | item | building | research_tree | research_node
     target: Optional[str] = None  # name of entity (e.g. "Tarzan")
-    field: Optional[str] = None   # field name (e.g. "damage", "tier")
+    attr: Optional[str] = None    # field/attribute name (renamed from "field")
     value: Any = None             # value for update/define
     relation: Optional[Dict[str, Any]] = None  # links (hero -> faction etc.)
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: Dict[str, Any] = dc_field(default_factory=dict)
 
     def is_create(self) -> bool:
         return self.action == "create"
