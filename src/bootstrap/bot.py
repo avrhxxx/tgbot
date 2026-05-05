@@ -1,67 +1,26 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: Application entrypoint for Shadow AI System
+# DESCRIPTION: CORE-only runtime entrypoint (no external dependencies)
 
 import asyncio
-import logging
-
-from aiogram import Bot, Dispatcher, Router
-
-from src.config.config import load_config
-from src.webhook.server import WebhookServer
-from src.webhook.setup import setup_webhook
-
-# CORE IMPORT (pipeline smoke test stays optional)
 from src.core.runtime.pipeline import Pipeline
+from src.shared.logging import get_logger
 
-# TELEGRAM HANDLER
-from src.api.telegram.handler import handle_message
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("bootstrap")
+logger = get_logger("bootstrap")
 
 
 async def main():
-    config = load_config()
+    logger.info("🧠 CORE SYSTEM START")
 
-    bot = Bot(token=config.telegram.token)
-    dp = Dispatcher()
-
-    # =========================
-    # TELEGRAM ROUTER
-    # =========================
-    fallback_router = Router()
-
-    fallback_router.message.register(handle_message)
-    dp.include_router(fallback_router)
-
-    # =========================
-    # CORE SMOKE TEST (OPTIONAL)
-    # =========================
     pipeline = Pipeline()
 
-    logger.info("Running CORE smoke test...")
-    test_result = pipeline.handle('create hero "TestHero"')
-    logger.info(f"CORE test result: {test_result}")
+    test_input = 'create hero "TestHero"'
+    result = pipeline.handle(test_input)
 
-    # =========================
-    # WEBHOOK SETUP
-    # =========================
-    webhook = WebhookServer(
-        bot=bot,
-        dp=dp,
-        webhook_path="/webhook",
-        secret=config.telegram.webhook_secret
-    )
+    logger.info(f"CORE RESULT: {result}")
 
-    await setup_webhook(
-        bot=bot,
-        webhook_url=config.telegram.webhook_url,
-        secret=config.telegram.webhook_secret
-    )
-
-    logger.info("System fully started (Telegram + CORE connected)")
-    await webhook.run()
+    while True:
+        await asyncio.sleep(3600)
 
 
 if __name__ == "__main__":
