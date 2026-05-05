@@ -13,13 +13,24 @@ class Command:
     This is the ONLY structure that downstream systems understand.
     """
 
-    action: str                 # create | update | link | define | show | exists | add | missing_fields | schema
-    entity: str                 # hero | skill | item | building | research_tree | research_node
-    target: Optional[str] = None  # name of entity (e.g. "Tarzan")
-    attr: Optional[str] = None    # field/attribute name (renamed from "field")
-    value: Any = None             # value for update/define
-    relation: Optional[Dict[str, Any]] = None  # links (hero -> faction etc.)
+    action: str
+    entity: str
+
+    # primary identifier (e.g. "Tarzan")
+    target: Optional[str] = None
+
+    # unified field name (IMPORTANT: replaces legacy "field")
+    field: Optional[str] = None
+
+    value: Any = None
+
+    relation: Optional[Dict[str, Any]] = None
+
     context: Dict[str, Any] = dc_field(default_factory=dict)
+
+    # =========================
+    # helpers
+    # =========================
 
     def is_create(self) -> bool:
         return self.action == "create"
@@ -29,3 +40,9 @@ class Command:
 
     def is_link(self) -> bool:
         return self.action == "link"
+
+    def is_define(self) -> bool:
+        return self.action == "define"
+
+    def is_query(self) -> bool:
+        return self.action in ("show", "exists", "missing_fields", "schema")
