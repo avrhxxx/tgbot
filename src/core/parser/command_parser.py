@@ -13,13 +13,6 @@ logger = get_logger("CommandParser")
 class CommandParser:
     """
     Parses STRICT DSL commands into Command objects.
-
-    Supported:
-    - create entity
-    - update entity field
-    - add relation
-    - link entities
-    - define metadata
     """
 
     def parse(self, text: str) -> Command:
@@ -46,7 +39,7 @@ class CommandParser:
             )
 
         # =========================
-        # UPDATE
+        # UPDATE (simple)
         # =========================
         update_match = re.match(
             r'^update\s+(\w+)\s+"([^"]+)"\s+(\w+)\s+"([^"]+)"$',
@@ -63,6 +56,30 @@ class CommandParser:
                 name=name,
                 field=field,
                 value=value
+            )
+
+        # =========================
+        # UPDATE (nested: update skill X of hero Y field Z)
+        # =========================
+        nested_update = re.match(
+            r'^update\s+(\w+)\s+"([^"]+)"\s+of\s+(\w+)\s+"([^"]+)"\s+field\s+(\w+)\s+"([^"]+)"$',
+            text,
+            re.IGNORECASE
+        )
+
+        if nested_update:
+            field, value, parent_type, parent_name, sub_type, sub_name = nested_update.groups()
+
+            return Command(
+                action="update",
+                entity_type=sub_type,
+                name=sub_name,
+                field=field,
+                value=value,
+                target={
+                    "entity_type": parent_type,
+                    "name": parent_name
+                }
             )
 
         # =========================
@@ -88,7 +105,7 @@ class CommandParser:
             )
 
         # =========================
-        # LINK (GRAPH EDGE)
+        # LINK
         # =========================
         link_match = re.match(
             r'^link\s+(\w+)\s+"([^"]+)"\s+to\s+(\w+)\s+"([^"]+)"$',
@@ -110,7 +127,7 @@ class CommandParser:
             )
 
         # =========================
-        # DEFINE (META)
+        # DEFINE
         # =========================
         define_match = re.match(
             r'^define\s+(\w+)\s+"([^"]+)"\s+(\w+)\s+"([^"]+)"$',
@@ -127,6 +144,78 @@ class CommandParser:
                 name=name,
                 field=field,
                 value=value
+            )
+
+        # =========================
+        # SHOW
+        # =========================
+        show_match = re.match(
+            r'^show\s+(\w+)\s+"([^"]+)"$',
+            text,
+            re.IGNORECASE
+        )
+
+        if show_match:
+            entity_type, name = show_match.groups()
+
+            return Command(
+                action="show",
+                entity_type=entity_type,
+                name=name
+            )
+
+        # =========================
+        # EXISTS
+        # =========================
+        exists_match = re.match(
+            r'^exists\s+(\w+)\s+"([^"]+)"$',
+            text,
+            re.IGNORECASE
+        )
+
+        if exists_match:
+            entity_type, name = exists_match.groups()
+
+            return Command(
+                action="exists",
+                entity_type=entity_type,
+                name=name
+            )
+
+        # =========================
+        # SCHEMA
+        # =========================
+        schema_match = re.match(
+            r'^schema\s+(\w+)$',
+            text,
+            re.IGNORECASE
+        )
+
+        if schema_match:
+            entity_type = schema_match.group(1)
+
+            return Command(
+                action="schema",
+                entity_type=entity_type,
+                name="*"
+            )
+
+        # =========================
+        # MISSING FIELDS
+        # =========================
+        missing_match = re.match(
+            r'^missing_fields\s+(\w+)\s+"([^"]+)"$',
+            text,
+            re.IGNORECASE
+        )
+
+        if missing_match:
+            entity_type, name = missing_match.groups()
+
+            return Command(
+                action="missing_fields",
+                entity_type=entity_type,
+                name=name
             )
 
         # =========================
