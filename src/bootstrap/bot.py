@@ -3,6 +3,7 @@
 # DESCRIPTION: CORE + Telegram runtime launcher (Railway entrypoint)
 
 import asyncio
+import os
 
 from aiogram import Bot, Dispatcher
 
@@ -15,13 +16,18 @@ logger = get_logger("bootstrap")
 async def main():
     logger.info("🧠 SYSTEM STARTING (CORE + TELEGRAM)")
 
-    bot = Bot(token="DUMMY")  # Railway env later
+    token = os.getenv("TELEGRAM_TOKEN")
+
+    if not token:
+        raise RuntimeError("Missing TELEGRAM_TOKEN in environment")
+
+    bot = Bot(token=token)
     dp = Dispatcher()
 
     server = TelegramWebhookServer(
         bot=bot,
         dp=dp,
-        secret="DUMMY_SECRET"
+        secret=os.getenv("WEBHOOK_SECRET", "DUMMY_SECRET")
     )
 
     logger.info("🔌 Starting Telegram webhook layer...")
