@@ -1,10 +1,10 @@
 # src/ai/intent_parser.py
 # GROUP: ai
-# DESCRIPTION: STRICT DSL Intent Parser v2 → AST compiler (Command output)
+# DESCRIPTION: STRICT DSL Intent Parser v2 → STABLE AST compiler (Command output)
 
 import logging
 import re
-from typing import Any
+from typing import Any, Optional
 
 from src.ai.gemini import GeminiClient
 from src.core.commands.command_model import Command
@@ -30,7 +30,7 @@ class IntentParser:
 
     def __init__(self):
         self.client = GeminiClient()
-        logger.info("🧠 IntentParser v2 (AST MODE) initialized")
+        logger.info("🧠 IntentParser v2 (STABLE AST MODE) initialized")
 
     # =========================
     # UTIL
@@ -60,7 +60,7 @@ class IntentParser:
     # AST COMPILER
     # =========================
 
-    def _to_command(self, tokens: list) -> Command:
+    def _to_command(self, tokens: list[str]) -> Command:
 
         if not tokens:
             raise ValueError("Empty DSL input")
@@ -70,20 +70,18 @@ class IntentParser:
         if action not in self.ALLOWED_ACTIONS:
             raise ValueError(f"Invalid action: {action}")
 
-        entity = None
-        name = None
-        field = None
-        value = None
-        target = None
-        relation = None
+        entity: Optional[str] = None
+        target: Optional[str] = None
+        field: Optional[str] = None
+        value: Any = None
+        relation: Optional[dict] = None
 
         # =========================
         # CREATE / DEFINE / ADD
         # =========================
-
         if action in {"create", "define", "add"}:
             entity = tokens[1] if len(tokens) > 1 else None
-            name = tokens[2] if len(tokens) > 2 else None
+            target = tokens[2] if len(tokens) > 2 else None
 
             # field/value (optional)
             if "field" in tokens:
@@ -92,21 +90,21 @@ class IntentParser:
                     field = tokens[i + 1]
                     value = tokens[i + 2]
 
-            # relation
+            # relation parsing (stable graph edge format)
             for i, t in enumerate(tokens):
                 if t in self.RELATION_KEYWORDS and i + 2 < len(tokens):
                     relation = {
-                        "type": tokens[i + 1],
-                        "name": tokens[i + 2],
+                        "relation": t,
+                        "target_type": tokens[i + 1],
+                        "target": tokens[i + 2],
                     }
 
         # =========================
         # UPDATE
         # =========================
-
         elif action == "update":
             entity = tokens[1] if len(tokens) > 1 else None
-            name = tokens[2] if len(tokens) > 2 else None
+            target = tokens[2] if len(tokens) > 2 else None
 
             if "field" in tokens:
                 i = tokens.index("field")
@@ -117,43 +115,42 @@ class IntentParser:
             if "of" in tokens:
                 i = tokens.index("of")
                 if i + 2 < len(tokens):
-                    target = {
-                        "type": tokens[i + 1],
-                        "name": tokens[i + 2],
+                    relation = {
+                        "relation": "of",
+                        "target_type": tokens[i + 1],
+                        "target": tokens[i + 2],
                     }
 
         # =========================
         # LINK
         # =========================
-
         elif action == "link":
             entity = tokens[1] if len(tokens) > 1 else None
-            name = tokens[2] if len(tokens) > 2 else None
+            target = tokens[2] if len(tokens) > 2 else None
 
             if "to" in tokens:
                 i = tokens.index("to")
                 if i + 2 < len(tokens):
-                    target = {
-                        "type": tokens[i + 1],
-                        "name": tokens[i + 2],
+                    relation = {
+                        "relation": "to",
+                        "target_type": tokens[i + 1],
+                        "target": tokens[i + 2],
                     }
 
         # =========================
         # QUERY OPS
         # =========================
-
         elif action in {"show", "exists", "schema", "missing_fields"}:
             entity = tokens[1] if len(tokens) > 1 else None
-            name = tokens[2] if len(tokens) > 2 else None
+            target = tokens[2] if len(tokens) > 2 else None
 
         # =========================
-        # FINAL AST OBJECT
+        # FINAL AST
         # =========================
-
         return Command(
             action=action,
             entity=entity,
-            target=name,
+            target=target,
             field=field,
             value=value,
             relation=relation,
