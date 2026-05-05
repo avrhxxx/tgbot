@@ -3,6 +3,7 @@
 # DESCRIPTION: Production-ready Telegram webhook entrypoint (Railway-safe)
 
 import logging
+import asyncio  # FIX: missing import
 from aiohttp import web
 from aiogram import Bot, Dispatcher
 from aiogram.types import Update
@@ -62,4 +63,4 @@ class TelegramWebhookServer:
         logger.info("Telegram webhook server running")
 
         while True:
-            await asyncio.sleep(3600)
+            await asyncio.sleep(3600)  # FIXED import
