@@ -1,32 +1,14 @@
 # GROUP: core.graph
-# DESCRIPTION: Canonical relation types for Knowledge Graph layer
+# DESCRIPTION: Canonical relation type registry (string-based, AI-friendly)
 
-from dataclasses import dataclass
+HAS_SKILL = "has_skill"
+HAS_ITEM = "has_item"
+HAS_BUILDING = "has_building"
 
+LINK_TO_FACTION = "link_to_faction"
+LINK_TO_TROOP_TYPE = "link_to_troop_type"
 
-# =========================
-# CORE RELATION TYPES
-# =========================
+CONTAINS_NODE = "contains_node"
+DEPENDS_ON = "depends_on"
 
-@dataclass(frozen=True)
-class RelationType:
-    """
-    Defines allowed semantic relationships in the system.
-    """
-
-    name: str
-
-
-# Core gameplay relations
-HAS_SKILL = RelationType("has_skill")
-HAS_ITEM = RelationType("has_item")
-HAS_BUILDING = RelationType("has_building")
-
-LINK_TO_FACTION = RelationType("link_to_faction")
-LINK_TO_TROOP_TYPE = RelationType("link_to_troop_type")
-
-CONTAINS_NODE = RelationType("contains_node")
-DEPENDS_ON = RelationType("depends_on")
-
-# Generic fallback (for future AI expansion)
-GENERIC_LINK = RelationType("generic_link")
+GENERIC_LINK = "generic_link"
