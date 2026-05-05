@@ -1,6 +1,6 @@
 # src/core/commands/command_router.py
 # GROUP: core.commands
-# DESCRIPTION: Routes AST commands to proper service layer
+# DESCRIPTION: Routes AST commands to IndexService (execution layer v1)
 
 import logging
 from src.core.commands.command_model import Command
@@ -9,15 +9,18 @@ logger = logging.getLogger("core.commands.router")
 
 
 class CommandRouter:
+    """
+    Simple execution router (v1).
 
-    def __init__(self, executor):
-        self.executor = executor
+    Responsibility:
+    - Accept Command (AST)
+    - Delegate execution to IndexService
+    """
+
+    def __init__(self, index_service):
+        self.index_service = index_service
 
     def route(self, command: Command):
-        """
-        Converts AST → execution pipeline decision
-        """
-
         logger.info(
             "📦 Routing command | action=%s entity=%s target=%s",
             command.action,
@@ -25,24 +28,34 @@ class CommandRouter:
             command.target
         )
 
-        # CREATE FLOW
+        # =========================
+        # CREATE
+        # =========================
         if command.action == "create":
-            return self.executor.create(command)
+            return self.index_service.create(command)
 
-        # UPDATE FLOW
+        # =========================
+        # UPDATE
+        # =========================
         if command.action == "update":
-            return self.executor.update(command)
+            return self.index_service.update(command)
 
-        # LINK FLOW
+        # =========================
+        # LINK
+        # =========================
         if command.action == "link":
-            return self.executor.link(command)
+            return self.index_service.link_command(command)
 
-        # DEFINE FLOW
+        # =========================
+        # DEFINE
+        # =========================
         if command.action == "define":
-            return self.executor.define(command)
+            return self.index_service.define(command)
 
-        # QUERY FLOWS
+        # =========================
+        # QUERY
+        # =========================
         if command.action in ("show", "exists", "missing_fields", "schema"):
-            return self.executor.query(command)
+            return self.index_service.query(command)
 
         raise ValueError(f"Unknown command action: {command.action}")
