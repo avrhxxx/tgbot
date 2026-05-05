@@ -1,24 +1,45 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: Minimal runtime entrypoint for Shadow AI System (BOOT CONTRACT)
+# DESCRIPTION: Minimal runtime entrypoint + CORE pipeline smoke test (Shadow AI System)
 
 import asyncio
 import logging
+
+from src.core.runtime.pipeline import Pipeline
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bootstrap")
 
 
 async def main():
-    """
-    Minimal system bootstrap.
-    Ensures Railway has a valid runtime entrypoint.
-    """
-    logger.info("🧠 Shadow AI System starting...")
+    logger.info("🧠 Shadow AI System BOOTING...")
 
-    # TEMP: placeholder for CORE system init
-    logger.info("CORE not yet attached - bootstrap OK")
+    # =========================
+    # CORE INITIALIZATION
+    # =========================
+    pipeline = Pipeline()
 
+    logger.info("CORE pipeline initialized")
+
+    # =========================
+    # SMOKE TEST (CRITICAL)
+    # =========================
+    try:
+        logger.info("Running CORE smoke test...")
+
+        test_input = 'create hero "TestHero"'
+        result = pipeline.handle(test_input)
+
+        logger.info(f"CORE test result: {result}")
+
+    except Exception as e:
+        logger.exception("CORE smoke test failed: %s", e)
+
+    logger.info("🚀 System is running (idle mode)")
+
+    # =========================
+    # KEEP PROCESS ALIVE
+    # =========================
     while True:
         await asyncio.sleep(3600)
 
