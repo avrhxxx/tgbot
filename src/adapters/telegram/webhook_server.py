@@ -1,6 +1,6 @@
 # src/adapters/telegram/webhook_server.py
 # GROUP: adapters.telegram
-# DESCRIPTION: Production-ready Telegram webhook entrypoint (Railway-safe)
+# DESCRIPTION: Production-ready Telegram webhook entrypoint (Railway-safe + trace-enabled)
 
 import asyncio
 from aiohttp import web
@@ -10,13 +10,16 @@ from aiogram.types import Update
 from src.adapters.telegram.handler import handle_telegram_text
 from src.shared.logging import get_logger
 
+# 🔥 TRACE SYSTEM
+from src.shared.trace import ensure_trace_id, set_trace_id
+
 logger = get_logger("TelegramWebhook")
 
 
 class TelegramWebhookServer:
     """
     Thin transport layer:
-    Telegram Update → extract text → send to adapter → return OK
+    Telegram Update → extract text → send to CORE → return OK
     """
 
     def __init__(self, bot: Bot, dp: Dispatcher, secret: str):
@@ -26,6 +29,10 @@ class TelegramWebhookServer:
 
     async def handle_update(self, request: web.Request):
         try:
+            # 🔥 INIT TRACE PER REQUEST (CRITICAL FIX)
+            trace_id = ensure_trace_id()
+            set_trace_id(trace_id)
+
             data = await request.json()
             update = Update(**data)
 
