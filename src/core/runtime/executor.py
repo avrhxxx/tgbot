@@ -1,6 +1,8 @@
 # src/core/runtime/executor.py
 # GROUP: core.runtime
-# DESCRIPTION: Execution layer (now with minimal State integration)
+# DESCRIPTION: Execution layer (now with minimal State integration + safe typing)
+
+from typing import Any
 
 from src.core.command.model import Command
 from src.core.state.state_manager import StateManager
@@ -38,7 +40,7 @@ class Executor:
         }
 
     def _update(self, cmd: Command):
-        if cmd.field is None:
+        if not cmd.field:
             logger.warning("Missing field in update command")
             return {
                 "status": "error",
@@ -46,15 +48,27 @@ class Executor:
                 "name": cmd.name
             }
 
+        if cmd.value is None:
+            logger.warning("Missing value in update command")
+            return {
+                "status": "error",
+                "reason": "missing_value",
+                "name": cmd.name,
+                "field": cmd.field
+            }
+
+        field: str = str(cmd.field)
+        value: Any = cmd.value
+
         logger.info(
-            f"Updating {cmd.entity_type} {cmd.name} field={cmd.field} value={cmd.value}"
+            f"Updating {cmd.entity_type} {cmd.name} field={field} value={value}"
         )
 
         success = self.state.update(
             cmd.entity_type,
             cmd.name,
-            cmd.field,
-            cmd.value
+            field,
+            value
         )
 
         if not success:
@@ -69,6 +83,6 @@ class Executor:
             "status": "updated",
             "entity_type": cmd.entity_type,
             "name": cmd.name,
-            "field": cmd.field,
-            "value": cmd.value
+            "field": field,
+            "value": value
         }
