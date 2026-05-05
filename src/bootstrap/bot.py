@@ -1,47 +1,67 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: Minimal runtime entrypoint + CORE pipeline smoke test (Shadow AI System)
+# DESCRIPTION: Application entrypoint for Shadow AI System
 
 import asyncio
 import logging
 
+from aiogram import Bot, Dispatcher, Router
+
+from src.config.config import load_config
+from src.webhook.server import WebhookServer
+from src.webhook.setup import setup_webhook
+
+# CORE IMPORT (pipeline smoke test stays optional)
 from src.core.runtime.pipeline import Pipeline
+
+# TELEGRAM HANDLER
+from src.api.telegram.handler import handle_message
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("bootstrap")
 
 
 async def main():
-    logger.info("🧠 Shadow AI System BOOTING...")
+    config = load_config()
+
+    bot = Bot(token=config.telegram.token)
+    dp = Dispatcher()
 
     # =========================
-    # CORE INITIALIZATION
+    # TELEGRAM ROUTER
+    # =========================
+    fallback_router = Router()
+
+    fallback_router.message.register(handle_message)
+    dp.include_router(fallback_router)
+
+    # =========================
+    # CORE SMOKE TEST (OPTIONAL)
     # =========================
     pipeline = Pipeline()
 
-    logger.info("CORE pipeline initialized")
+    logger.info("Running CORE smoke test...")
+    test_result = pipeline.handle('create hero "TestHero"')
+    logger.info(f"CORE test result: {test_result}")
 
     # =========================
-    # SMOKE TEST (CRITICAL)
+    # WEBHOOK SETUP
     # =========================
-    try:
-        logger.info("Running CORE smoke test...")
+    webhook = WebhookServer(
+        bot=bot,
+        dp=dp,
+        webhook_path="/webhook",
+        secret=config.telegram.webhook_secret
+    )
 
-        test_input = 'create hero "TestHero"'
-        result = pipeline.handle(test_input)
+    await setup_webhook(
+        bot=bot,
+        webhook_url=config.telegram.webhook_url,
+        secret=config.telegram.webhook_secret
+    )
 
-        logger.info(f"CORE test result: {result}")
-
-    except Exception as e:
-        logger.exception("CORE smoke test failed: %s", e)
-
-    logger.info("🚀 System is running (idle mode)")
-
-    # =========================
-    # KEEP PROCESS ALIVE
-    # =========================
-    while True:
-        await asyncio.sleep(3600)
+    logger.info("System fully started (Telegram + CORE connected)")
+    await webhook.run()
 
 
 if __name__ == "__main__":
