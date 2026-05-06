@@ -1,20 +1,19 @@
 # src/core/dsl/validator.py
 # GROUP: core.dsl
-# DESCRIPTION: DSL validator (Stage 1 - structural validation only)
+# DESCRIPTION: DSL validator (Stage 1 - structural validation only, NON-BLOCKING)
 
-from src.core.dsl.errors import DSLValidationError
 from src.core.dsl.grammar import SUPPORTED_COMMANDS
 
 
 class DSLValidator:
     """
-    Stage 1 Validator
+    Stage 1 Validator (FINAL BEHAVIOR)
 
     ROLE:
-    - verifies DSL structure
-    - ensures command type exists in registry
-    - DOES NOT block bootstrap operations
-    - DOES NOT modify AST
+    - structural check only
+    - diagnostic layer (NOT a gate)
+    - never blocks execution
+    - never raises exceptions
     """
 
     def __init__(self, type_registry=None, field_registry=None, relation_registry=None):
@@ -25,30 +24,31 @@ class DSLValidator:
     def validate(self, commands):
         """
         Returns:
-            commands (unchanged AST list)
+            List[CommandNode] (unchanged, annotated optionally in future)
         """
 
         for cmd in commands:
 
-            # -----------------------------
-            # BASIC STRUCTURE CHECK
-            # -----------------------------
+            # =========================
+            # BASIC SAFETY CHECK
+            # =========================
             if not getattr(cmd, "type", None):
-                raise DSLValidationError("Missing command type")
+                cmd._valid = False
+                cmd._error = "Missing command type"
+                continue
 
+            # =========================
+            # REGISTRY CHECK (SOFT)
+            # =========================
             if cmd.type not in SUPPORTED_COMMANDS:
-                raise DSLValidationError(f"Unsupported command: {cmd.type}")
+                cmd._valid = False
+                cmd._error = f"Unsupported command: {cmd.type}"
+                continue
 
-            # -----------------------------
-            # STAGE 1 BOOTSTRAP POLICY
-            # -----------------------------
-            # Validator is intentionally NON-BLOCKING for:
-            # - create_field
-            # - create_type
-            # - create_relation
-            # - set_field
-            # - add_relation
-
-            # Future Stage 2: registry enforcement will be activated here
+            # =========================
+            # VALID COMMAND MARK
+            # =========================
+            cmd._valid = True
+            cmd._error = None
 
         return commands
