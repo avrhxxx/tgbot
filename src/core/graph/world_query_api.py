@@ -21,14 +21,14 @@ class WorldQueryAPI:
     # =========================================
 
     def get_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
-        entity = self.entity_store.get(entity_id)
+        entity = self.entity_store.get_entity(entity_id)
         if not entity:
             return None
 
         return {
             "id": entity_id,
-            "type": getattr(entity, "type", None),
-            "fields": getattr(entity, "fields", {}),
+            "type": entity.get("type"),
+            "fields": entity.get("fields", {}),
         }
 
     # =========================================
@@ -43,10 +43,10 @@ class WorldQueryAPI:
                 "status": "not_found",
                 "entity_id": entity_id,
                 "relations": [],
-                "related": []
+                "related_entities": []
             }
 
-        relations = self.relation_store.get_by_source(entity_id) or []
+        relations = self.relation_store.get_relations(entity_id) or []
 
         return {
             "status": "ok",
@@ -62,11 +62,11 @@ class WorldQueryAPI:
     def search_entities(self, keyword: str) -> List[Dict[str, Any]]:
         results = []
 
-        for entity_id, entity in self.entity_store.all().items():
+        for entity_id, entity in self.entity_store.get_all_entities().items():
             if keyword.lower() in entity_id.lower():
                 results.append({
                     "id": entity_id,
-                    "type": getattr(entity, "type", None)
+                    "type": entity.get("type")
                 })
 
         return results
@@ -85,11 +85,11 @@ class WorldQueryAPI:
 
             visited.add(current)
 
-            relations = self.relation_store.get_by_source(current) or []
+            relations = self.relation_store.get_relations(current) or []
             output[current] = relations
 
             for rel in relations:
-                target = rel.get("to")
+                target = rel.get("target")
                 if target:
                     walk(target, level + 1)
 
@@ -102,4 +102,4 @@ class WorldQueryAPI:
     # =========================================
 
     def _collect_related_entities(self, relations: List[Dict]) -> List[str]:
-        return list({r.get("to") for r in relations if r.get("to")})
+        return list({r.get("target") for r in relations if r.get("target")})
