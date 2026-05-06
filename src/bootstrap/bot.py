@@ -1,6 +1,6 @@
 # src/bootstrap/bot.py
 # GROUP: bootstrap
-# DESCRIPTION: CORE + Telegram runtime launcher (Railway entrypoint)
+# DESCRIPTION: Telegram entrypoint (Stage 1 - clean runtime launcher)
 
 import asyncio
 
@@ -14,16 +14,14 @@ logger = get_logger("bootstrap")
 
 
 async def main():
-    logger.info("🧠 SYSTEM STARTING (CORE + TELEGRAM)")
+    logger.info("🧠 Tiles Survive SYSTEM START (Stage 1)")
 
     # =========================
     # CONFIG LOAD (FAIL-FAST)
     # =========================
     config = load_config()
-
     telegram_cfg = config.telegram
 
-    # HARD SAFETY CHECK (explicit, readable errors in Railway)
     if not telegram_cfg.token:
         raise RuntimeError("Missing TELEGRAM_TOKEN")
 
@@ -34,13 +32,13 @@ async def main():
         raise RuntimeError("Missing WEBHOOK_URL")
 
     # =========================
-    # BOT INIT
+    # BOT INIT (TRANSPORT ONLY)
     # =========================
     bot = Bot(token=telegram_cfg.token)
     dp = Dispatcher()
 
     # =========================
-    # WEBHOOK SERVER
+    # WEBHOOK LAYER (ADAPTER)
     # =========================
     server = TelegramWebhookServer(
         bot=bot,
@@ -48,7 +46,7 @@ async def main():
         secret=telegram_cfg.webhook_secret
     )
 
-    logger.info("🔌 Starting Telegram webhook layer...")
+    logger.info("🔌 Telegram adapter started (no core dependency)")
 
     await server.run()
 
