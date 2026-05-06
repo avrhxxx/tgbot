@@ -1,11 +1,15 @@
 # src/core/runtime/executor.py
 # PURPOSE: Command execution engine (Stage 1 FULL SAFE DISPATCH)
 
+from src.shared.logging import get_logger
+
+logger = get_logger("executor")
+
+
 class Executor:
 
-    def __init__(self, entity_store, relation_store):
+    def __init__(self, entity_store):
         self.entity_store = entity_store
-        self.relation_store = relation_store
 
     def execute(self, commands):
         results = []
@@ -26,7 +30,9 @@ class Executor:
                 # ENTITY
                 # =========================
                 if command.type == "create_entity":
-                    self.entity_store.create_entity(command.params["name"])
+                    self.entity_store.create_entity(
+                        command.params["name"]
+                    )
 
                 # =========================
                 # FIELD
@@ -39,10 +45,10 @@ class Executor:
                     )
 
                 # =========================
-                # RELATION
+                # RELATION (NOW INSIDE ENTITY STORE)
                 # =========================
                 elif command.type == "add_relation":
-                    self.relation_store.add_relation(
+                    self.entity_store.add_relation(
                         command.params["from"],
                         command.params["relation"],
                         command.params["to"]
@@ -53,23 +59,21 @@ class Executor:
                 # =========================
 
                 elif command.type == "create_type":
-                    # registry handled elsewhere in Stage 1 future phase
                     pass
 
                 elif command.type == "create_field":
-                    # registry placeholder (no-op Stage 1)
                     pass
 
                 elif command.type == "create_relation":
-                    # registry placeholder (no-op Stage 1)
                     pass
 
                 elif command.type == "set_entity_type":
-                    # entity type assignment not enforced yet in runtime
-                    pass
+                    self.entity_store.set_entity_type(
+                        command.params["entity"],
+                        command.params["type"]
+                    )
 
                 else:
-                    # IMPORTANT: NO CRASH IN STAGE 1
                     results.append({
                         "status": "error",
                         "type": command.type,
@@ -83,6 +87,7 @@ class Executor:
                 })
 
             except Exception as e:
+                logger.exception("Executor crash")
                 results.append({
                     "status": "error",
                     "type": command.type,
