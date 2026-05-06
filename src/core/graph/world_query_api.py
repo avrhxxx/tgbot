@@ -22,6 +22,7 @@ class WorldQueryAPI:
 
     def get_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
         entity = self.entity_store.get_entity(entity_id)
+
         if not entity:
             return None
 
@@ -60,9 +61,11 @@ class WorldQueryAPI:
     # =========================================
 
     def search_entities(self, keyword: str) -> List[Dict[str, Any]]:
-        results = []
+        results: List[Dict[str, Any]] = []
 
-        for entity_id, entity in self.entity_store.get_all_entities().items():
+        all_entities = self.entity_store.get_all_entities()
+
+        for entity_id, entity in all_entities.items():
             if keyword.lower() in entity_id.lower():
                 results.append({
                     "id": entity_id,
@@ -77,9 +80,9 @@ class WorldQueryAPI:
 
     def traverse_relations(self, entity_id: str, depth: int = 1) -> Dict[str, Any]:
         visited = set()
-        output = {}
+        output: Dict[str, Any] = {}
 
-        def walk(current, level):
+        def walk(current: str, level: int):
             if level > depth or current in visited:
                 return
 
@@ -102,4 +105,8 @@ class WorldQueryAPI:
     # =========================================
 
     def _collect_related_entities(self, relations: List[Dict]) -> List[str]:
-        return list({r.get("target") for r in relations if r.get("target")})
+        return list({
+            str(r["target"])
+            for r in relations
+            if r.get("target") is not None
+        })
