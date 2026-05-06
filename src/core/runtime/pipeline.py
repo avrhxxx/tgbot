@@ -5,6 +5,8 @@
 from src.core.dsl.parser import DSLParser
 from src.core.dsl.validator import DSLValidator
 from src.core.runtime.executor import Executor
+from src.core.state.entity_store import EntityStore
+from src.core.graph.relation_store import RelationStore
 from src.shared.logging import get_logger
 
 logger = get_logger("pipeline")
@@ -18,7 +20,19 @@ class Pipeline:
     def __init__(self):
         self.parser = DSLParser()
         self.validator = DSLValidator()
-        self.executor = Executor()
+
+        # FIX: dependency injection (required by Executor)
+        self.entity_store = EntityStore()
+        self.relation_store = RelationStore()
+
+        self.executor = Executor(
+            entity_store=self.entity_store,
+            relation_store=self.relation_store
+        )
+
+    # FIX: alias for adapter compatibility
+    def handle(self, text: str):
+        return self.run(text)
 
     def run(self, text: str):
         logger.info("PIPELINE START")
