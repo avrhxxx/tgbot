@@ -1,13 +1,23 @@
-# src/core/state/entity_store.py
+# ============================================================
+# FILE: src/core/state/entity_store.py
 # GROUP: core.state
-# DESCRIPTION: Entity storage (Stage 1 - DSL compliant entity model + relations integrated)
+# LAYER: STATE LAYER (Graph Memory)
+# PURPOSE: Entity storage (Stage 1 - DSL compliant entity model + relations integrated)
+# ============================================================
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 
 class EntityStore:
     """
-    Stores entities in DSL-compliant structure.
+    STATE LAYER (CORE)
+
+    ROLE:
+    - stores deterministic graph state
+    - holds entities, fields, relations
+    - NO execution logic
+    - NO DSL interpretation
+    - NO error handling responsibility
 
     ENTITY MODEL:
     {
@@ -22,16 +32,16 @@ class EntityStore:
     def __init__(self):
         self.entities: Dict[str, Dict[str, Any]] = {}
 
-    # -----------------------------
-    # INTERNAL
-    # -----------------------------
+    # ============================================================
+    # INTERNAL HELPERS
+    # ============================================================
 
     def _normalize(self, name: str) -> str:
         return name.strip().lower()
 
-    # -----------------------------
-    # ENTITY OPS
-    # -----------------------------
+    # ============================================================
+    # ENTITY OPERATIONS
+    # ============================================================
 
     def create_entity(self, name: str):
         entity_id = self._normalize(name)
@@ -51,37 +61,36 @@ class EntityStore:
         entity = self.get_entity(name)
 
         if not entity:
-            raise ValueError(f"Entity not found: {name}")
+            return
 
         entity["type"] = entity_type
 
-    # -----------------------------
-    # FIELD OPS
-    # -----------------------------
+    # ============================================================
+    # FIELD OPERATIONS
+    # ============================================================
 
     def set_field(self, name: str, field: str, value: Any):
         entity = self.get_entity(name)
 
         if not entity:
-            self.create_entity(name)
-            entity = self.get_entity(name)
+            return
 
         entity["fields"][field] = value
 
-    # -----------------------------
-    # RELATION OPS (NEW)
-    # -----------------------------
+    # ============================================================
+    # RELATION OPERATIONS
+    # ============================================================
 
     def add_relation(self, from_entity: str, relation_type: str, to_entity: str):
         source = self.get_entity(from_entity)
 
         if not source:
-            self.create_entity(from_entity)
-            source = self.get_entity(from_entity)
+            return
 
-        # ensure target exists (Stage 1 behavior)
-        if not self.get_entity(to_entity):
-            self.create_entity(to_entity)
+        target = self.get_entity(to_entity)
+
+        if not target:
+            return
 
         source["relations"].append({
             "type": relation_type,
@@ -99,13 +108,12 @@ class EntityStore:
             if not (r["type"] == relation_type and r["to"] == self._normalize(to_entity))
         ]
 
-    # -----------------------------
-    # READ OPS
-    # -----------------------------
+    # ============================================================
+    # READ OPERATIONS
+    # ============================================================
 
     def get_entity(self, name: str) -> Optional[Dict[str, Any]]:
-        entity_id = self._normalize(name)
-        return self.entities.get(entity_id)
+        return self.entities.get(self._normalize(name))
 
     def get_all_entities(self):
         return self.entities
