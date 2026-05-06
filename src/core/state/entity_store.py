@@ -27,6 +27,16 @@ class EntityStore:
         return self.entities.get(self._normalize(name))
 
     # ============================================================
+    # COMPATIBILITY LAYER (FIX FOR QUERY ENGINE)
+    # ============================================================
+
+    def all(self) -> Dict[str, Dict[str, Any]]:
+        return self.entities
+
+    def get(self, entity_id: str) -> Optional[Dict[str, Any]]:
+        return self._get(entity_id)
+
+    # ============================================================
     # ENTITY OPS
     # ============================================================
 
@@ -100,7 +110,7 @@ class EntityStore:
         ]
 
     # ============================================================
-    # READ OPS
+    # READ OPS (LEGACY - DO NOT USE IN CORE, ONLY DEBUG)
     # ============================================================
 
     def get_entity(self, name: str) -> Optional[Dict[str, Any]]:
