@@ -8,21 +8,72 @@ from src.core.dsl.ast import CommandNode
 
 class DSLParser:
     """
-    Minimal deterministic parser.
-    NOTE: Placeholder implementation — will be expanded.
+    Deterministic DSL parser.
+    Converts raw text → structured AST (type + params).
     """
 
     def parse(self, text: str) -> List[CommandNode]:
-        """
-        Parses raw DSL text into AST nodes.
-        """
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         commands: List[CommandNode] = []
 
         for line in lines:
             parts = line.split()
-            name = parts[0]
-            args = parts[1:]
-            commands.append(CommandNode(name=name, args=args))
+            if not parts:
+                continue
+
+            op = parts[0].lower()
+
+            # -------------------------
+            # CREATE ENTITY
+            # create entity "Tarzan"
+            # -------------------------
+            if op == "create" and parts[1] == "entity":
+                name = parts[2].strip('"')
+                commands.append(CommandNode(
+                    type="create_entity",
+                    params={"name": name},
+                    raw=line
+                ))
+
+            # -------------------------
+            # SET FIELD
+            # set field "Tarzan" "hp" "800"
+            # -------------------------
+            elif op == "set" and parts[1] == "field":
+                entity = parts[2].strip('"')
+                field = parts[3].strip('"')
+                value = parts[4].strip('"')
+
+                commands.append(CommandNode(
+                    type="set_field",
+                    params={
+                        "entity": entity,
+                        "field": field,
+                        "value": value
+                    },
+                    raw=line
+                ))
+
+            # -------------------------
+            # ADD RELATION
+            # add relation "A" "R" "B"
+            # -------------------------
+            elif op == "add" and parts[1] == "relation":
+                source = parts[2].strip('"')
+                relation = parts[3].strip('"')
+                target = parts[4].strip('"')
+
+                commands.append(CommandNode(
+                    type="add_relation",
+                    params={
+                        "from": source,
+                        "relation": relation,
+                        "to": target
+                    },
+                    raw=line
+                ))
+
+            else:
+                raise ValueError(f"Unknown DSL command: {line}")
 
         return commands
