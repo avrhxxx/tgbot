@@ -1,8 +1,8 @@
 # src/core/state/entity_store.py
 # GROUP: core.state
-# DESCRIPTION: Entity storage (Stage 1 - DSL compliant entity model)
+# DESCRIPTION: Entity storage (Stage 1 - DSL compliant entity model + relations integrated)
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 
 class EntityStore:
@@ -14,7 +14,8 @@ class EntityStore:
         "id": str,
         "name": str,
         "type": Optional[str],
-        "fields": Dict[str, Any]
+        "fields": Dict[str, Any],
+        "relations": List[Dict[str, str]]
     }
     """
 
@@ -42,7 +43,8 @@ class EntityStore:
             "id": entity_id,
             "name": name,
             "type": None,
-            "fields": {}
+            "fields": {},
+            "relations": []
         }
 
     def set_entity_type(self, name: str, entity_type: str):
@@ -65,6 +67,37 @@ class EntityStore:
             entity = self.get_entity(name)
 
         entity["fields"][field] = value
+
+    # -----------------------------
+    # RELATION OPS (NEW)
+    # -----------------------------
+
+    def add_relation(self, from_entity: str, relation_type: str, to_entity: str):
+        source = self.get_entity(from_entity)
+
+        if not source:
+            self.create_entity(from_entity)
+            source = self.get_entity(from_entity)
+
+        # ensure target exists (Stage 1 behavior)
+        if not self.get_entity(to_entity):
+            self.create_entity(to_entity)
+
+        source["relations"].append({
+            "type": relation_type,
+            "to": self._normalize(to_entity)
+        })
+
+    def remove_relation(self, from_entity: str, relation_type: str, to_entity: str):
+        source = self.get_entity(from_entity)
+
+        if not source:
+            return
+
+        source["relations"] = [
+            r for r in source["relations"]
+            if not (r["type"] == relation_type and r["to"] == self._normalize(to_entity))
+        ]
 
     # -----------------------------
     # READ OPS
