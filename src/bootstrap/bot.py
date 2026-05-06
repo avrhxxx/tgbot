@@ -1,8 +1,8 @@
-# src/bootstrap/bot.py
 # GROUP: bootstrap
 # DESCRIPTION: Telegram entrypoint (Stage 1 - clean runtime launcher)
 
 import asyncio
+import signal
 
 from aiogram import Bot, Dispatcher
 
@@ -11,6 +11,18 @@ from src.config.config import load_config
 from src.shared.logging import get_logger
 
 logger = get_logger("bootstrap")
+
+
+# =========================
+# GRACEFUL SHUTDOWN HANDLER
+# =========================
+
+shutdown_event = asyncio.Event()
+
+
+def _handle_shutdown(*_):
+    logger.info("🛑 Shutdown signal received")
+    shutdown_event.set()
 
 
 async def main():
@@ -38,7 +50,7 @@ async def main():
     dp = Dispatcher()
 
     # =========================
-    # WEBHOOK LAYER (ADAPTER)
+    # WEBHOOK SERVER
     # =========================
     server = TelegramWebhookServer(
         bot=bot,
@@ -46,9 +58,31 @@ async def main():
         secret=telegram_cfg.webhook_secret
     )
 
-    logger.info("🔌 Telegram adapter started (no core dependency)")
+    logger.info("🔌 Telegram adapter initialized")
 
-    await server.run()
+    # =========================
+    # SIGNAL HANDLERS
+    # =========================
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGINT, _handle_shutdown)
+    loop.add_signal_handler(signal.SIGTERM, _handle_shutdown)
+
+    # =========================
+    # RUN SERVER
+    # =========================
+    server_task = asyncio.create_task(server.run())
+
+    await shutdown_event.wait()
+
+    logger.info("🧹 Shutting down server...")
+    server_task.cancel()
+
+    try:
+        await server_task
+    except asyncio.CancelledError:
+        pass
+
+    logger.info("✅ Shutdown complete")
 
 
 if __name__ == "__main__":
