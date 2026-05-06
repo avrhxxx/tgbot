@@ -1,8 +1,9 @@
 # GROUP: shared
-# DESCRIPTION: Centralized logging utility with trace support (Stage 1 Observability v2)
+# DESCRIPTION: Centralized logging utility with trace support (Stage 1 Observability v3 - mobile readable)
 
 import logging
 import time
+import textwrap
 from contextlib import contextmanager
 
 from src.shared.trace import get_trace_id, ensure_trace_id
@@ -19,13 +20,19 @@ class TraceFilter(logging.Filter):
 
 
 # =========================================
-# FORMATTER
+# FORMATTER (WITH WRAP)
 # =========================================
 
 class StageFormatter(logging.Formatter):
+    MAX_WIDTH = 100  # 🔥 dostosowane pod telefon
+
     def format(self, record: logging.LogRecord) -> str:
-        base = super().format(record)
         msg = record.getMessage()
+
+        # 🔥 zawijanie z zachowaniem indentacji
+        wrapped_msg = self._wrap_message(msg)
+
+        base = super().format(record).replace(msg, wrapped_msg)
 
         if "PIPELINE START" in msg:
             return f"\n==== {base} ===="
@@ -33,6 +40,26 @@ class StageFormatter(logging.Formatter):
             return f"==== {base} ====\n"
 
         return base
+
+    def _wrap_message(self, msg: str) -> str:
+        lines = msg.split("\n")
+        wrapped_lines = []
+
+        for line in lines:
+            stripped = line.lstrip()
+            indent = len(line) - len(stripped)
+
+            wrapped = textwrap.fill(
+                stripped,
+                width=self.MAX_WIDTH,
+                subsequent_indent=" " * indent,
+                break_long_words=False,
+                break_on_hyphens=False
+            )
+
+            wrapped_lines.append((" " * indent) + wrapped)
+
+        return "\n".join(wrapped_lines)
 
 
 # =========================================
@@ -68,12 +95,12 @@ def log_stage_start(logger: logging.Logger, name: str):
     logger.info(f"  ▶ {name}")
 
 
-def log_stage_success(logger: logging.Logger, duration_ms: int):
-    logger.info(f"    ✔ OK ({duration_ms}ms)")
+def log_stage_success(logger: logging.Logger, duration_ms: float):
+    logger.info(f"    ✔ OK ({duration_ms:.2f}ms)")  # 🔥 fix 0ms problem
 
 
-def log_stage_error(logger: logging.Logger, duration_ms: int):
-    logger.error(f"    ✖ ERROR ({duration_ms}ms)")
+def log_stage_error(logger: logging.Logger, duration_ms: float):
+    logger.error(f"    ✖ ERROR ({duration_ms:.2f}ms)")
 
 
 def log_action(logger: logging.Logger, action: str, detail: str = ""):
@@ -94,9 +121,9 @@ def timed_stage(logger: logging.Logger, name: str):
 
     try:
         yield
-        duration = int((time.time() - start) * 1000)
+        duration = (time.time() - start) * 1000
         log_stage_success(logger, duration)
     except Exception:
-        duration = int((time.time() - start) * 1000)
+        duration = (time.time() - start) * 1000
         log_stage_error(logger, duration)
         raise
