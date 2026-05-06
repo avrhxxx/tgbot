@@ -12,12 +12,19 @@ class Executor:
 
         for command in commands:
 
+            if not hasattr(command, "type") or not hasattr(command, "params"):
+                raise ValueError("Invalid AST node")
+
+            # ---------------------
             # CREATE ENTITY
+            # ---------------------
             if command.type == "create_entity":
                 name = command.params["name"]
                 self.entity_store.create_entity(name)
 
+            # ---------------------
             # SET FIELD
+            # ---------------------
             elif command.type == "set_field":
                 self.entity_store.set_field(
                     command.params["entity"],
@@ -25,7 +32,9 @@ class Executor:
                     command.params["value"]
                 )
 
+            # ---------------------
             # ADD RELATION
+            # ---------------------
             elif command.type == "add_relation":
                 self.relation_store.add_relation(
                     command.params["from"],
