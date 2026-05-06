@@ -23,23 +23,26 @@ class DSLParser:
 
             op = parts[0].lower()
 
-            # -------------------------
+            # -------------------------------------------------
             # CREATE ENTITY
             # create entity "Tarzan"
-            # -------------------------
-            if op == "create" and parts[1] == "entity":
+            # -------------------------------------------------
+            if op == "create" and len(parts) > 2 and parts[1] == "entity":
                 name = parts[2].strip('"')
+
                 commands.append(CommandNode(
                     type="create_entity",
-                    params={"name": name},
+                    params={
+                        "name": name
+                    },
                     raw=line
                 ))
 
-            # -------------------------
+            # -------------------------------------------------
             # SET FIELD
             # set field "Tarzan" "hp" "800"
-            # -------------------------
-            elif op == "set" and parts[1] == "field":
+            # -------------------------------------------------
+            elif op == "set" and len(parts) > 4 and parts[1] == "field":
                 entity = parts[2].strip('"')
                 field = parts[3].strip('"')
                 value = parts[4].strip('"')
@@ -54,11 +57,11 @@ class DSLParser:
                     raw=line
                 ))
 
-            # -------------------------
+            # -------------------------------------------------
             # ADD RELATION
-            # add relation "A" "R" "B"
-            # -------------------------
-            elif op == "add" and parts[1] == "relation":
+            # add relation "Tarzan" "drops" "Iron Sword"
+            # -------------------------------------------------
+            elif op == "add" and len(parts) > 4 and parts[1] == "relation":
                 source = parts[2].strip('"')
                 relation = parts[3].strip('"')
                 target = parts[4].strip('"')
