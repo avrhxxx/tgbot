@@ -2,7 +2,7 @@
 # GROUP: core.graph
 # DESCRIPTION: Stores relations between entities (in-memory placeholder)
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 
 class RelationStore:
