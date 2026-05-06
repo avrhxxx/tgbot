@@ -10,9 +10,8 @@ from typing import Dict, Any, Optional
 class ASTNode:
     """
     Base AST node.
-    Contains optional raw input for trace/debug purposes.
     """
-    raw: Optional[str] = None
+    pass
 
 
 @dataclass
@@ -23,3 +22,4 @@ class CommandNode(ASTNode):
 
     type: str
     params: Dict[str, Any]
+    raw: Optional[str] = None
