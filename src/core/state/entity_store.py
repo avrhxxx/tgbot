@@ -5,7 +5,7 @@
 # PURPOSE: Deterministic graph storage (Stage 1 FINAL CONTRACT)
 # ============================================================
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from src.shared.logging import get_logger
 
 logger = get_logger("entity_store")
