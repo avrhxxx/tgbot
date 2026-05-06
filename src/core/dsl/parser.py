@@ -1,7 +1,3 @@
-# src/core/dsl/parser.py
-# GROUP: core.dsl
-# DESCRIPTION: DSL parser (text → AST). Deterministic, no AI.
-
 from typing import List
 import re
 
@@ -9,10 +5,6 @@ from src.core.dsl.ast import CommandNode
 
 
 class DSLParser:
-    """
-    Deterministic DSL parser.
-    Converts raw text → structured AST (type + params).
-    """
 
     STRING_RE = re.compile(r'"([^"]*)"')
 
@@ -22,18 +14,12 @@ class DSLParser:
 
         for line in lines:
             lower = line.lower()
-
-            # extract quoted strings safely
             quoted = self.STRING_RE.findall(line)
 
             # -----------------------------
             # CREATE ENTITY
-            # create entity "Tarzan"
             # -----------------------------
             if lower.startswith("create entity"):
-                if len(quoted) < 1:
-                    raise ValueError(f"Invalid create entity syntax: {line}")
-
                 commands.append(CommandNode(
                     type="create_entity",
                     params={"name": quoted[0]},
@@ -41,13 +27,56 @@ class DSLParser:
                 ))
 
             # -----------------------------
+            # CREATE TYPE
+            # create type "hero"
+            # -----------------------------
+            elif lower.startswith("create type"):
+                commands.append(CommandNode(
+                    type="create_type",
+                    params={"name": quoted[0]},
+                    raw=line
+                ))
+
+            # -----------------------------
+            # CREATE FIELD
+            # create field "hp"
+            # -----------------------------
+            elif lower.startswith("create field"):
+                commands.append(CommandNode(
+                    type="create_field",
+                    params={"name": quoted[0]},
+                    raw=line
+                ))
+
+            # -----------------------------
+            # CREATE RELATION
+            # create relation "drops"
+            # -----------------------------
+            elif lower.startswith("create relation"):
+                commands.append(CommandNode(
+                    type="create_relation",
+                    params={"name": quoted[0]},
+                    raw=line
+                ))
+
+            # -----------------------------
+            # SET ENTITY TYPE
+            # set entity type "Tarzan" "hero"
+            # -----------------------------
+            elif lower.startswith("set entity type"):
+                commands.append(CommandNode(
+                    type="set_entity_type",
+                    params={
+                        "entity": quoted[0],
+                        "type": quoted[1]
+                    },
+                    raw=line
+                ))
+
+            # -----------------------------
             # SET FIELD
-            # set field "Tarzan" "hp" "800"
             # -----------------------------
             elif lower.startswith("set field"):
-                if len(quoted) < 3:
-                    raise ValueError(f"Invalid set field syntax: {line}")
-
                 commands.append(CommandNode(
                     type="set_field",
                     params={
@@ -60,12 +89,8 @@ class DSLParser:
 
             # -----------------------------
             # ADD RELATION
-            # add relation "Tarzan" "drops" "Sword"
             # -----------------------------
             elif lower.startswith("add relation"):
-                if len(quoted) < 3:
-                    raise ValueError(f"Invalid add relation syntax: {line}")
-
                 commands.append(CommandNode(
                     type="add_relation",
                     params={
