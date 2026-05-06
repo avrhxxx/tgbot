@@ -1,6 +1,4 @@
 # src/core/runtime/pipeline.py
-# GROUP: core.runtime
-# DESCRIPTION: Main execution pipeline (DSL → parse → validate → execute)
 
 from src.core.dsl.parser import DSLParser
 from src.core.dsl.validator import DSLValidator
@@ -13,15 +11,11 @@ logger = get_logger("pipeline")
 
 
 class Pipeline:
-    """
-    Core deterministic pipeline.
-    """
 
     def __init__(self):
         self.parser = DSLParser()
         self.validator = DSLValidator()
 
-        # FIX: dependency injection (required by Executor)
         self.entity_store = EntityStore()
         self.relation_store = RelationStore()
 
@@ -30,22 +24,18 @@ class Pipeline:
             relation_store=self.relation_store
         )
 
-    # FIX: alias for adapter compatibility
     def handle(self, text: str):
         return self.run(text)
 
     def run(self, text: str):
         logger.info("PIPELINE START")
 
-        # 1. Parse
         ast = self.parser.parse(text)
         logger.info(f"Parsed AST: {ast}")
 
-        # 2. Validate
         self.validator.validate(ast)
         logger.info("Validation passed")
 
-        # 3. Execute
         result = self.executor.execute(ast)
         logger.info("Execution finished")
 
