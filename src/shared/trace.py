@@ -1,4 +1,3 @@
-# src/shared/trace.py
 # GROUP: shared
 # DESCRIPTION: Lightweight trace context system for end-to-end request tracking
 
@@ -6,7 +5,6 @@ import uuid
 import contextvars
 from typing import Optional
 
-# Holds trace_id per async execution context
 _trace_id_var: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
     "trace_id",
     default=None
