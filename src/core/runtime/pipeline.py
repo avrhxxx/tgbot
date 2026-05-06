@@ -23,7 +23,7 @@ class Pipeline:
         # DSL CORE
         self.parser = DSLParser()
 
-        # REGISTRY LAYER (IN-MEMORY STAGE 1)
+        # REGISTRIES (Stage 1 in-memory)
         self.type_registry = TypeRegistry()
         self.field_registry = FieldRegistry()
         self.relation_registry = RelationRegistry()
@@ -34,7 +34,7 @@ class Pipeline:
             relation_registry=self.relation_registry
         )
 
-        # GRAPH STATE (IN-MEMORY STAGE 1)
+        # GRAPH STATE
         self.entity_store = EntityStore()
         self.relation_store = RelationStore()
 
@@ -49,13 +49,22 @@ class Pipeline:
     def run(self, text: str):
         logger.info("PIPELINE START")
 
+        # 1. PARSE
         ast = self.parser.parse(text)
         logger.info(f"Parsed AST: {ast}")
 
-        self.validator.validate(ast)
-        logger.info("Validation passed")
+        # 2. VALIDATE (SOFT - does NOT block)
+        validated_ast = self.validator.validate(ast)
 
-        result = self.executor.execute(ast)
+        logger.info(
+            f"Validation finished. "
+            f"valid={len([c for c in validated_ast if getattr(c, '_valid', True)])}, "
+            f"total={len(validated_ast)}"
+        )
+
+        # 3. EXECUTE (partial safe run)
+        result = self.executor.execute(validated_ast)
+
         logger.info("Execution finished")
 
         return result
