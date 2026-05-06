@@ -2,7 +2,6 @@
 # DESCRIPTION: Core config for Shadow AI system (Telegram + Webhook + Google infra)
 
 import json
-import os
 from dataclasses import dataclass
 from typing import Any, List
 
