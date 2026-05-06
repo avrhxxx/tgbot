@@ -1,6 +1,6 @@
 # src/core/runtime/pipeline.py
 # GROUP: core.runtime
-# DESCRIPTION: DSL execution pipeline (Stage 1 compiler runtime)
+# DESCRIPTION: DSL execution pipeline (Stage 1 compiler runtime - FINAL CONTRACT)
 
 from src.core.dsl.parser import DSLParser
 from src.core.dsl.validator import DSLValidator
@@ -13,6 +13,7 @@ from src.domain.fields.field_registry import FieldRegistry
 from src.domain.relations.relation_registry import RelationRegistry
 
 from src.shared.logging import get_logger
+from src.shared.trace import ensure_trace_id
 
 logger = get_logger("pipeline")
 
@@ -22,7 +23,7 @@ class Pipeline:
     Stage 1 Execution Pipeline
 
     FLOW:
-    DSL TEXT → PARSE → VALIDATE → EXECUTE → RESULT
+    DSL TEXT → PARSE → VALIDATE → EXECUTE → RESPONSE CONTRACT
     """
 
     def __init__(self):
@@ -58,19 +59,42 @@ class Pipeline:
         return self.run(text)
 
     def run(self, text: str):
-        logger.info("PIPELINE START")
 
+        trace_id = ensure_trace_id()
+        logger.info(f"[trace={trace_id}] PIPELINE START")
+
+        # =========================
         # 1. PARSE
+        # =========================
         ast = self.parser.parse(text)
-        logger.info(f"Parsed AST: {ast}")
 
-        # 2. VALIDATE
+        # =========================
+        # 2. VALIDATE (NON-BLOCKING)
+        # =========================
         validated_ast = self.validator.validate(ast)
-        logger.info("Validation passed")
 
+        # =========================
         # 3. EXECUTE
-        result = self.executor.execute(validated_ast)
+        # =========================
+        exec_results = self.executor.execute(validated_ast)
 
-        logger.info("Execution finished")
+        # =========================
+        # 4. RESPONSE CONTRACT BUILD
+        # =========================
+        errors = [r for r in exec_results if r["status"] == "error"]
+        ok = [r for r in exec_results if r["status"] == "ok"]
 
-        return result
+        response = {
+            "status": "error" if errors else "ok",
+            "trace_id": trace_id,
+            "results": exec_results,
+            "errors": errors,
+            "meta": {
+                "executed": len(ok),
+                "failed": len(errors)
+            }
+        }
+
+        logger.info(f"[trace={trace_id}] PIPELINE END")
+
+        return response
