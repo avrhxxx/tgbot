@@ -1,6 +1,6 @@
 # src/core/runtime/pipeline.py
 # GROUP: core.runtime
-# DESCRIPTION: DSL execution pipeline (Stage 1 compiler runtime - FINAL CONTRACT)
+# DESCRIPTION: DSL execution pipeline (Stage 1 compiler runtime - FINAL CONTRACT + OBSERVABILITY v1)
 
 from src.core.dsl.parser import DSLParser
 from src.core.dsl.validator import DSLValidator
@@ -66,17 +66,29 @@ class Pipeline:
         # =========================
         # 1. PARSE
         # =========================
+        logger.info(f"[trace={trace_id}] STEP=parse START")
         ast = self.parser.parse(text)
+        logger.info(
+            f"[trace={trace_id}] STEP=parse END "
+            f"commands={len(ast.commands) if hasattr(ast, 'commands') else 'n/a'}"
+        )
 
         # =========================
         # 2. VALIDATE (NON-BLOCKING)
         # =========================
+        logger.info(f"[trace={trace_id}] STEP=validate START")
         validated_ast = self.validator.validate(ast)
+        logger.info(f"[trace={trace_id}] STEP=validate END")
 
         # =========================
         # 3. EXECUTE
         # =========================
+        logger.info(f"[trace={trace_id}] STEP=execute START")
         exec_results = self.executor.execute(validated_ast)
+        logger.info(
+            f"[trace={trace_id}] STEP=execute END "
+            f"ops={len(exec_results)}"
+        )
 
         # =========================
         # 4. RESPONSE CONTRACT BUILD
@@ -95,6 +107,9 @@ class Pipeline:
             }
         }
 
-        logger.info(f"[trace={trace_id}] PIPELINE END")
+        logger.info(
+            f"[trace={trace_id}] PIPELINE END "
+            f"executed={len(ok)} failed={len(errors)}"
+        )
 
         return response
