@@ -1,5 +1,6 @@
 # src/core/runtime/executor.py
-# PURPOSE: Command execution engine
+# PURPOSE: Command execution engine (DSL AST → Graph operations)
+
 
 class Executor:
     def __init__(self, entity_store, relation_store):
@@ -7,38 +8,37 @@ class Executor:
         self.relation_store = relation_store
 
     def execute(self, commands):
-        """
-        Executes list of AST commands
-        """
-
         results = []
 
         for command in commands:
 
             # CREATE ENTITY
-            if command.name == "create":
-                # create entity "Tarzan"
-                entity_name = command.args[1]
-                self.entity_store.create_entity(entity_name)
+            if command.type == "create_entity":
+                name = command.params["name"]
+                self.entity_store.create_entity(name)
 
             # SET FIELD
-            elif command.name == "set":
-                # set field "Tarzan" "hp" "800"
-                entity = command.args[1]
-                field = command.args[2]
-                value = command.args[3]
-
-                self.entity_store.set_field(entity, field, value)
+            elif command.type == "set_field":
+                self.entity_store.set_field(
+                    command.params["entity"],
+                    command.params["field"],
+                    command.params["value"]
+                )
 
             # ADD RELATION
-            elif command.name == "add":
-                # add relation "Tarzan" "has_skill" "Skill"
-                source = command.args[1]
-                relation = command.args[2]
-                target = command.args[3]
+            elif command.type == "add_relation":
+                self.relation_store.add_relation(
+                    command.params["from"],
+                    command.params["relation"],
+                    command.params["to"]
+                )
 
-                self.relation_store.add_relation(source, relation, target)
+            else:
+                raise ValueError(f"Unknown command type: {command.type}")
 
-            results.append({"status": "ok", "command": command.name})
+            results.append({
+                "status": "ok",
+                "type": command.type
+            })
 
         return results
