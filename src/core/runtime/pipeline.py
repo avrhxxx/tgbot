@@ -1,4 +1,6 @@
 # src/core/runtime/pipeline.py
+# GROUP: core.runtime
+# DESCRIPTION: DSL execution pipeline (Stage 1 compiler runtime)
 
 from src.core.dsl.parser import DSLParser
 from src.core.dsl.validator import DSLValidator
@@ -17,13 +19,23 @@ logger = get_logger("pipeline")
 
 
 class Pipeline:
+    """
+    Stage 1 Execution Pipeline
+
+    FLOW:
+    DSL TEXT → PARSE → VALIDATE → EXECUTE → RESULT
+    """
 
     def __init__(self):
 
+        # -----------------------------
         # DSL CORE
+        # -----------------------------
         self.parser = DSLParser()
 
+        # -----------------------------
         # REGISTRIES (Stage 1 in-memory)
+        # -----------------------------
         self.type_registry = TypeRegistry()
         self.field_registry = FieldRegistry()
         self.relation_registry = RelationRegistry()
@@ -34,7 +46,9 @@ class Pipeline:
             relation_registry=self.relation_registry
         )
 
-        # GRAPH STATE
+        # -----------------------------
+        # GRAPH STATE (IN-MEMORY)
+        # -----------------------------
         self.entity_store = EntityStore()
         self.relation_store = RelationStore()
 
@@ -53,16 +67,11 @@ class Pipeline:
         ast = self.parser.parse(text)
         logger.info(f"Parsed AST: {ast}")
 
-        # 2. VALIDATE (SOFT - does NOT block)
+        # 2. VALIDATE (non-destructive)
         validated_ast = self.validator.validate(ast)
+        logger.info("Validation passed")
 
-        logger.info(
-            f"Validation finished. "
-            f"valid={len([c for c in validated_ast if getattr(c, '_valid', True)])}, "
-            f"total={len(validated_ast)}"
-        )
-
-        # 3. EXECUTE (partial safe run)
+        # 3. EXECUTE
         result = self.executor.execute(validated_ast)
 
         logger.info("Execution finished")
