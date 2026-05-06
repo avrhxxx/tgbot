@@ -1,5 +1,5 @@
 # GROUP: shared
-# DESCRIPTION: Centralized logging utility with trace support
+# DESCRIPTION: Centralized logging utility with trace support (Stage 1 improved observability)
 
 import logging
 
@@ -16,13 +16,32 @@ class TraceFilter(logging.Filter):
         return True
 
 
+class StageFormatter(logging.Formatter):
+    """
+    Adds lightweight visual structure for pipeline debugging
+    without breaking standard logging system
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        base = super().format(record)
+
+        # lightweight visual grouping hints
+        msg = record.getMessage()
+
+        if "PIPELINE START" in msg:
+            return f"\n==== {base} ===="
+        if "PIPELINE END" in msg:
+            return f"==== {base} ====\n"
+
+        return base
+
+
 def get_logger(name: str) -> logging.Logger:
     """
     Returns standardized logger instance
     used across CORE + INFRA + AI layers
     """
 
-    # 🔥 ENSURE TRACE ALWAYS EXISTS
     ensure_trace_id()
 
     logger = logging.getLogger(name)
@@ -30,10 +49,9 @@ def get_logger(name: str) -> logging.Logger:
     if not logger.handlers:
         handler = logging.StreamHandler()
 
-        # 🔥 FILTER MUST BE ON HANDLER (NOT LOGGER)
         handler.addFilter(TraceFilter())
 
-        formatter = logging.Formatter(
+        formatter = StageFormatter(
             "[%(asctime)s] [trace=%(trace_id)s] [%(levelname)s] [%(name)s] %(message)s"
         )
 
