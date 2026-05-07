@@ -1,10 +1,8 @@
-# src/adapters/telegram/handler.py
-# PURPOSE: Telegram adapter layer (Stage 1 UI bridge → Core DSL pipeline)
+from src.core.runtime.pipeline import Pipeline
+from src.core.runtime.query_pipeline import QueryPipeline
+from src.shared.logging import get_logger
 
 import uuid
-
-from src.core.runtime.pipeline import Pipeline
-from src.shared.logging import get_logger
 
 logger = get_logger("TelegramAdapter")
 
@@ -13,36 +11,40 @@ class TelegramHandler:
 
     def __init__(self):
         self.pipeline = Pipeline()
+        self.query_pipeline = QueryPipeline()   # 🔥 DODANE
 
     async def handle_text(self, text: str) -> dict:
+
         trace_id = str(uuid.uuid4())
 
-        logger.info(f"[trace={trace_id}] [Telegram] input: {text}")
+        logger.info(f"[trace={trace_id}] input: {text}")
 
         try:
-            # =========================
-            # SYSTEM COMMAND ROUTER
-            # =========================
-            if text.startswith("/"):
-                result = self.handle_system_command(text)
 
-                response = {
-                    "status": "ok",
-                    "trace_id": trace_id,
-                    "result": result
-                }
+            # =========================
+            # DSL PATH (WRITE SYSTEM)
+            # =========================
+            if text.startswith("/dsl"):
+                result = self.pipeline.handle(text.replace("/dsl", "").strip())
 
+            # =========================
+            # QUERY PATH (AI READ SYSTEM)
+            # =========================
             else:
-                # DSL ONLY PATH
-                result = self.pipeline.handle(text)
+                result = self.query_pipeline.handle(
+                    text=text,
+                    user_id="telegram_user",
+                    session_id="default"
+                )
 
-                response = {
-                    "status": "ok",
-                    "trace_id": trace_id,
-                    "result": result
-                }
+            response = {
+                "status": "ok",
+                "trace_id": trace_id,
+                "result": result
+            }
 
         except Exception as e:
+
             logger.error(f"[trace={trace_id}] error: {str(e)}")
 
             response = {
@@ -51,17 +53,9 @@ class TelegramHandler:
                 "error": str(e)
             }
 
-        logger.info(f"[trace={trace_id}] [Telegram] output: {response}")
+        logger.info(f"[trace={trace_id}] output ready")
+
         return response
-
-    def handle_system_command(self, text: str) -> str:
-
-        if text == "/start":
-            return "🧠 Tiles Survive bot online (Stage 1)"
-        elif text == "/help":
-            return "Available commands: DSL only or /start"
-        else:
-            return f"Unknown system command: {text}"
 
 
 handler = TelegramHandler()
